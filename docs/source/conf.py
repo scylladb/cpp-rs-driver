@@ -172,28 +172,12 @@ html_context = {"html_baseurl": html_baseurl}
 
 # -- Initialize Sphinx ----------------------------------------------
 
-def replace_relative_links(app, docname, source):
-    result = source[0]
-    for item in app.config.replacements:
-        for key, value in item.items():
-            result = re.sub(key, value, result)
-    source[0] = result
-
 def setup(sphinx):
     warnings.filterwarnings(
         action="ignore",
         category=UserWarning,
         message=r".*Container node skipped.*",
     )
-
-    # Workaround to replace DataStax links
-    replacements = [
-        {"http://datastax.github.io/cpp-driver/api/cassandra.h/": "https://cpp-rust-driver.docs.scylladb.com/" + smv_latest_version + "/api"},
-        {"http://datastax.github.io/cpp-driver": "https://cpp-rust-driver.docs.scylladb.com/" + smv_latest_version},
-        {"http://docs.datastax.com/en/developer/cpp-driver/latest": "https://cpp-rust-driver.docs.scylladb.com/" + smv_latest_version},
-    ]
-    sphinx.add_config_value('replacements', replacements, True)
-    sphinx.connect('source-read', replace_relative_links)
 
     # Autogenerate API Reference
     sphinx.connect("builder-inited", generate_doxygen)
