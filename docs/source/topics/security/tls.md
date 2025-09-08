@@ -55,8 +55,6 @@ client_encryption_options:
 
 **NOTE:** In this example keystore and truststore are identical.
 
-The following [guide](http://www.datastax.com/documentation/cassandra/2.1/cassandra/security/secureSSLClientToNode_t.html) has more information related to configuring TLS on ScyllaDB/Cassandra.
-
 ## Setting up the C/C++ Driver to Use TLS
 
 A [`CassSsl`](http://datastax.github.io/cpp-driver/api/struct.CassSsl) object is required and must be configured:
