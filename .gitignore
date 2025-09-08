@@ -8,3 +8,5 @@ cmake-build-debug/
 version
 docs/_build
 log/
+docs/source/api
+doxygen/xml
