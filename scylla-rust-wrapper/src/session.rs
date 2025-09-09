@@ -876,10 +876,7 @@ mod tests {
     use rusty_fork::rusty_fork_test;
     use scylla::errors::DbError;
     use scylla::frame::types::Consistency;
-    use scylla_proxy::{
-        Condition, Node, Proxy, Reaction, RequestFrame, RequestOpcode, RequestReaction,
-        RequestRule, ResponseFrame, RunningProxy,
-    };
+    use scylla_proxy::{Condition, RequestOpcode, RequestReaction, RequestRule, RunningProxy};
     use tracing::instrument::WithSubscriber;
 
     use super::*;
@@ -902,14 +899,16 @@ mod tests {
             cass_statement_set_execution_profile_n,
         },
         future::{
-            cass_future_error_code, cass_future_error_message, cass_future_free,
-            cass_future_set_callback, cass_future_wait,
+            cass_future_error_code, cass_future_free, cass_future_set_callback, cass_future_wait,
         },
         retry_policy::{
             CassRetryPolicy, cass_retry_policy_default_new, cass_retry_policy_fallthrough_new,
         },
         statement::{cass_statement_free, cass_statement_new, cass_statement_set_retry_policy},
-        testing::{assert_cass_error_eq, setup_tracing},
+        testing::{
+            assert_cass_error_eq, cass_future_wait_check_and_free, generic_drop_queries_rules,
+            handshake_rules, mock_init_rules, setup_tracing, test_with_one_proxy,
+        },
         types::cass_bool_t,
     };
     use std::{
@@ -920,94 +919,6 @@ mod tests {
         net::SocketAddr,
         sync::atomic::{AtomicUsize, Ordering},
     };
-
-    unsafe fn cass_future_wait_check_and_free(fut: CassOwnedSharedPtr<CassFuture, CMut>) {
-        unsafe { cass_future_wait(fut.borrow()) };
-        if unsafe { cass_future_error_code(fut.borrow()) } != CassError::CASS_OK {
-            let mut message: *const c_char = std::ptr::null();
-            let mut message_len: size_t = 0;
-            unsafe { cass_future_error_message(fut.borrow(), &mut message, &mut message_len) };
-            eprintln!("{:?}", unsafe { ptr_to_cstr_n(message, message_len) });
-        }
-        unsafe {
-            assert_cass_error_eq!(cass_future_error_code(fut.borrow()), CassError::CASS_OK);
-        }
-        unsafe { cass_future_free(fut) };
-    }
-
-    /// A set of rules that are needed to negotiate connections.
-    // All connections are successfully negotiated.
-    fn handshake_rules() -> impl IntoIterator<Item = RequestRule> {
-        [
-            RequestRule(
-                Condition::RequestOpcode(RequestOpcode::Options),
-                RequestReaction::forge_response(Arc::new(move |frame: RequestFrame| {
-                    ResponseFrame::forged_supported(frame.params, &HashMap::new()).unwrap()
-                })),
-            ),
-            RequestRule(
-                Condition::RequestOpcode(RequestOpcode::Startup)
-                    .or(Condition::RequestOpcode(RequestOpcode::Register)),
-                RequestReaction::forge_response(Arc::new(move |frame: RequestFrame| {
-                    ResponseFrame::forged_ready(frame.params)
-                })),
-            ),
-        ]
-    }
-
-    // As these are very generic, they should be put last in the rules Vec.
-    fn generic_drop_queries_rules() -> impl IntoIterator<Item = RequestRule> {
-        [RequestRule(
-            Condition::RequestOpcode(RequestOpcode::Query),
-            // We won't respond to any queries (including metadata fetch),
-            // but the driver will manage to continue with dummy metadata.
-            RequestReaction::forge().server_error(),
-        )]
-    }
-
-    /// A set of rules that are needed to finish session initialization.
-    // They are used in tests that require a session to be connected.
-    // All connections are successfully negotiated.
-    // All requests are replied with a server error.
-    fn mock_init_rules() -> impl IntoIterator<Item = RequestRule> {
-        handshake_rules()
-            .into_iter()
-            .chain(std::iter::once(RequestRule(
-                Condition::RequestOpcode(RequestOpcode::Query)
-                    .or(Condition::RequestOpcode(RequestOpcode::Prepare))
-                    .or(Condition::RequestOpcode(RequestOpcode::Batch)),
-                // We won't respond to any queries (including metadata fetch),
-                // but the driver will manage to continue with dummy metadata.
-                RequestReaction::forge().server_error(),
-            )))
-    }
-
-    pub(crate) async fn test_with_one_proxy(
-        test: impl FnOnce(SocketAddr, RunningProxy) -> RunningProxy + Send + 'static,
-        rules: impl IntoIterator<Item = RequestRule>,
-    ) {
-        let proxy_addr = SocketAddr::new(scylla_proxy::get_exclusive_local_address(), 9042);
-
-        let proxy = Proxy::builder()
-            .with_node(
-                Node::builder()
-                    .proxy_address(proxy_addr)
-                    .request_rules(rules.into_iter().collect())
-                    .build_dry_mode(),
-            )
-            .build()
-            .run()
-            .await
-            .unwrap();
-
-        // This is required to avoid the clash of a runtime built inside another runtime
-        // (the test runs one runtime to drive the proxy, and CassFuture implementation uses another)
-        let proxy = tokio::task::spawn_blocking(move || test(proxy_addr, proxy))
-            .await
-            .expect("Test thread panicked");
-
-        let _ = proxy.finish().await;
-    }
 
     #[tokio::test]
     #[ntest::timeout(5000)]
