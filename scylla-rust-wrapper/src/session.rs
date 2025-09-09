@@ -909,7 +909,7 @@ mod tests {
             CassRetryPolicy, cass_retry_policy_default_new, cass_retry_policy_fallthrough_new,
         },
         statement::{cass_statement_free, cass_statement_new, cass_statement_set_retry_policy},
-        testing::assert_cass_error_eq,
+        testing::{assert_cass_error_eq, setup_tracing},
         types::cass_bool_t,
     };
     use std::{
@@ -920,15 +920,6 @@ mod tests {
         net::SocketAddr,
         sync::atomic::{AtomicUsize, Ordering},
     };
-
-    // This is for convenient logs from failing tests. Just call it at the beginning of a test.
-    #[allow(unused)]
-    fn init_logger() {
-        let _ = tracing_subscriber::fmt::fmt()
-            .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-            .without_time()
-            .try_init();
-    }
 
     unsafe fn cass_future_wait_check_and_free(fut: CassOwnedSharedPtr<CassFuture, CMut>) {
         unsafe { cass_future_wait(fut.borrow()) };
@@ -1021,7 +1012,7 @@ mod tests {
     #[tokio::test]
     #[ntest::timeout(5000)]
     async fn session_clones_and_freezes_exec_profiles_mapping() {
-        init_logger();
+        setup_tracing();
         test_with_one_proxy(
             session_clones_and_freezes_exec_profiles_mapping_do,
             handshake_rules()
@@ -1116,7 +1107,7 @@ mod tests {
     #[tokio::test]
     #[ntest::timeout(5000)]
     async fn session_resolves_exec_profile_on_first_query() {
-        init_logger();
+        setup_tracing();
         test_with_one_proxy(
             session_resolves_exec_profile_on_first_query_do,
             handshake_rules().into_iter().chain(
@@ -1403,7 +1394,7 @@ mod tests {
     #[tokio::test]
     #[ntest::timeout(30000)]
     async fn retry_policy_on_statement_and_batch_is_handled_properly() {
-        init_logger();
+        setup_tracing();
         test_with_one_proxy(
             retry_policy_on_statement_and_batch_is_handled_properly_do,
             retry_policy_on_statement_and_batch_is_handled_properly_rules(),
@@ -1892,7 +1883,7 @@ mod tests {
     #[tokio::test]
     #[ntest::timeout(5000)]
     async fn test_cass_session_get_client_id_on_disconnected_session() {
-        init_logger();
+        setup_tracing();
         test_with_one_proxy(
             |node_addr: SocketAddr, proxy: RunningProxy| unsafe {
                 let session_raw = cass_session_new();
@@ -1940,7 +1931,7 @@ mod tests {
     #[tokio::test]
     #[ntest::timeout(5000)]
     async fn session_free_waits_for_requests_to_complete() {
-        init_logger();
+        setup_tracing();
         test_with_one_proxy(
             session_free_waits_for_requests_to_complete_do,
             mock_init_rules(),
