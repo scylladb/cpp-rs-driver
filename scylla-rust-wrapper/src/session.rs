@@ -10,6 +10,7 @@ use crate::metadata::create_table_metadata;
 use crate::metadata::{CassKeyspaceMeta, CassMaterializedViewMeta, CassSchemaMeta};
 use crate::prepared::CassPrepared;
 use crate::query_result::{CassResult, CassResultKind, CassResultMetadata};
+use crate::runtime::Runtime;
 use crate::statement::{BoundStatement, CassStatement, SimpleQueryRowSerializer};
 use crate::types::size_t;
 use crate::uuid::CassUuid;
@@ -31,7 +32,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 pub(crate) struct CassConnectedSession {
-    runtime: Arc<tokio::runtime::Runtime>,
+    runtime: Arc<Runtime>,
     session: Session,
     exec_profile_map: HashMap<ExecProfileName, ExecutionProfileHandle>,
 }
@@ -99,7 +100,7 @@ impl CassConnectedSession {
     }
 
     async fn connect_fut(
-        runtime: Arc<tokio::runtime::Runtime>,
+        runtime: Arc<Runtime>,
         session: Arc<CassSession>,
         session_builder_fut: impl Future<Output = SessionBuilder>,
         cluster_client_id: Option<uuid::Uuid>,

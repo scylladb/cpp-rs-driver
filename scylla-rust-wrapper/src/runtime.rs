@@ -4,10 +4,48 @@
 
 use std::{
     collections::HashMap,
+    mem::ManuallyDrop,
     sync::{Arc, Weak},
 };
 
-use tokio::runtime::Runtime;
+/// This is a wrapper to ensure that the runtime is properly shut down even
+/// if dropped in the async context. This is done by using a custom
+/// Drop implementation that calls `shutdown_background`, as opposed
+/// to the default `Drop` implementation of `Runtime` that calls
+/// `shutdown` which panics if called from the async context.
+#[repr(transparent)]
+pub(crate) struct Runtime {
+    inner: ManuallyDrop<tokio::runtime::Runtime>,
+}
+
+impl From<tokio::runtime::Runtime> for Runtime {
+    fn from(inner: tokio::runtime::Runtime) -> Self {
+        Self {
+            inner: ManuallyDrop::new(inner),
+        }
+    }
+}
+
+impl std::ops::Deref for Runtime {
+    type Target = tokio::runtime::Runtime;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl Drop for Runtime {
+    fn drop(&mut self) {
+        // SAFETY: We are executing the drop logic only once, here.
+        // Drop::drop is guaranteed to be called only once, and we are taking
+        // the inner value out of the ManuallyDrop exactly once here.
+        let runtime = unsafe { ManuallyDrop::take(&mut self.inner) };
+
+        // We use `shutdown_background()` instead of the usual Runtime Drop impl to avoid panicking
+        // if the runtime is dropped in an async context.
+        runtime.shutdown_background();
+    }
+}
 
 /// Manages tokio runtimes for the application.
 ///
@@ -52,7 +90,11 @@ impl Runtimes {
     /// and cache it for future use.
     pub(crate) fn default_runtime(&mut self) -> Result<Arc<Runtime>, std::io::Error> {
         let default_runtime_slot = self.default_runtime.get_or_insert_with(Weak::new);
-        Self::cached_or_new_runtime(default_runtime_slot, || Runtime::new().map(Arc::new))
+        Self::cached_or_new_runtime(default_runtime_slot, || {
+            tokio::runtime::Runtime::new()
+                .map(Runtime::from)
+                .map(Arc::new)
+        })
     }
 
     /// Returns a tokio runtime with `n_threads` worker threads.
@@ -75,6 +117,7 @@ impl Runtimes {
                     .enable_all()
                     .build(),
             }
+            .map(Runtime::from)
             .map(Arc::new)
         })
     }
