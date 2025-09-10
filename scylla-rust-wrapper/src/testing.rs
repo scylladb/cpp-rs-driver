@@ -2,7 +2,12 @@ use scylla_proxy::{
     Condition, Node, Proxy, Reaction as _, RequestFrame, RequestOpcode, RequestReaction,
     RequestRule, ResponseFrame, RunningProxy,
 };
-use std::{collections::HashMap, ffi::c_char, net::SocketAddr, sync::Arc};
+use std::{
+    collections::HashMap,
+    ffi::c_char,
+    net::{IpAddr, SocketAddr},
+    sync::Arc,
+};
 
 use crate::{
     argconv::{CMut, CassOwnedSharedPtr, ptr_to_cstr_n},
@@ -111,11 +116,12 @@ pub(crate) fn mock_init_rules() -> impl IntoIterator<Item = RequestRule> {
         )))
 }
 
-pub(crate) async fn test_with_one_proxy(
+pub(crate) async fn test_with_one_proxy_at_ip(
     test: impl FnOnce(SocketAddr, RunningProxy) -> RunningProxy + Send + 'static,
     rules: impl IntoIterator<Item = RequestRule>,
+    ip: IpAddr,
 ) {
-    let proxy_addr = SocketAddr::new(scylla_proxy::get_exclusive_local_address(), 9042);
+    let proxy_addr = SocketAddr::new(ip, 9042);
 
     let proxy = Proxy::builder()
         .with_node(
@@ -137,3 +143,107 @@ pub(crate) async fn test_with_one_proxy(
 
     let _ = proxy.finish().await;
 }
+
+pub(crate) async fn test_with_one_proxy(
+    test: impl FnOnce(SocketAddr, RunningProxy) -> RunningProxy + Send + 'static,
+    rules: impl IntoIterator<Item = RequestRule>,
+) {
+    test_with_one_proxy_at_ip(test, rules, scylla_proxy::get_exclusive_local_address()).await
+}
+
+/// Run a Rust test in a subprocess, setting up the proxy
+/// with a correct unique address.
+///
+/// This is intended to coordinate in address allocation between
+/// the parent process and the subprocesses, so that no address
+/// collisions occur when tests are run in multiple processes.
+///
+/// The basic usage is to simply put this macro around your `#[test]`
+/// function and add one argument of type `IpAddr` to it, like so:
+///
+/// ```rust,nocompile
+/// use crate::testing::rusty_fork_test_with_proxy;
+///
+/// rusty_fork_test_with_proxy! {
+///     #[test]
+///     fn my_test(ip: IpAddr) {
+///         // Use the `ip` variable to set up the proxy.
+///         let fut = test_with_one_proxy_at_ip(
+///             test_body,
+///             proxy_rules,
+///             ip,
+///         );
+///
+///         // Run the future to completion.
+///     }
+/// }
+/// ```
+///
+/// The test will be run in its own process. If the subprocess exits
+/// unsuccessfully for any reason, including due to signals, the test fails.
+///
+/// It is also possible to specify a timeout which is applied to the test in
+/// the block, by adding the following line straight before the test:
+///
+/// ```rust,no_compile
+/// #![rusty_fork(timeout_ms = 1000)]
+/// ```
+///
+/// For more details, see the documentation of the `rusty_fork_test` macro
+/// in the [rusty_fork] crate.
+/// ```
+macro_rules! rusty_fork_test_with_proxy {
+    (#![rusty_fork(timeout_ms = $timeout:expr)]
+         $(#[$meta:meta])*
+         fn $test_name:ident($ip:ident: IpAddr) $body:block
+    ) => {
+        $(#[$meta])*
+        fn $test_name() {
+            // Eagerly convert everything to function pointers so that all
+            // tests use the same instantiation of `fork`.
+            let supervise_fn = |child: &mut rusty_fork::ChildWrapper, _file: &mut std::fs::File| {
+                rusty_fork::fork_test::supervise_child(child, $timeout);
+            };
+
+            const ENV_KEY: &str = "PROXY_RUSTY_FORK_IP";
+
+            let process_modifier = |child: &mut Command| {
+                child.env(
+                    ENV_KEY,
+                    scylla_proxy::get_exclusive_local_address().to_string(),
+                );
+            };
+
+            let test = || {
+                // Body expects the ip variable in scope.
+                let $ip: ::std::net::IpAddr = std::env::var(ENV_KEY)
+                    .expect("Parent should have set the proxy address as an env variable.")
+                    .parse()
+                    .expect("Error parsing the proxy address from env variable.");
+
+                $body
+            };
+
+            rusty_fork::fork(
+                rusty_fork::rusty_fork_test_name!($test_name),
+                rusty_fork::rusty_fork_id!(),
+                process_modifier,
+                supervise_fn,
+                test,
+            )
+            .expect("forking test failed")
+        }
+    };
+
+    (
+         $(#[$meta:meta])*
+         fn $test_name:ident() $body:block
+    ) => {
+        rusty_fork_test! {
+            #![rusty_fork(timeout_ms = 0)]
+
+            $(#[$meta])* fn $test_name() $body
+        }
+    };
+}
+pub(crate) use rusty_fork_test_with_proxy;
