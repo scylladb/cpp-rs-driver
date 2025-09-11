@@ -7,7 +7,7 @@ use crate::load_balancing::{
     CassHostFilter, DcRestriction, LoadBalancingConfig, LoadBalancingKind,
 };
 use crate::retry_policy::CassRetryPolicy;
-use crate::runtime::RUNTIMES;
+use crate::runtime::{RUNTIMES, Runtime};
 use crate::ssl::CassSsl;
 use crate::timestamp_generator::CassTimestampGen;
 use crate::types::*;
@@ -109,7 +109,7 @@ impl CassCluster {
     /// Gets the runtime that has been set for the cluster.
     /// If no runtime has been set yet, it creates a default runtime
     /// and makes it cached in the global `Runtimes` instance.
-    pub(crate) fn get_runtime(&self) -> Arc<tokio::runtime::Runtime> {
+    pub(crate) fn get_runtime(&self) -> Arc<Runtime> {
         let mut runtimes = RUNTIMES.lock().unwrap();
 
         if let Some(num_threads_io) = self.num_threads_io {

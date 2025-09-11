@@ -2,6 +2,7 @@ use crate::argconv::*;
 use crate::cass_error::{CassError, CassErrorMessage, CassErrorResult, ToCassError as _};
 use crate::prepared::CassPrepared;
 use crate::query_result::{CassNode, CassResult};
+use crate::runtime::Runtime;
 use crate::types::*;
 use crate::uuid::CassUuid;
 use futures::future;
@@ -70,7 +71,7 @@ enum FutureKind {
 
 struct ResolvableFuture {
     /// Runtime used to spawn and execute the future.
-    runtime: Arc<tokio::runtime::Runtime>,
+    runtime: Arc<Runtime>,
 
     /// Mutable state of the future that requires synchronized exclusive access
     /// in order to ensure thread safety of the future execution.
@@ -115,7 +116,7 @@ impl CassFuture {
     }
 
     pub(crate) fn make_raw(
-        runtime: Arc<tokio::runtime::Runtime>,
+        runtime: Arc<Runtime>,
         fut: impl Future<Output = CassFutureResult> + Send + 'static,
         #[cfg(cpp_integration_testing)] recording_listener: Option<
             Arc<crate::integration_testing::RecordingHistoryListener>,
@@ -131,7 +132,7 @@ impl CassFuture {
     }
 
     pub(crate) fn new_from_future(
-        runtime: Arc<tokio::runtime::Runtime>,
+        runtime: Arc<Runtime>,
         fut: impl Future<Output = CassFutureResult> + Send + 'static,
         #[cfg(cpp_integration_testing)] recording_listener: Option<
             Arc<crate::integration_testing::RecordingHistoryListener>,
@@ -683,12 +684,13 @@ mod tests {
         time::Duration,
     };
 
-    fn runtime_for_test() -> Arc<tokio::runtime::Runtime> {
+    fn runtime_for_test() -> Arc<crate::runtime::Runtime> {
         Arc::new(
             tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()
-                .unwrap(),
+                .unwrap()
+                .into(),
         )
     }
 

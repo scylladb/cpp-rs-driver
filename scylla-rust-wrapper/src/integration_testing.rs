@@ -16,6 +16,8 @@ use crate::batch::CassBatch;
 use crate::cluster::CassCluster;
 use crate::future::{CassFuture, CassResultValue};
 use crate::retry_policy::CassRetryPolicy;
+#[cfg(test)]
+use crate::runtime::Runtime;
 use crate::statement::{BoundStatement, CassStatement};
 use crate::types::{cass_bool_t, cass_int32_t, cass_uint16_t, cass_uint64_t, size_t};
 
@@ -281,12 +283,13 @@ pub unsafe extern "C" fn testing_future_get_attempted_hosts(
 }
 
 #[cfg(test)]
-fn runtime_for_test() -> Arc<tokio::runtime::Runtime> {
+fn runtime_for_test() -> Arc<Runtime> {
     Arc::new(
         tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
-            .unwrap(),
+            .unwrap()
+            .into(),
     )
 }
 
