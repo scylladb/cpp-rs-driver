@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import re
 import sys
 import warnings
 from datetime import date
@@ -11,12 +12,14 @@ sys.path.insert(0, os.path.abspath(".."))
 # -- Global variables
 
 # Builds documentation for the following tags and branches.
-TAGS = []
+TAGS = [
+    "v0.5.1",
+]
 BRANCHES = [
     "master",
 ]
 # Sets the latest version.
-LATEST_VERSION = "master"
+LATEST_VERSION = "v0.5.1"
 # Set which versions are not released yet.
 UNSTABLE_VERSIONS = ["master"]
 # Set which versions are deprecated
@@ -37,13 +40,15 @@ extensions = [
     "sphinx_scylladb_theme",
     "sphinx_multiversion",  # optional
     "myst_parser",  # optional
+    'breathe',
+    'sphinx_scylladb_markdown',
 ]
 
 # The suffix(es) of source filenames.
 source_suffix = [".rst", ".md"]
 
 # The master toctree document.
-master_doc = "index"
+master_doc = "contents"
 
 # General information about the project.
 project = "ScyllaDB CPP-Rust Driver"
@@ -95,6 +100,43 @@ smv_released_pattern = r"^tags/.*$"
 smv_outputdir_format = "{ref.name}"
 # -- Options for HTML output ----------------------------------------
 
+
+# -- Options for Doxygen (API Reference)
+breathe_projects = {
+	'API': "../../doxygen/xml/"
+}
+breathe_default_project = 'API'
+breathe_default_members = ('members', 'undoc-members')
+
+# Autogenerate API reference
+def _generate_structs(outdir, structs, project):
+    """Write structs docs in the designated outdir folder"""
+    for obj in structs:
+        with open(outdir + '/struct.' + obj + '.rst', 'w') as t_file:
+            t_file.write(obj + "\n" + "=" * len(obj) + "\n\n" + ".. doxygenstruct:: " + obj +" \n  :project: " + project)
+
+def _generate_doxygen_rst(xmldir, outdir):
+    """Autogenerate doxygen docs in the designated outdir folder"""
+    structs = []
+    files = os.listdir(os.path.join(os.path.dirname(__file__), xmldir))
+    for file_name in files:
+        if 'struct' in file_name and '__' not in file_name:
+            structs.append(file_name
+            .replace('struct_', '')
+            .replace('_', ' ')
+            .replace('.xml','')
+            .title()
+            .replace(' ', ''))
+    _generate_structs(outdir, structs, breathe_default_project)
+
+def generate_doxygen(app):
+    DOXYGEN_XML_DIR = breathe_projects[breathe_default_project]
+    _generate_doxygen_rst(DOXYGEN_XML_DIR, app.builder.srcdir + '/api')
+
+# -- Options for sitemap extension
+
+sitemap_url_scheme = '/stable/{link}'
+
 # The theme to use for pages.
 html_theme = "sphinx_scylladb_theme"
 html_theme_path = ["../.."]
@@ -108,7 +150,7 @@ html_theme_options = {
     "hide_feedback_buttons": "false",
     "github_issues_repository": "scylladb/cpp-rust-driver",
     "github_repository": "scylladb/cpp-rust-driver",
-    "site_description": "API-compatible rewrite of scylladb/cpp-driver as a wrapper for Rust driver.",
+    "site_description": "API-compatible rewrite of scylladb/cpp-driver as a wrapper over ScyllaDB Rust driver.",
     "hide_version_dropdown": [],
     "zendesk_tag": "gq6ltsh3nfex3cnwfy4aj9",
     "versions_unstable": UNSTABLE_VERSIONS,
@@ -132,10 +174,12 @@ html_context = {"html_baseurl": html_baseurl}
 
 # -- Initialize Sphinx ----------------------------------------------
 
-
 def setup(sphinx):
     warnings.filterwarnings(
         action="ignore",
         category=UserWarning,
         message=r".*Container node skipped.*",
     )
+
+    # Autogenerate API Reference
+    sphinx.connect("builder-inited", generate_doxygen)

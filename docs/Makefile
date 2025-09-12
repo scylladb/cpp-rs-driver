@@ -20,10 +20,13 @@ all: dirhtml
 .PHONY: setupenv
 setupenv:
 	pip install -q poetry
+	sudo apt-get install doxygen
 
 .PHONY: setup
 setup:
 	$(POETRY) install
+	$(POETRY) update
+	cd .. && doxygen Doxyfile.in
 
 .PHONY: update
 update:
