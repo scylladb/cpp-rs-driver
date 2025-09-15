@@ -12,14 +12,12 @@ sys.path.insert(0, os.path.abspath(".."))
 # -- Global variables
 
 # Builds documentation for the following tags and branches.
-TAGS = [
-    "v0.5.1",
-]
+TAGS = []
 BRANCHES = [
     "master",
 ]
 # Sets the latest version.
-LATEST_VERSION = "v0.5.1"
+LATEST_VERSION = "master"
 # Set which versions are not released yet.
 UNSTABLE_VERSIONS = ["master"]
 # Set which versions are deprecated
