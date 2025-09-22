@@ -1,6 +1,6 @@
 # ScyllaDB Cpp-Rust Driver
 ___
-Wrapper around [ScyllaDB's Rust Driver](https://cpp-rust-driver.docs.scylladb.com/stable), which is API-compatible with both ScyllaDB and Datastax C/C++ Driver and may be considered a drop-in replacement (with some minor limitations, see [Limitations](#limitations)).
+Wrapper around [ScyllaDB's Rust Driver](https://cpp-rs-driver.docs.scylladb.com/stable), which is API-compatible with both ScyllaDB and Datastax C/C++ Driver and may be considered a drop-in replacement (with some minor limitations, see [Limitations](#limitations)).
 
 #### Note: It is work in progress, bug reports and pull requests are welcome!
 
@@ -25,7 +25,7 @@ make
 # Examples
 ___
 
-There are some examples in the [examples](https://github.com/scylladb/cpp-rust-driver/tree/master/examples) directory.
+There are some examples in the [examples](https://github.com/scylladb/cpp-rs-driver/tree/master/examples) directory.
 To run a single example:
 ```shell
 cd examples/cloud
@@ -137,7 +137,7 @@ int main() {
 ___
 
 The driver inherits almost all the features of C/C++ and Rust drivers, such as:
- * [Asynchronous API](https://cpp-rust-driver.docs.scylladb.com/stable/topics/#futures)
+ * [Asynchronous API](https://cpp-rs-driver.docs.scylladb.com/stable/topics/#futures)
  * Shard-aware routing
  * Simple, Prepared and Batch statements
  * Query paging
@@ -146,9 +146,9 @@ The driver inherits almost all the features of C/C++ and Rust drivers, such as:
  * Retry policies
  * SSL
  * Authentication
- * [Tuples](https://cpp-rust-driver.docs.scylladb.com/stable/topics/basics/data-types/tuples/) and [UDTs](http://https://cpp-rust-driver.docs.scylladb.com/stable/topics/basics/data-types/user-defined-types/)
- * [Nested collections](https://cpp-rust-driver.docs.scylladb.com/stable/topics/basics/binding-parameters/#nested-collections)
- * [Data types](https://cpp-rust-driver.docs.scylladb.com/stable/topics/basics/data-types/)
+ * [Tuples](https://cpp-rs-driver.docs.scylladb.com/stable/topics/basics/data-types/tuples/) and [UDTs](http://https://cpp-rs-driver.docs.scylladb.com/stable/topics/basics/data-types/user-defined-types/)
+ * [Nested collections](https://cpp-rs-driver.docs.scylladb.com/stable/topics/basics/binding-parameters/#nested-collections)
+ * [Data types](https://cpp-rs-driver.docs.scylladb.com/stable/topics/basics/data-types/)
  * Schema metadata (keyspace metadata, materialized views, etc.)
 
 # Limitations
@@ -462,7 +462,7 @@ Built result will placed under build/debian/debs.
 To build HomeBrew pacakge, run the following command:
 ```shell
 cd dist/homebrew
-brew install --HEAD ./scylla-cpp-rust-driver.rb
+brew install --HEAD ./scylla-cpp-rs-driver.rb
 ```
 It will run build & install the driver in HomeBrew environment.
 Tested on macOS 14.5.

@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "cpp-rust-driver"
+name = "cpp-rs-driver"
 description = "ScyllaDB CPP-Rust Driver Documentation"
 version = "0.1.0"
 authors = ["ScyllaDB Documentation Contributors"]

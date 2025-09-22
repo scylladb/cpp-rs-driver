@@ -59,7 +59,7 @@ fi
 echo "Selected target: ${TARGET}"
 
 ./SCYLLA-VERSION-GEN
-DRIVER_NAME=scylla-cpp-rust-driver
+DRIVER_NAME=scylla-cpp-rs-driver
 DRIVER_VERSION="$(sed 's/-/~/' build/SCYLLA-VERSION-FILE)"
 DRIVER_RELEASE="$(cat build/SCYLLA-RELEASE-FILE)"
 

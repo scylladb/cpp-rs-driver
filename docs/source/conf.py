@@ -146,8 +146,8 @@ html_theme_options = {
     "conf_py_path": "docs/source/",
     "hide_edit_this_page_button": "false",
     "hide_feedback_buttons": "false",
-    "github_issues_repository": "scylladb/cpp-rust-driver",
-    "github_repository": "scylladb/cpp-rust-driver",
+    "github_issues_repository": "scylladb/cpp-rs-driver",
+    "github_repository": "scylladb/cpp-rs-driver",
     "site_description": "API-compatible rewrite of scylladb/cpp-driver as a wrapper over ScyllaDB Rust driver.",
     "hide_version_dropdown": [],
     "zendesk_tag": "gq6ltsh3nfex3cnwfy4aj9",
@@ -165,7 +165,7 @@ html_sidebars = {"**": ["side-nav.html"]}
 htmlhelp_basename = "ScyllaDocumentationdoc"
 
 # URL which points to the root of the HTML documentation.
-html_baseurl = 'https://cpp-rust-driver.docs.scylladb.com'
+html_baseurl = 'https://cpp-rs-driver.docs.scylladb.com'
 
 # Dictionary of values to pass into the template engine’s context for all pages
 html_context = {"html_baseurl": html_baseurl}

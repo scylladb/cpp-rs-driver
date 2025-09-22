@@ -215,7 +215,7 @@ impl CassDataTypeInner {
                 _ => false,
             },
             CassDataTypeInner::Custom(_) => {
-                unimplemented!("Cpp-rust-driver does not support custom types!")
+                unimplemented!("cpp-rs-driver does not support custom types!")
             }
         }
     }

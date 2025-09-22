@@ -61,5 +61,5 @@ cass_batch_set_timestamp(batch, 123456789);
 /* Add statements to batch */
 ```
 
-[`CassStatement`]: https://cpp-rust-driver.docs.scylladb.com/stable/api/struct.CassStatement/
-[`CassBatch`]: https://cpp-rust-driver.docs.scylladb.com/stable/api/struct.CassBatch/
+[`CassStatement`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassStatement/
+[`CassBatch`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassBatch/

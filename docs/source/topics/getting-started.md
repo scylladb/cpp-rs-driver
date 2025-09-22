@@ -25,7 +25,7 @@ to be installed in `-dev` or `-devel` versions.
 
 Packages are available for some platforms - see the [Installation section](installation.md) for a list.
 
-They are available for download from the [Releases][cpp-rust-driver-releases] section.
+They are available for download from the [Releases][cpp-rs-driver-releases] section.
 
 NOTE: If you have Datastax or ScyllaDB C/C++ Driver installed, you need to remove it first:
 
@@ -41,17 +41,17 @@ sudo dnf remove scylla-cpp-driver
 ```
 
 <!-- FIXME: Note that there is only a `dev` package for Ubuntu. Is it expected? -->
-<!-- Also, the name is `cpp-driver`, not `cpp-rust-driver`. -->
+<!-- Also, the name is `cpp-driver`, not `cpp-rs-driver`. -->
 ```bash
 # Example: Ubuntu/Debian:
-wget https://github.com/scylladb/cpp-rust-driver/releases/download/<LATEST_VERSION>/libscylla-cpp-driver-dev_<LATEST_VERSION>.deb
+wget https://github.com/scylladb/cpp-rs-driver/releases/download/<LATEST_VERSION>/libscylla-cpp-driver-dev_<LATEST_VERSION>.deb
 sudo apt update
 sudo apt install -y ./libscylla-cpp-driver-dev_<LATEST_VERSION>.deb
 
 
 # Example: Rocky/RedHat:
-wget https://github.com/scylladb/cpp-rust-driver/releases/download/<LATEST_VERSION>/scylla-cpp-rust-driver-<LATEST_VERSION>.rpm https://github.com/scylladb/cpp-rust-driver/releases/download/<LATEST_VERSION>/scylla-cpp-rust-driver-devel-<LATEST_VERSION>.rpm
-sudo dnf install -y ./scylla-cpp-rust-driver-<LATEST_VERSION>.rpm ./scylla-cpp-rust-driver-devel-<LATEST_VERSION>.rpm
+wget https://github.com/scylladb/cpp-rs-driver/releases/download/<LATEST_VERSION>/scylla-cpp-rs-driver-<LATEST_VERSION>.rpm https://github.com/scylladb/cpp-rs-driver/releases/download/<LATEST_VERSION>/scylla-cpp-rs-driver-devel-<LATEST_VERSION>.rpm
+sudo dnf install -y ./scylla-cpp-rs-driver-<LATEST_VERSION>.rpm ./scylla-cpp-rs-driver-devel-<LATEST_VERSION>.rpm
 ```
 
 ## Connecting
@@ -213,15 +213,15 @@ void handle_query_result(CassFuture* future) {
 }
 ```
 
-[cpp-rust-driver-releases]: https://github.com/scylladb/cpp-rust-driver/releases
+[cpp-rs-driver-releases]: https://github.com/scylladb/cpp-rs-driver/releases
 
-[built from source]: https://cpp-rust-driver.docs.scylladb.com/stable/topics/building/
-[prepared statements]: https://cpp-rust-driver.docs.scylladb.com/stable/topics/basics/prepared-statements/
+[built from source]: https://cpp-rs-driver.docs.scylladb.com/stable/topics/building/
+[prepared statements]: https://cpp-rs-driver.docs.scylladb.com/stable/topics/basics/prepared-statements/
 
-[`cass_int32_t`]: https://cpp-rust-driver.docs.scylladb.com/stable/api/cassandra.h#cass-int32-t
-[`cass_result_first_row()`]: https://cpp-rust-driver.docs.scylladb.com/stable/api/struct.CassResult#cass-result-first-row
-[`CassCluster`]: https://cpp-rust-driver.docs.scylladb.com/stable/api/struct.CassCluster
-[`CassSession`]: https://cpp-rust-driver.docs.scylladb.com/stable/api/struct.CassSession
-[`CassStatement`]: https://cpp-rust-driver.docs.scylladb.com/stable/api/struct.CassStatement
-[`CassFuture`]: https://cpp-rust-driver.docs.scylladb.com/stable/api/struct.CassFuture
-[`CassIterator`]: https://cpp-rust-driver.docs.scylladb.com/stable/api/struct.CassIterator
+[`cass_int32_t`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/cassandra.h#cass-int32-t
+[`cass_result_first_row()`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassResult#cass-result-first-row
+[`CassCluster`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassCluster
+[`CassSession`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassSession
+[`CassStatement`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassStatement
+[`CassFuture`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassFuture
+[`CassIterator`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassIterator

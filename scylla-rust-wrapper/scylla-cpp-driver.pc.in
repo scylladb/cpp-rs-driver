@@ -3,9 +3,9 @@ exec_prefix=@exec_prefix@
 libdir=@libdir@
 includedir=@includedir@
 
-Name: scylla-cpp-rust-driver
+Name: scylla-cpp-rs-driver
 Description: ScyllaDB Cpp-Rust Driver
 Version: @version@
 Libs: -L${libdir} -lscylla-cpp-driver
 Cflags: -I${includedir}
-URL: https://github.com/scylladb/cpp-rust-driver/
+URL: https://github.com/scylladb/cpp-rs-driver/

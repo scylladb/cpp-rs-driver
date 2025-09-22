@@ -1,8 +1,8 @@
 require "formula"
 
 class ScyllaCppRustDriver < Formula
-  homepage "https://github.com/scylladb/cpp-rust-driver"
-  head "https://github.com/scylladb/cpp-rust-driver.git", branch: "master"
+  homepage "https://github.com/scylladb/cpp-rs-driver"
+  head "https://github.com/scylladb/cpp-rs-driver.git", branch: "master"
 
   depends_on "cmake" => :build
   depends_on "rust" => :build

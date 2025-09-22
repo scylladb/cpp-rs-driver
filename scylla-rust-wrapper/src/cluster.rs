@@ -50,7 +50,7 @@ const DEFAULT_DO_FETCH_SCHEMA_METADATA: bool = true;
 // - schema agreement timeout is 10000 millis,
 const DEFAULT_MAX_SCHEMA_WAIT_TIME: Duration = Duration::from_millis(10000);
 // - schema agreement interval is 200 millis.
-// This default is taken from rust-driver, since this option is an extension to cpp-rust-driver.
+// This default is taken from rust-driver, since this option is an extension to cpp-rs-driver.
 const DEFAULT_SCHEMA_AGREEMENT_INTERVAL: Duration = Duration::from_millis(200);
 // - setting TCP_NODELAY is true
 const DEFAULT_SET_TCP_NO_DELAY: bool = true;

@@ -90,7 +90,7 @@ void iterate_udt(const CassRow* row) {
   cass_iterator_free(udt_iterator);
 }
 ```
-[`CassSchemaMeta`]: https://cpp-rust-driver.docs.scylladb.com/stable/api/struct.CassSchemaMeta
-[`CassUserType`]: https://cpp-rust-driver.docs.scylladb.com/stable/api/struct.CassUserType
-[`CassDataType`]: https://cpp-rust-driver.docs.scylladb.com/stable/api/struct.CassDataType
-[`cass_session_get_schema()`]: https://cpp-rust-driver.docs.scylladb.com/stable/api/struct.CassSession#cass-session-get-schema
+[`CassSchemaMeta`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassSchemaMeta
+[`CassUserType`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassUserType
+[`CassDataType`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassDataType
+[`cass_session_get_schema()`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassSession#cass-session-get-schema

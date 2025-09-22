@@ -38,8 +38,8 @@ a request fails to get a timely response.
 Connection timeouts occur when the process of establishing new connections is
 unresponsive.
 
-[`cass_session_get_metrics()`]: https://cpp-rust-driver.docs.scylladb.com/stable/api/struct.CassSession#1ab3773670c98c00290bad48a6df0f9eae
-[`CassMetrics`]: https://cpp-rust-driver.docs.scylladb.com/stable/api/struct.CassMetrics
-[`requests`]: https://cpp-rust-driver.docs.scylladb.com/stable/api/struct.CassMetrics#attribute-requests
-[`stats`]: https://cpp-rust-driver.docs.scylladb.com/stable/api/struct.CassMetrics#attribute-stats
-[`errors`]: https://cpp-rust-driver.docs.scylladb.com/stable/api/struct.CassMetrics#attribute-errors
+[`cass_session_get_metrics()`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassSession#1ab3773670c98c00290bad48a6df0f9eae
+[`CassMetrics`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassMetrics
+[`requests`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassMetrics#attribute-requests
+[`stats`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassMetrics#attribute-stats
+[`errors`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassMetrics#attribute-errors

@@ -1,12 +1,12 @@
 # Maintenance
 
-The following document includes information how to release cpp-rust-driver and
+The following document includes information how to release cpp-rs-driver and
 other information / procedures useful for maintainers. It is heavily inspired by https://github.com/scylladb/scylla-rust-driver/blob/v1.2.0/MAINTENANCE.md.
 
 ## Documentation
 
 TODO (no docs written yet)
-Note: Due to API compatibility, cpp-driver docs apply to cpp-rust-driver in general. Though, some discrepancies should be well-documented in cpp-rust-driver (some of them are already mentioned in `cassandra.h`).
+Note: Due to API compatibility, cpp-driver docs apply to cpp-rs-driver in general. Though, some discrepancies should be well-documented in cpp-rs-driver (some of them are already mentioned in `cassandra.h`).
 
 ## Version bump commit
 
@@ -37,7 +37,7 @@ Description of this PR should consist of just release notes. **NOTE: Preferably 
 10. Remove `version` file if present. This file contains version information (`X.Y.Z.<DATE>.<COMMIT_ID>`) and should be generated from scratch when releasing new version. The file will be re-generated automatically by instructions described in the next steps.
 11. Build RPM packages (e.g. `./dist/redhat/build_rpm.sh --target rocky-8-x86_64`) - see `Build rpm package` section of README.md for more details. We don't have a strict policy which distribution versions to choose during release. As an example, during release 0.4.0, we provided packages for Fedora40, Fedora41 and Rocky9. This would correspond to two latest Fedora versions and latest Rocky version at the time. Ideally, the chosen versions should be in-sync with distribution versions we use in our CI.
 12. Build DEB packages (e.g. .`/dist/debian/build_deb.sh --target jammy`) - see `Build deb package` section of README.md for more details. Again, we don't have a strict policy regarding the chosen distribution versions. Looking at the previous releases, we always built packages for `jammy` and `noble`.
-13. Go to https://github.com/scylladb/cpp-rust-driver/releases , click the `Draft new release` button and follow the procedure to create a new release on GitHub. Use the release notes as its description. Be sure to upload built packages from the previous steps - see previous releases to check which files are included.
+13. Go to https://github.com/scylladb/cpp-rs-driver/releases , click the `Draft new release` button and follow the procedure to create a new release on GitHub. Use the release notes as its description. Be sure to upload built packages from the previous steps - see previous releases to check which files are included.
 14. (Mandatory for major / minor release, optional for patch release) Publish a post on the forum:
     - Go to [Release notes](https://forum.scylladb.com/c/scylladb-release-notes/18) section.
     - Click "New Topic".
@@ -58,9 +58,9 @@ not good as either PR titles or release notes entries.
 For that reason we hand-write our release notes, and link to relevant PRs in the entries.
 
 Some old release notes that you can take inspiration from when writing new ones:
-- https://github.com/scylladb/cpp-rust-driver/releases/tag/v0.2.0
-- https://github.com/scylladb/cpp-rust-driver/releases/tag/v0.3.0
-- https://github.com/scylladb/cpp-rust-driver/releases/tag/v0.4.0
+- https://github.com/scylladb/cpp-rs-driver/releases/tag/v0.2.0
+- https://github.com/scylladb/cpp-rs-driver/releases/tag/v0.3.0
+- https://github.com/scylladb/cpp-rs-driver/releases/tag/v0.4.0
 
 The template for release notes can be found in the section below.
 
@@ -69,7 +69,7 @@ Guidelines on how to write release notes:
 - Go over all the PRs / commits since previous release. Usually: `git log --first-parent` to see
   merge commits and commits that are directly on a branch. You can also try filtering
   merged PRs on GitHub by merge date, but it's cumbersome. Since 0.5 we try to assign each merged PR to a milestone,
-  which should make this process much easier - you can just go over e.g. https://github.com/scylladb/cpp-rust-driver/milestone/6?closed=1
+  which should make this process much easier - you can just go over e.g. https://github.com/scylladb/cpp-rs-driver/milestone/6?closed=1
 
 - Items in release notes will usually correspond 1:1 to PRs / commits - but not always. It is possible that
   some functionality that should be a single item on the list is split over multiple PRs.
@@ -104,31 +104,31 @@ The underlying Rust driver used version: A.B.C.
 ## Changes
 
 **New features / enhancements:**
-- Some new feature 1 ([297](https://github.com/scylladb/cpp-rust-driver/pull/297))
-- Some new feature 2 ([297](https://github.com/scylladb/cpp-rust-driver/pull/297))
+- Some new feature 1 ([297](https://github.com/scylladb/cpp-rs-driver/pull/297))
+- Some new feature 2 ([297](https://github.com/scylladb/cpp-rs-driver/pull/297))
 
 **Bug fixes:**
-- Some bugfix 1 ([297](https://github.com/scylladb/cpp-rust-driver/pull/297))
-- Some bugfix 2 ([297](https://github.com/scylladb/cpp-rust-driver/pull/297))
+- Some bugfix 1 ([297](https://github.com/scylladb/cpp-rs-driver/pull/297))
+- Some bugfix 2 ([297](https://github.com/scylladb/cpp-rs-driver/pull/297))
 
 **Documentation:**
-- Doc update 1 ([297](https://github.com/scylladb/cpp-rust-driver/pull/297))
-- Doc update 2 ([297](https://github.com/scylladb/cpp-rust-driver/pull/297))
+- Doc update 1 ([297](https://github.com/scylladb/cpp-rs-driver/pull/297))
+- Doc update 2 ([297](https://github.com/scylladb/cpp-rs-driver/pull/297))
 
 **CI / developer tool improvements:**
-- Update 1 ([297](https://github.com/scylladb/cpp-rust-driver/pull/297))
-- Update 2 ([297](https://github.com/scylladb/cpp-rust-driver/pull/297))
+- Update 1 ([297](https://github.com/scylladb/cpp-rs-driver/pull/297))
+- Update 2 ([297](https://github.com/scylladb/cpp-rs-driver/pull/297))
 
 **Others:**
-- Update 1 ([297](https://github.com/scylladb/cpp-rust-driver/pull/297))
-- Update 2 ([297](https://github.com/scylladb/cpp-rust-driver/pull/297))
+- Update 1 ([297](https://github.com/scylladb/cpp-rs-driver/pull/297))
+- Update 2 ([297](https://github.com/scylladb/cpp-rs-driver/pull/297))
 
 Congrats to all contributors and thanks everyone for using our driver!
 
 ----------
 
 The source code of the driver can be found here:
-- [https://github.com/scylladb/cpp-rust-driver](https://github.com/scylladb/cpp-rust-driver)
+- [https://github.com/scylladb/cpp-rs-driver](https://github.com/scylladb/cpp-rs-driver)
 
 Contributions are most welcome!
 

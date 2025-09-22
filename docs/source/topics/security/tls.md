@@ -57,7 +57,7 @@ client_encryption_options:
 
 ## Setting up the C/C++ Driver to Use TLS
 
-A [`CassSsl`](https://cpp-rust-driver.docs.scylladb.com/stable/api/struct.CassSsl) object is required and must be configured:
+A [`CassSsl`](https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassSsl) object is required and must be configured:
 
 ```c
 #include <cassandra.h>

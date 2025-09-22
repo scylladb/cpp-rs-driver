@@ -63,8 +63,8 @@ without incurring extra allocations.
 
 **NOTE:** Advancing an iterator invalidates the value it previously returned.
 
-[`cass_int32_t`]: https://cpp-rust-driver.docs.scylladb.com/stable/api/cassandra.h#cass-int32-t
-[`cass_cluster_set_num_threads_io()`]: https://cpp-rust-driver.docs.scylladb.com/stable/api/struct.CassCluster#function-cass_cluster_set_num_threads_io
-[`CassCluster`]: https://cpp-rust-driver.docs.scylladb.com/stable/api/struct.CassCluster
-[`CassFuture`]: https://cpp-rust-driver.docs.scylladb.com/stable/api/struct.CassFuture
-[`CassSession`]: https://cpp-rust-driver.docs.scylladb.com/stable/api/struct.CassSession
+[`cass_int32_t`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/cassandra.h#cass-int32-t
+[`cass_cluster_set_num_threads_io()`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassCluster#function-cass_cluster_set_num_threads_io
+[`CassCluster`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassCluster
+[`CassFuture`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassFuture
+[`CassSession`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassSession

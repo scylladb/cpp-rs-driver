@@ -1,6 +1,6 @@
-Source: scylla-cpp-rust-driver
+Source: scylla-cpp-rs-driver
 Maintainer: Takuya ASADA <syuu@scylladb.com>
-Homepage: https://github.com/scylladb/cpp-rust-driver
+Homepage: https://github.com/scylladb/cpp-rs-driver
 Section: libs
 Priority: optional
 Standards-Version: 4.6.0

@@ -169,7 +169,7 @@ cmake -DCASS_BUILD_INTEGRATION_TESTS=On ..
 cmake -DCASS_BUILD_UNIT_TESTS=On ..
 ```
 
-[download server]: https://github.com/scylladb/cpp-rust-driver/releases
+[download server]: https://github.com/scylladb/cpp-rs-driver/releases
 [Homebrew]: https://brew.sh
 [CMake]: http://www.cmake.org/download
 [libuv]: http://libuv.org
