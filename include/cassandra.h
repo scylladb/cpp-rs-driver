@@ -1700,7 +1700,7 @@ cass_cluster_set_consistency(CassCluster* cluster,
 /**
  * Sets default serial consistency level of statement.
  *
- * <b>Default:</b> CASS_CONSISTENCY_ANY
+ * <b>Default:</b> CASS_CONSISTENCY_LOCAL_SERIAL
  *
  * @public @memberof CassCluster
  *
