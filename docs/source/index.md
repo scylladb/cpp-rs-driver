@@ -1,4 +1,4 @@
-# CPP-over-Rust Driver
+# ScyllaDB CPP RS Driver
 This book contains documentation for [cpp-rs-driver](https://github.com/scylladb/cpp-rs-driver) - an API-compatible rewrite of [cpp-driver](https://github.com/scylladb/cpp-driver) as a wrapper over [ScyllaDB Rust Driver](https://github.com/scylladb/scylla-rust-driver).
 Although optimized for ScyllaDB, the driver is also compatible with [Apache Cassandra®](https://cassandra.apache.org/).
 

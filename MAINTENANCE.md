@@ -41,7 +41,7 @@ Description of this PR should consist of just release notes. **NOTE: Preferably 
 14. (Mandatory for major / minor release, optional for patch release) Publish a post on the forum:
     - Go to [Release notes](https://forum.scylladb.com/c/scylladb-release-notes/18) section.
     - Click "New Topic".
-    - Title should be `[RELEASE] ScyllaDB CPP-over-Rust Driver <version>`, e.g. `[RELEASE] ScyllaDB CPP-over-Rust Driver 0.5.0`
+    - Title should be `[RELEASE] ScyllaDB CPP RS Driver <version>`, e.g. `[RELEASE] ScyllaDB CPP RS Driver 0.5.0`
     - Tags: `release`, `drivers`, `driver-release`.
     - Content of the post should just be release notes.
     - Click "Create Topic"
