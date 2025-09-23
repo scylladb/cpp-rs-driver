@@ -1,4 +1,4 @@
-# ScyllaDB Cpp-Rust Driver
+# ScyllaDB CPP RS Driver
 ___
 Wrapper around [ScyllaDB's Rust Driver](https://cpp-rs-driver.docs.scylladb.com/stable), which is API-compatible with both ScyllaDB and Datastax C/C++ Driver and may be considered a drop-in replacement (with some minor limitations, see [Limitations](#limitations)).
 

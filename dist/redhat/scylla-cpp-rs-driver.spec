@@ -1,7 +1,7 @@
 Name:           scylla-cpp-rs-driver
 Version:        %{driver_version}
 Release:        %{driver_release}%{?dist}
-Summary:        ScyllaDB Cpp-Rust Driver
+Summary:        ScyllaDB CPP RS Driver
 Group:          Development/Tools
 
 License:        LGPLv2.1

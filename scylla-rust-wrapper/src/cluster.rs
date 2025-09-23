@@ -80,7 +80,7 @@ const DEFAULT_LOCAL_IP_ADDRESS: Option<IpAddr> = None;
 const DEFAULT_SHARD_AWARE_LOCAL_PORT_RANGE: ShardAwarePortRange =
     ShardAwarePortRange::EPHEMERAL_PORT_RANGE;
 
-const DRIVER_NAME: &str = "ScyllaDB Cpp-Rust Driver";
+const DRIVER_NAME: &str = "ScyllaDB CPP RS Driver";
 const DRIVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub struct CassCluster {

@@ -4,7 +4,7 @@ libdir=@libdir@
 includedir=@includedir@
 
 Name: scylla-cpp-rs-driver
-Description: ScyllaDB Cpp-Rust Driver
+Description: ScyllaDB CPP RS Driver
 Version: @version@
 Requires: openssl
 Libs: -L${libdir} -lscylla-cpp-driver_static
