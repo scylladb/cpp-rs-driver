@@ -401,12 +401,10 @@ To build and run the integration tests several requirements need to be met:
 # On Ubuntu
 sudo apt-get install libuv1-dev
 sudo apt-get install libssl1.0.0
-sudo apt-get install libkrb5-dev
 
 # On Fedora
 sudo dnf install libuv-devel
 sudo dnf install openssl-devel
-sudo dnf install krb5-devel
 ```
 
 * Clone and install [scylla-ccm](https://github.com/scylladb/scylla-ccm) system-wide
