@@ -10,7 +10,7 @@ instead.
 ## Compatibility
 
 * Compilers:
-  - rustc 1.82+ (as part of the Rust toolchain, available at [rustup.rs]);
+  - rustc 1.85+ (as part of the Rust toolchain, available at [rustup.rs]);
   - any reasonable C/C++ compiler, such as GCC or Clang (for tests & examples).
 
 ## Dependencies
