@@ -112,10 +112,10 @@ int main(int argc, char* argv[]) {
 ___
 
 The logging API and implementation are compatible with the C++ driver, for more details please refer to the [logging documentation](https://cpp-driver.docs.scylladb.com/master/topics/logging/index.html).
-As the `tracing` framework is used under the hood to instrument the collection of logs from the Rust driver and the Cpp-Rust wrapper,
+As the `tracing` framework is used under the hood to instrument the collection of logs from the Rust driver and the scylla-rust-wrapper,
 the logging level and callback are passed through a custom event subscriber which is globally set as default when `cass_log_set_level` is called.
 So, `cass_log_set_level` *must* be called only once as subsequent attempts trying to modify the globally set event subscriber will be ignored.
-Also, Rust programs using Cpp-Rust driver under the hood must avoid calling `tracing::subscriber::set_global_default` as this will cause conflicts.
+Also, Rust programs using CPP RS Driver under the hood must avoid calling `tracing::subscriber::set_global_default` as this will cause conflicts.
 
 ##### Note: The logging configuration must be done before any other driver function is called, otherwise, the default logging callback will be used, and logs will appear on stderr.
 

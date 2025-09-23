@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "cpp-rs-driver"
-description = "ScyllaDB CPP-Rust Driver Documentation"
+description = "ScyllaDB CPP RS Driver Documentation"
 version = "0.1.0"
 authors = ["ScyllaDB Documentation Contributors"]
 package-mode = false

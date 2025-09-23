@@ -49,7 +49,7 @@ source_suffix = [".rst", ".md"]
 master_doc = "contents"
 
 # General information about the project.
-project = "ScyllaDB CPP-Rust Driver"
+project = "ScyllaDB CPP RS Driver"
 copyright = str(date.today().year) + ", ScyllaDB. All rights reserved."
 author = "ScyllaDB Project Contributors"
 

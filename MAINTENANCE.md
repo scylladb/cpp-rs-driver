@@ -94,7 +94,7 @@ PR numbers in the list are random, they are just here to emphasize that entries
 should contain links to relevant PR / PRs.
 
 ```
-The ScyllaDB team is pleased to announce ScyllaDB CPP Rust Driver X.Y.Z, an API-compatible rewrite of https://github.com/scylladb/cpp-driver as a wrapper for the Rust driver. It will fully replace the CPP driver, which is already reaching its End of Life.
+The ScyllaDB team is pleased to announce ScyllaDB CPP RS Driver X.Y.Z, an API-compatible rewrite of https://github.com/scylladb/cpp-driver as a wrapper for the Rust driver. It will fully replace the CPP driver, which is already reaching its End of Life.
 **The current driver version should be considered Beta**.
 
 Some minor features still need to be included. See Limitations section in README.md.

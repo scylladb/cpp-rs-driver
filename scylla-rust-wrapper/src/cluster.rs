@@ -50,7 +50,7 @@ const DEFAULT_DO_FETCH_SCHEMA_METADATA: bool = true;
 // - schema agreement timeout is 10000 millis,
 const DEFAULT_MAX_SCHEMA_WAIT_TIME: Duration = Duration::from_millis(10000);
 // - schema agreement interval is 200 millis.
-// This default is taken from rust-driver, since this option is an extension to cpp-rs-driver.
+// This default is taken from rust-driver, since this option is an extension to CPP RS Driver.
 const DEFAULT_SCHEMA_AGREEMENT_INTERVAL: Duration = Duration::from_millis(200);
 // - setting TCP_NODELAY is true
 const DEFAULT_SET_TCP_NO_DELAY: bool = true;
@@ -309,7 +309,7 @@ pub unsafe extern "C" fn cass_cluster_new() -> CassOwnedExclusivePtr<CassCluster
      * ```
      */
     let default_session_builder = {
-        // Set DRIVER_NAME and DRIVER_VERSION of cpp-rust driver.
+        // Set DRIVER_NAME and DRIVER_VERSION of CPP RS Driver.
         let custom_identity = SelfIdentity::new()
             .with_custom_driver_name(DRIVER_NAME)
             .with_custom_driver_version(DRIVER_VERSION);

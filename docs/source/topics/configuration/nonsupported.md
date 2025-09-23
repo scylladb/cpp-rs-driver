@@ -15,7 +15,7 @@ as this can be helpful if we want to implement them in the future:
 
 # Nonsupported configuration features
 
-## Not implemented in the CPP-Rust Driver
+## Not implemented in the ScyllaDB CPP RS Driver
 
 ### Host State Changes
 
