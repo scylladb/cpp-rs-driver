@@ -401,18 +401,13 @@ To build and run the integration tests several requirements need to be met:
 # On Ubuntu
 sudo apt-get install libuv1-dev
 sudo apt-get install libssl1.0.0
-sudo apt-get install libkrb5-dev
 
 # On Fedora
 sudo dnf install libuv-devel
 sudo dnf install openssl-devel
-sudo dnf install krb5-devel
 ```
 
-* Clone and install [scylla-ccm](https://github.com/scylladb/scylla-ccm) system-wide
-* Clone and build [scylla-jmx](https://github.com/scylladb/scylla-jmx) alongside `scylla-ccm`
-* Clone, build and symlink [scylla-tools-java](https://github.com/scylladb/scylla-tools-java) from `[SCYLLA_ROOT]/resources/cassandra`
-  * Assuming `scylla` is installed and built in the release mode <br> ``` ln -s [PATH_TO_TOOLS]/scylla-tools-java [PATH_TO_SCYLLA]/resources/cassandra```
+* Clone and install [scylla-ccm](https://github.com/scylladb/scylla-ccm) system-wide.
 
 Finally, to build the integration tests:
 
@@ -424,7 +419,7 @@ cmake -DCASS_BUILD_INTEGRATION_TESTS=ON  .. && make
 Now, use `--gtest_filter` to run certain integration tests:
 
 ```shell
-./cassandra-integration-tests --scylla --install-dir=[PATH_TO_SCYLLA] --version=3.0.8 --category=CASSANDRA --verbose=ccm --gtest_filter="ClusterTests.*"
+./cassandra-integration-tests --scylla --version=<SCYLLA_VERSION> --category=CASSANDRA --verbose=ccm --gtest_filter="ClusterTests.*"
 ```
 
 ##### Note: Tests that pass with ScyllaDB and Cassandra clusters can be found in Makefile: `SCYLLA_TEST_FILTER` and `CASSANDRA_TEST_FILTER` env variables.
