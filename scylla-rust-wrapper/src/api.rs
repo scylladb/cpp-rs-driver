@@ -896,18 +896,15 @@ pub mod consistency {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
     pub use crate::cql_types::{
-        CassConsistency
-    };
-    #[rustfmt::skip]
-    pub use crate::misc::{
-        cass_consistency_string
+        CassConsistency,
+        cass_consistency_string,
     };
 }
 
 pub mod write_type {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
-    pub use crate::misc::{
+    pub use crate::cql_types::{
         CassWriteType,
         cass_write_type_string
     };

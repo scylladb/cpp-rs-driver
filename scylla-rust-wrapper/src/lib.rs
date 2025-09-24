@@ -23,7 +23,6 @@ pub(crate) mod iterator;
 mod load_balancing;
 mod logging;
 pub(crate) mod metadata;
-pub(crate) mod misc;
 pub(crate) mod prepared;
 pub(crate) mod query_result;
 pub(crate) mod retry_policy;

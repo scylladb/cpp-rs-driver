@@ -1,6 +1,5 @@
 use crate::argconv::*;
-use crate::cql_types::CassConsistency;
-use crate::misc::CassWriteType;
+use crate::cql_types::{CassConsistency, CassWriteType};
 use crate::types::*;
 use libc::c_char;
 use scylla::deserialize::DeserializationError;
