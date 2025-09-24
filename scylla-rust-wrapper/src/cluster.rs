@@ -41,7 +41,7 @@ use crate::cass_compression_types::CassCompressionType;
 // - consistency for statements is LOCAL_ONE,
 pub(crate) const DEFAULT_CONSISTENCY: Consistency = Consistency::LocalOne;
 // - serial consistency for statements is LOCAL_SERIAL. This is different from CPP Driver's ANY - see
-//   https://github.com/scylladb/cpp-rust-driver/issues/335 for context.
+//   https://github.com/scylladb/cpp-rs-driver/issues/335 for context.
 const DEFAULT_SERIAL_CONSISTENCY: Option<SerialConsistency> = Some(SerialConsistency::LocalSerial);
 // - request client timeout is 12000 millis,
 const DEFAULT_REQUEST_TIMEOUT: Duration = Duration::from_millis(12000);
