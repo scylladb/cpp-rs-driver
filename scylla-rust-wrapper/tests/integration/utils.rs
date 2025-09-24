@@ -25,8 +25,12 @@ pub(crate) fn setup_tracing() {
         .try_init();
 }
 
-pub(crate) async fn test_with_3_node_dry_mode_cluster<F>(test: F) -> Result<(), ProxyError>
+pub(crate) async fn test_with_3_node_dry_mode_cluster<I, F>(
+    initial_request_rules: impl Fn() -> I,
+    test: F,
+) -> Result<(), ProxyError>
 where
+    I: IntoIterator<Item = RequestRule>,
     F: FnOnce([String; 3], RunningProxy) -> RunningProxy + Send + 'static,
 {
     let proxy1_uri = format!("{}:9042", scylla_proxy::get_exclusive_local_address());
@@ -37,10 +41,12 @@ where
     let proxy2_addr = SocketAddr::from_str(proxy2_uri.as_str()).unwrap();
     let proxy3_addr = SocketAddr::from_str(proxy3_uri.as_str()).unwrap();
 
-    let proxy = Proxy::new(
-        [proxy1_addr, proxy2_addr, proxy3_addr]
-            .map(|proxy_addr| Node::builder().proxy_address(proxy_addr).build_dry_mode()),
-    );
+    let proxy = Proxy::new([proxy1_addr, proxy2_addr, proxy3_addr].map(|proxy_addr| {
+        Node::builder()
+            .proxy_address(proxy_addr)
+            .request_rules(Vec::from_iter(initial_request_rules()))
+            .build_dry_mode()
+    }));
 
     let running_proxy = proxy.run().await.unwrap();
 

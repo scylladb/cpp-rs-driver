@@ -609,60 +609,63 @@ fn check_for_all_consistencies_and_setting_options(
 #[ntest::timeout(60000)]
 async fn consistency_is_correctly_set_in_cql_requests() {
     setup_tracing();
-    let res = test_with_3_node_dry_mode_cluster(|proxy_uris, mut running_proxy| {
-        let request_rules = |tx| {
-            handshake_rules()
-                .into_iter()
-                .chain(drop_metadata_queries_rules())
-                .chain([
-                    RequestRule(
-                        Condition::and(
-                            Condition::not(Condition::ConnectionRegisteredAnyEvent),
-                            Condition::RequestOpcode(RequestOpcode::Prepare),
+    let res = test_with_3_node_dry_mode_cluster(
+        || None,
+        |proxy_uris, mut running_proxy| {
+            let request_rules = |tx| {
+                handshake_rules()
+                    .into_iter()
+                    .chain(drop_metadata_queries_rules())
+                    .chain([
+                        RequestRule(
+                            Condition::and(
+                                Condition::not(Condition::ConnectionRegisteredAnyEvent),
+                                Condition::RequestOpcode(RequestOpcode::Prepare),
+                            ),
+                            // Respond to a PREPARE request with a prepared statement ID.
+                            // This assumes 0 bind variables and 0 returned columns.
+                            RequestReaction::forge_response(Arc::new(forge_prepare_response)),
                         ),
-                        // Respond to a PREPARE request with a prepared statement ID.
-                        // This assumes 0 bind variables and 0 returned columns.
-                        RequestReaction::forge_response(Arc::new(forge_prepare_response)),
-                    ),
-                    RequestRule(
-                        Condition::and(
-                            Condition::not(Condition::ConnectionRegisteredAnyEvent),
-                            Condition::or(
-                                Condition::RequestOpcode(RequestOpcode::Execute),
+                        RequestRule(
+                            Condition::and(
+                                Condition::not(Condition::ConnectionRegisteredAnyEvent),
                                 Condition::or(
-                                    Condition::RequestOpcode(RequestOpcode::Batch),
-                                    Condition::and(
-                                        Condition::RequestOpcode(RequestOpcode::Query),
-                                        Condition::BodyContainsCaseSensitive(Box::new(
-                                            *b"INTO consistency_tests",
-                                        )),
+                                    Condition::RequestOpcode(RequestOpcode::Execute),
+                                    Condition::or(
+                                        Condition::RequestOpcode(RequestOpcode::Batch),
+                                        Condition::and(
+                                            Condition::RequestOpcode(RequestOpcode::Query),
+                                            Condition::BodyContainsCaseSensitive(Box::new(
+                                                *b"INTO consistency_tests",
+                                            )),
+                                        ),
                                     ),
                                 ),
                             ),
+                            RequestReaction::forge()
+                                .server_error()
+                                .with_feedback_when_performed(tx),
                         ),
-                        RequestReaction::forge()
-                            .server_error()
-                            .with_feedback_when_performed(tx),
-                    ),
-                ])
-                .collect::<Vec<_>>()
-        };
+                    ])
+                    .collect::<Vec<_>>()
+            };
 
-        // Set the rules for the requests.
-        // This has the following effect:
-        // 1. PREPARE requests will be answered with a forged response.
-        // 2. EXECUTE, BATCH and QUERY requests will be replied with a forged error response,
-        //    but additionally will send a feedback to the channel `tx`, which will be used
-        //    to verify the consistency and serial consistency set in the request.
-        let (request_tx, request_rx) = mpsc::unbounded_channel();
-        for running_node in running_proxy.running_nodes.iter_mut() {
-            running_node.change_request_rules(Some(request_rules(request_tx.clone())));
-        }
+            // Set the rules for the requests.
+            // This has the following effect:
+            // 1. PREPARE requests will be answered with a forged response.
+            // 2. EXECUTE, BATCH and QUERY requests will be replied with a forged error response,
+            //    but additionally will send a feedback to the channel `tx`, which will be used
+            //    to verify the consistency and serial consistency set in the request.
+            let (request_tx, request_rx) = mpsc::unbounded_channel();
+            for running_node in running_proxy.running_nodes.iter_mut() {
+                running_node.change_request_rules(Some(request_rules(request_tx.clone())));
+            }
 
-        check_for_all_consistencies_and_setting_options(request_rx, proxy_uris);
+            check_for_all_consistencies_and_setting_options(request_rx, proxy_uris);
 
-        running_proxy
-    })
+            running_proxy
+        },
+    )
     .await;
 
     match res {
