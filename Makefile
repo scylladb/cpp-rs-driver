@@ -262,7 +262,7 @@ build-examples:
 
 _update-rust-tooling:
 	@echo "Run rustup update"
-	@rustup update
+	@rustup update stable
 
 check-cargo: install-cargo-if-missing _update-rust-tooling
 	@echo "Running \"cargo check\" in ./scylla-rust-wrapper"
