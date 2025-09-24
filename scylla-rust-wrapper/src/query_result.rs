@@ -1,7 +1,7 @@
 use crate::argconv::*;
 use crate::cass_error::CassErrorResult;
 use crate::cass_error::{CassError, ToCassError};
-pub use crate::cass_types::CassValueType;
+pub use crate::cql_types::CassValueType;
 use crate::cql_types::data_type::{
     CassColumnSpec, CassDataType, CassDataTypeInner, MapDataType, cass_data_type_type,
     get_column_type,
@@ -1182,7 +1182,7 @@ mod tests {
     use crate::{
         argconv::{ArcFFI, RefFFI},
         cass_error::CassError,
-        cass_types::CassValueType,
+        cql_types::CassValueType,
         query_result::{
             cass_result_column_data_type, cass_result_column_name, cass_result_first_row, size_t,
         },

@@ -1,7 +1,7 @@
 use crate::argconv::*;
 use crate::cass_error::CassError;
-use crate::cass_types::CassConsistency;
 use crate::config_value::MaybeUnsetConfig;
+use crate::cql_types::CassConsistency;
 use crate::cql_types::uuid::CassUuid;
 use crate::exec_profile::{CassExecProfile, ExecProfileName, exec_profile_builder_modify};
 use crate::load_balancing::{

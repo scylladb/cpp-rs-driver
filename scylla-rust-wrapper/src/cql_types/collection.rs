@@ -281,13 +281,15 @@ mod tests {
     use crate::{
         argconv::ArcFFI,
         cass_error::CassError,
-        cass_types::CassValueType,
-        cql_types::collection::{
-            cass_collection_append_double, cass_collection_append_float, cass_collection_free,
-        },
-        cql_types::data_type::{
-            CassDataType, CassDataTypeInner, MapDataType, cass_data_type_add_sub_type,
-            cass_data_type_free, cass_data_type_new,
+        cql_types::{
+            CassValueType,
+            collection::{
+                cass_collection_append_double, cass_collection_append_float, cass_collection_free,
+            },
+            data_type::{
+                CassDataType, CassDataTypeInner, MapDataType, cass_data_type_add_sub_type,
+                cass_data_type_free, cass_data_type_new,
+            },
         },
         testing::assert_cass_error_eq,
     };

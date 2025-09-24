@@ -6,3 +6,6 @@ pub(crate) mod tuple;
 pub(crate) mod user_type;
 pub(crate) mod uuid;
 pub(crate) mod value;
+
+pub use crate::cass_consistency_types::CassConsistency;
+pub use crate::cass_data_types::CassValueType;

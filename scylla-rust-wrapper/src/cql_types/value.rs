@@ -11,7 +11,7 @@ use scylla::serialize::writers::{CellWriter, WrittenCellProof};
 use scylla::value::{CqlDate, CqlDecimal, CqlDuration};
 use uuid::Uuid;
 
-use crate::cass_types::CassValueType;
+use crate::cql_types::CassValueType;
 use crate::cql_types::data_type::CassDataType;
 
 /// A narrower version of rust driver's CqlValue.
@@ -417,7 +417,7 @@ mod tests {
     use scylla::value::{CqlDate, CqlDecimal, CqlDuration};
 
     use crate::{
-        cass_types::CassValueType,
+        cql_types::CassValueType,
         cql_types::{
             data_type::{CassDataType, CassDataTypeInner, MapDataType, UdtDataType},
             value::{CassCqlValue, is_type_compatible},

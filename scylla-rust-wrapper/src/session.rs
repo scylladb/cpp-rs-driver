@@ -886,9 +886,9 @@ mod tests {
     use crate::{
         argconv::make_c_str,
         batch::{
-            cass_batch_add_statement, cass_batch_free, cass_batch_new, cass_batch_set_retry_policy,
+            CassBatchType, cass_batch_add_statement, cass_batch_free, cass_batch_new,
+            cass_batch_set_retry_policy,
         },
-        cass_types::CassBatchType,
         cluster::{
             cass_cluster_free, cass_cluster_new, cass_cluster_set_client_id,
             cass_cluster_set_contact_points_n, cass_cluster_set_execution_profile,

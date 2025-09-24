@@ -12,7 +12,6 @@ pub mod api;
 pub mod argconv;
 pub(crate) mod batch;
 pub(crate) mod cass_error;
-pub(crate) mod cass_types;
 pub(crate) mod cluster;
 pub(crate) mod config_value;
 pub(crate) mod cql_types;

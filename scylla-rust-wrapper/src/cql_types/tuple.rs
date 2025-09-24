@@ -136,7 +136,7 @@ make_binders!(user_type, cass_tuple_set_user_type);
 #[cfg(test)]
 mod tests {
     use crate::{
-        cass_types::CassValueType,
+        cql_types::CassValueType,
         cql_types::data_type::{
             cass_data_type_add_sub_type, cass_data_type_free, cass_data_type_new,
         },

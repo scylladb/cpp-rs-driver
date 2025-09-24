@@ -1,5 +1,5 @@
 use crate::argconv::*;
-use crate::cass_types::CassConsistency;
+use crate::cql_types::CassConsistency;
 use crate::misc::CassWriteType;
 use crate::types::*;
 use libc::c_char;

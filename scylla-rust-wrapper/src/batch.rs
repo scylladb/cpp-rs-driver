@@ -2,10 +2,10 @@ use crate::argconv::{
     ArcFFI, BoxFFI, CMut, CassBorrowedExclusivePtr, CassBorrowedSharedPtr, CassOwnedExclusivePtr,
     FFI, FromBox,
 };
+pub use crate::cass_batch_types::CassBatchType;
 use crate::cass_error::CassError;
-pub use crate::cass_types::CassBatchType;
-use crate::cass_types::CassConsistency;
 use crate::config_value::{MaybeUnsetConfig, RequestTimeout};
+use crate::cql_types::CassConsistency;
 use crate::cql_types::data_type::make_batch_type;
 use crate::cql_types::value::CassCqlValue;
 use crate::exec_profile::PerStatementExecProfile;

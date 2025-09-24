@@ -1,7 +1,7 @@
 use crate::argconv::*;
 use crate::cass_error::CassError;
-use crate::cass_types::CassConsistency;
 use crate::config_value::{MaybeUnsetConfig, RequestTimeout};
+use crate::cql_types::CassConsistency;
 use crate::cql_types::inet::CassInet;
 use crate::cql_types::value::{self, CassCqlValue};
 use crate::exec_profile::PerStatementExecProfile;

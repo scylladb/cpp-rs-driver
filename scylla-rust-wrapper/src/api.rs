@@ -895,8 +895,11 @@ pub mod custom_payload {
 pub mod consistency {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
+    pub use crate::cql_types::{
+        CassConsistency
+    };
+    #[rustfmt::skip]
     pub use crate::misc::{
-        CassConsistency,
         cass_consistency_string
     };
 }
