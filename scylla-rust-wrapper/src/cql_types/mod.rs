@@ -1,4 +1,5 @@
 pub(crate) mod collection;
+pub(crate) mod data_type;
 pub(crate) mod date_time;
 pub(crate) mod inet;
 pub(crate) mod tuple;

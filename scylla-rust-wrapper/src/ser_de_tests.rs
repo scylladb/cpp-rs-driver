@@ -26,7 +26,7 @@ use crate::argconv::{
     CConst, CMut, CassBorrowedExclusivePtr, CassBorrowedSharedPtr, CassOwnedExclusivePtr, RefFFI,
 };
 use crate::cass_error::CassError;
-use crate::cass_types::get_column_type;
+use crate::cql_types::data_type::get_column_type;
 use crate::cql_types::inet::CassInet;
 use crate::cql_types::uuid::CassUuid;
 use crate::iterator::{

@@ -4,8 +4,9 @@ use crate::argconv::{
 };
 use crate::cass_error::CassError;
 pub use crate::cass_types::CassBatchType;
-use crate::cass_types::{CassConsistency, make_batch_type};
+use crate::cass_types::CassConsistency;
 use crate::config_value::{MaybeUnsetConfig, RequestTimeout};
+use crate::cql_types::data_type::make_batch_type;
 use crate::cql_types::value::CassCqlValue;
 use crate::exec_profile::PerStatementExecProfile;
 use crate::retry_policy::CassRetryPolicy;

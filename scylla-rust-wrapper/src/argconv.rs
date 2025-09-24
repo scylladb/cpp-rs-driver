@@ -91,7 +91,7 @@ mod sealed {
 /// There is no way to obtain a mutable reference from such pointer.
 ///
 /// In some cases, we need to be able to mutate the data behind a shared pointer.
-/// There is an example of such use case - namely [`crate::cass_types::CassDataType`].
+/// There is an example of such use case - namely [`crate::cql_types::data_type::CassDataType`].
 /// argconv API does not provide a way to mutate such pointer - one can only convert the pointer
 /// to [`Arc`] or &. It is the API user's responsibility to implement sound interior mutability
 /// pattern in such case. This is what we currently do - CassDataType wraps CassDataTypeInner
@@ -626,7 +626,7 @@ impl<T> BoxFFI for T where T: FFI<Origin = FromBox> {}
 /// C API user should be responsible for freeing (decreasing reference count of)
 /// associated memory manually via corresponding API call.
 ///
-/// An example of such implementor would be [`CassDataType`](crate::cass_types::CassDataType):
+/// An example of such implementor would be [`CassDataType`](crate::cql_types::data_type::CassDataType):
 /// - it is allocated on the heap via [`Arc::new`]
 /// - there are multiple owners of the shared CassDataType object
 /// - some API functions require to increase a reference count of the object

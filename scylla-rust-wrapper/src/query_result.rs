@@ -2,7 +2,7 @@ use crate::argconv::*;
 use crate::cass_error::CassErrorResult;
 use crate::cass_error::{CassError, ToCassError};
 pub use crate::cass_types::CassValueType;
-use crate::cass_types::{
+use crate::cql_types::data_type::{
     CassColumnSpec, CassDataType, CassDataTypeInner, MapDataType, cass_data_type_type,
     get_column_type,
 };
@@ -1178,7 +1178,7 @@ mod tests {
     use scylla::response::query_result::ColumnSpecs;
 
     use crate::argconv::{CConst, CassBorrowedSharedPtr, ptr_to_cstr_n};
-    use crate::cass_types::{CassDataType, CassDataTypeInner};
+    use crate::cql_types::data_type::{CassDataType, CassDataTypeInner};
     use crate::{
         argconv::{ArcFFI, RefFFI},
         cass_error::CassError,

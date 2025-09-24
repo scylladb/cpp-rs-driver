@@ -526,7 +526,7 @@ pub mod batch {
 pub mod data_type {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
-    pub use crate::cass_types::{
+    pub use crate::cql_types::data_type::{
         CassDataType,
         cass_data_sub_type_count,
         cass_data_type_add_sub_type,

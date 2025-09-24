@@ -1,6 +1,6 @@
 use crate::argconv::*;
 use crate::cass_error::CassError;
-use crate::cass_types::{CassDataType, CassDataTypeInner};
+use crate::cql_types::data_type::{CassDataType, CassDataTypeInner};
 use crate::cql_types::value::{self, CassCqlValue};
 use crate::types::*;
 use std::os::raw::c_char;

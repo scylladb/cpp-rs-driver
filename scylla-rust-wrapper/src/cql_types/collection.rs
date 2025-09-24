@@ -1,7 +1,7 @@
 use crate::argconv::*;
 use crate::cass_collection_types::CassCollectionType;
 use crate::cass_error::CassError;
-use crate::cass_types::{CassDataType, CassDataTypeInner, MapDataType};
+use crate::cql_types::data_type::{CassDataType, CassDataTypeInner, MapDataType};
 use crate::cql_types::value::{self, CassCqlValue};
 use crate::types::*;
 use std::convert::TryFrom;
@@ -281,12 +281,13 @@ mod tests {
     use crate::{
         argconv::ArcFFI,
         cass_error::CassError,
-        cass_types::{
-            CassDataType, CassDataTypeInner, CassValueType, MapDataType,
-            cass_data_type_add_sub_type, cass_data_type_free, cass_data_type_new,
-        },
+        cass_types::CassValueType,
         cql_types::collection::{
             cass_collection_append_double, cass_collection_append_float, cass_collection_free,
+        },
+        cql_types::data_type::{
+            CassDataType, CassDataTypeInner, MapDataType, cass_data_type_add_sub_type,
+            cass_data_type_free, cass_data_type_new,
         },
         testing::assert_cass_error_eq,
     };
