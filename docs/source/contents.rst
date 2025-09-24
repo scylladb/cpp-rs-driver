@@ -1,5 +1,5 @@
 ========================
-ScyllaDB CPP-Rust Driver
+ScyllaDB CPP RS Driver
 ========================
 
 .. toctree::

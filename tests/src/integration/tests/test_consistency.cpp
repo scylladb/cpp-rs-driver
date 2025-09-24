@@ -433,7 +433,7 @@ CASSANDRA_INTEGRATION_TEST_F(SerialConsistencyTests, Invalid) {
   // Original cpp-driver allows user to SET the invalid serial consistency.
   // Then, the request is sent with an invalid serial consistency, resulting in a server error.
   // However, rust-driver comes with a type safety in this matter, disallowing
-  // the user to set invalid serial consistency, thus we are not able to mimic this behaviour in cpp-rust-driver.
+  // the user to set invalid serial consistency, thus we are not able to mimic this behaviour in cpp-rs-driver.
   // We need to adjust this test, and assert that setting the invalid serial consistency fails with an error.
   // Original test case logic:
   //// Result result = insert_if_not_exists(CASS_CONSISTENCY_ONE); // Invalid serial consistency

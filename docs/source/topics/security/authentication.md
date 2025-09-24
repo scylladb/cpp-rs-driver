@@ -21,4 +21,4 @@ cass_cluster_free(cluster);
 reason, it is highly recommended that this be used in conjunction with
 client-to-node encryption (TLS), or in a trusted network environment.
 
-[`cass_cluster_set_credentials()`]: https://cpp-rust-driver.docs.scylladb.com/stable/api/struct.CassCluster#function-cass_cluster_set_credentials_n
+[`cass_cluster_set_credentials()`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassCluster#function-cass_cluster_set_credentials_n

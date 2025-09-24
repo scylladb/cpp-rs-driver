@@ -41,7 +41,7 @@ use crate::cass_compression_types::CassCompressionType;
 // - consistency for statements is LOCAL_ONE,
 pub(crate) const DEFAULT_CONSISTENCY: Consistency = Consistency::LocalOne;
 // - serial consistency for statements is LOCAL_SERIAL. This is different from CPP Driver's ANY - see
-//   https://github.com/scylladb/cpp-rust-driver/issues/335 for context.
+//   https://github.com/scylladb/cpp-rs-driver/issues/335 for context.
 const DEFAULT_SERIAL_CONSISTENCY: Option<SerialConsistency> = Some(SerialConsistency::LocalSerial);
 // - request client timeout is 12000 millis,
 const DEFAULT_REQUEST_TIMEOUT: Duration = Duration::from_millis(12000);
@@ -50,7 +50,7 @@ const DEFAULT_DO_FETCH_SCHEMA_METADATA: bool = true;
 // - schema agreement timeout is 10000 millis,
 const DEFAULT_MAX_SCHEMA_WAIT_TIME: Duration = Duration::from_millis(10000);
 // - schema agreement interval is 200 millis.
-// This default is taken from rust-driver, since this option is an extension to cpp-rust-driver.
+// This default is taken from rust-driver, since this option is an extension to CPP RS Driver.
 const DEFAULT_SCHEMA_AGREEMENT_INTERVAL: Duration = Duration::from_millis(200);
 // - setting TCP_NODELAY is true
 const DEFAULT_SET_TCP_NO_DELAY: bool = true;
@@ -80,7 +80,7 @@ const DEFAULT_LOCAL_IP_ADDRESS: Option<IpAddr> = None;
 const DEFAULT_SHARD_AWARE_LOCAL_PORT_RANGE: ShardAwarePortRange =
     ShardAwarePortRange::EPHEMERAL_PORT_RANGE;
 
-const DRIVER_NAME: &str = "ScyllaDB Cpp-Rust Driver";
+const DRIVER_NAME: &str = "ScyllaDB CPP RS Driver";
 const DRIVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub struct CassCluster {
@@ -309,7 +309,7 @@ pub unsafe extern "C" fn cass_cluster_new() -> CassOwnedExclusivePtr<CassCluster
      * ```
      */
     let default_session_builder = {
-        // Set DRIVER_NAME and DRIVER_VERSION of cpp-rust driver.
+        // Set DRIVER_NAME and DRIVER_VERSION of CPP RS Driver.
         let custom_identity = SelfIdentity::new()
             .with_custom_driver_name(DRIVER_NAME)
             .with_custom_driver_version(DRIVER_VERSION);

@@ -24,7 +24,7 @@ pub struct CassPrepared {
 
 impl CassPrepared {
     pub(crate) fn new_from_prepared_statement(mut statement: PreparedStatement) -> Self {
-        // We already cache the metadata on cpp-rust-driver side (see CassPrepared::result_metadata field),
+        // We already cache the metadata on cpp-rs-driver side (see CassPrepared::result_metadata field),
         // thus we can enable the optimization on rust-driver side as well. This will prevent the server
         // from sending redundant bytes representing a result metadata during EXECUTE.
         //

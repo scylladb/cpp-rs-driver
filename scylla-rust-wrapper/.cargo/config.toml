@@ -1,3 +1,3 @@
 [build]
-# To enable cpp-rust only features from Rust driver.
+# To enable CPP RS Driver only features from Rust driver.
 rustflags = ["--cfg", "cpp_rust_unstable"]

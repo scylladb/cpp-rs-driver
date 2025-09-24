@@ -282,7 +282,7 @@ fn check_for_all_consistencies_and_setting_options(
             // ```
             const DEFAULT_CONSISTENCY: Consistency = Consistency::LocalOne;
             // CPP Driver's default is ANY, but Rust Driver's default (LocalSerial) is arguably more reasonable.
-            // See https://github.com/scylladb/cpp-rust-driver/issues/335 for discussion.
+            // See https://github.com/scylladb/cpp-rs-driver/issues/335 for discussion.
             const DEFAULT_SERIAL_CONSISTENCY: Option<SerialConsistency> =
                 Some(SerialConsistency::LocalSerial);
 
