@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use scylla_proxy::{
     Condition, Node, Proxy, ProxyError, Reaction as _, RequestFrame, RequestOpcode,
-    RequestReaction, RequestRule, ResponseFrame, RunningProxy, ShardAwareness,
+    RequestReaction, RequestRule, ResponseFrame, RunningProxy,
 };
 
 pub(crate) fn setup_tracing() {
@@ -26,10 +26,7 @@ pub(crate) fn setup_tracing() {
         .try_init();
 }
 
-pub(crate) async fn test_with_3_node_dry_mode_cluster<F, Fut>(
-    shard_awareness: ShardAwareness,
-    test: F,
-) -> Result<(), ProxyError>
+pub(crate) async fn test_with_3_node_dry_mode_cluster<F, Fut>(test: F) -> Result<(), ProxyError>
 where
     F: FnOnce([String; 3], RunningProxy) -> Fut,
     Fut: Future<Output = RunningProxy>,
@@ -42,12 +39,10 @@ where
     let proxy2_addr = SocketAddr::from_str(proxy2_uri.as_str()).unwrap();
     let proxy3_addr = SocketAddr::from_str(proxy3_uri.as_str()).unwrap();
 
-    let proxy = Proxy::new([proxy1_addr, proxy2_addr, proxy3_addr].map(|proxy_addr| {
-        Node::builder()
-            .proxy_address(proxy_addr)
-            .shard_awareness(shard_awareness)
-            .build_dry_mode()
-    }));
+    let proxy = Proxy::new(
+        [proxy1_addr, proxy2_addr, proxy3_addr]
+            .map(|proxy_addr| Node::builder().proxy_address(proxy_addr).build_dry_mode()),
+    );
 
     let running_proxy = proxy.run().await.unwrap();
 
