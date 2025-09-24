@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-pub(crate) use crate::cass_uuid_types::CassUuid;
+pub use crate::cass_uuid_types::CassUuid;
 
 pub struct CassUuidGen {
     pub(crate) clock_seq_and_node: cass_uint64_t,

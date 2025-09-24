@@ -847,6 +847,7 @@ pub mod uuid {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
     pub use crate::cql_types::uuid::{
+        CassUuid,
         cass_uuid_from_string,
         cass_uuid_from_string_n,
         cass_uuid_max_from_time,
