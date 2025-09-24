@@ -879,7 +879,7 @@ mod tests {
     use crate::statements::statement::{
         cass_statement_set_host, cass_statement_set_host_inet, cass_statement_set_node,
     };
-    use crate::testing::assert_cass_error_eq;
+    use crate::testing::utils::assert_cass_error_eq;
 
     use super::{cass_statement_free, cass_statement_new};
 

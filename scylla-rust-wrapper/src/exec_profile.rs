@@ -873,7 +873,7 @@ mod tests {
     use crate::retry_policy::{
         cass_retry_policy_downgrading_consistency_new, cass_retry_policy_free,
     };
-    use crate::testing::{assert_cass_error_eq, setup_tracing};
+    use crate::testing::utils::{assert_cass_error_eq, setup_tracing};
     use crate::{
         argconv::{make_c_str, str_to_c_str_n},
         statements::batch::{

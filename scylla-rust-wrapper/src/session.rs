@@ -389,7 +389,7 @@ pub unsafe extern "C" fn cass_session_execute(
     #[cfg(cpp_integration_testing)]
     let recording_listener = statement_opt.record_hosts.then(|| {
         let recording_listener =
-            Arc::new(crate::integration_testing::RecordingHistoryListener::new());
+            Arc::new(crate::testing::integration::RecordingHistoryListener::new());
         match statement {
             BoundStatement::Simple(ref mut unprepared) => {
                 unprepared
@@ -910,7 +910,7 @@ mod tests {
         statements::statement::{
             cass_statement_free, cass_statement_new, cass_statement_set_retry_policy,
         },
-        testing::{
+        testing::utils::{
             assert_cass_error_eq, cass_future_wait_check_and_free, generic_drop_queries_rules,
             handshake_rules, mock_init_rules, setup_tracing, test_with_one_proxy,
         },

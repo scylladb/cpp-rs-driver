@@ -291,7 +291,7 @@ mod tests {
                 cass_data_type_free, cass_data_type_new,
             },
         },
-        testing::assert_cass_error_eq,
+        testing::utils::assert_cass_error_eq,
     };
 
     use super::{

@@ -955,7 +955,7 @@ pub mod alloc {
 pub mod integration_testing {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
-    pub use crate::integration_testing::{
+    pub use crate::testing::integration::{
         IgnoringRetryPolicy,
         testing_batch_set_sleeping_history_listener,
         testing_cluster_get_connect_timeout,
@@ -974,7 +974,7 @@ pub mod integration_testing {
     /// and at the same time the functions are not yet implemented in the wrapper.
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
-    pub use crate::integration_testing::stubs::{
+    pub use crate::testing::integration::stubs::{
         CassAggregateMeta,
         CassAuthenticator,
         CassCustomPayload,

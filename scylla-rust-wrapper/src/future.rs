@@ -84,7 +84,7 @@ struct ResolvableFuture {
     wait_for_value: Condvar,
 
     #[cfg(cpp_integration_testing)]
-    recording_listener: Option<Arc<crate::integration_testing::RecordingHistoryListener>>,
+    recording_listener: Option<Arc<crate::testing::integration::RecordingHistoryListener>>,
 }
 
 pub struct CassFuture {
@@ -119,7 +119,7 @@ impl CassFuture {
         runtime: Arc<Runtime>,
         fut: impl Future<Output = CassFutureResult> + Send + 'static,
         #[cfg(cpp_integration_testing)] recording_listener: Option<
-            Arc<crate::integration_testing::RecordingHistoryListener>,
+            Arc<crate::testing::integration::RecordingHistoryListener>,
         >,
     ) -> CassOwnedSharedPtr<CassFuture, CMut> {
         Self::new_from_future(
@@ -135,7 +135,7 @@ impl CassFuture {
         runtime: Arc<Runtime>,
         fut: impl Future<Output = CassFutureResult> + Send + 'static,
         #[cfg(cpp_integration_testing)] recording_listener: Option<
-            Arc<crate::integration_testing::RecordingHistoryListener>,
+            Arc<crate::testing::integration::RecordingHistoryListener>,
         >,
     ) -> Arc<CassFuture> {
         let cass_fut = Arc::new(CassFuture {
@@ -675,7 +675,7 @@ pub unsafe extern "C" fn cass_future_coordinator(
 
 #[cfg(test)]
 mod tests {
-    use crate::testing::{assert_cass_error_eq, assert_cass_future_error_message_eq};
+    use crate::testing::utils::{assert_cass_error_eq, assert_cass_future_error_message_eq};
 
     use super::*;
     use std::{

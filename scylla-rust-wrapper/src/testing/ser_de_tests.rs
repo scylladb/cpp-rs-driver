@@ -43,7 +43,7 @@ use crate::query_result::{
     cass_value_get_int8, cass_value_get_int16, cass_value_get_int32, cass_value_get_int64,
     cass_value_get_string, cass_value_get_uuid, cass_value_is_null, cass_value_item_count,
 };
-use crate::testing::{assert_cass_error_eq, setup_tracing};
+use crate::testing::utils::{assert_cass_error_eq, setup_tracing};
 use crate::types::size_t;
 
 fn do_serialize<T: SerializeValue>(t: T, typ: &ColumnType) -> Vec<u8> {

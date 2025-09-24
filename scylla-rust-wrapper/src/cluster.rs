@@ -1617,7 +1617,7 @@ pub unsafe extern "C" fn cass_cluster_set_metadata_request_serverside_timeout(
 
 #[cfg(test)]
 mod tests {
-    use crate::testing::{assert_cass_error_eq, setup_tracing};
+    use crate::testing::utils::{assert_cass_error_eq, setup_tracing};
 
     use super::*;
     use crate::{

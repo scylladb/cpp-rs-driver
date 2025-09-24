@@ -16,8 +16,6 @@ pub(crate) mod config_value;
 pub(crate) mod cql_types;
 pub(crate) mod exec_profile;
 pub(crate) mod future;
-#[cfg(cpp_integration_testing)]
-pub(crate) mod integration_testing;
 pub(crate) mod iterator;
 mod load_balancing;
 mod logging;
@@ -25,12 +23,10 @@ pub(crate) mod metadata;
 pub(crate) mod query_result;
 pub(crate) mod retry_policy;
 pub(crate) mod runtime;
-#[cfg(test)]
-mod ser_de_tests;
 pub(crate) mod session;
 pub(crate) mod ssl;
 pub(crate) mod statements;
-#[cfg(test)]
+#[cfg(any(test, cpp_integration_testing))]
 pub(crate) mod testing;
 pub(crate) mod timestamp_generator;
 
