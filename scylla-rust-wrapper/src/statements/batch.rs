@@ -10,7 +10,7 @@ use crate::cql_types::data_type::make_batch_type;
 use crate::cql_types::value::CassCqlValue;
 use crate::exec_profile::PerStatementExecProfile;
 use crate::retry_policy::CassRetryPolicy;
-use crate::statement::{BoundStatement, CassStatement};
+use crate::statements::statement::{BoundStatement, CassStatement};
 use crate::types::*;
 use scylla::statement::batch::Batch;
 use scylla::statement::{Consistency, SerialConsistency};

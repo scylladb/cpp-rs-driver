@@ -1,5 +1,4 @@
 use crate::argconv::*;
-use crate::batch::CassBatch;
 use crate::cass_error::*;
 use crate::cass_metrics_types::CassMetrics;
 use crate::cluster::CassCluster;
@@ -9,10 +8,11 @@ use crate::exec_profile::{CassExecProfile, ExecProfileName, PerStatementExecProf
 use crate::future::{CassFuture, CassFutureResult, CassResultValue};
 use crate::metadata::create_table_metadata;
 use crate::metadata::{CassKeyspaceMeta, CassMaterializedViewMeta, CassSchemaMeta};
-use crate::prepared::CassPrepared;
 use crate::query_result::{CassResult, CassResultKind, CassResultMetadata};
 use crate::runtime::Runtime;
-use crate::statement::{BoundStatement, CassStatement, SimpleQueryRowSerializer};
+use crate::statements::batch::CassBatch;
+use crate::statements::prepared::CassPrepared;
+use crate::statements::statement::{BoundStatement, CassStatement, SimpleQueryRowSerializer};
 use crate::types::size_t;
 use scylla::client::execution_profile::ExecutionProfileHandle;
 use scylla::client::session::Session;
@@ -885,10 +885,6 @@ mod tests {
     use super::*;
     use crate::{
         argconv::make_c_str,
-        batch::{
-            CassBatchType, cass_batch_add_statement, cass_batch_free, cass_batch_new,
-            cass_batch_set_retry_policy,
-        },
         cluster::{
             cass_cluster_free, cass_cluster_new, cass_cluster_set_client_id,
             cass_cluster_set_contact_points_n, cass_cluster_set_execution_profile,
@@ -907,7 +903,13 @@ mod tests {
         retry_policy::{
             CassRetryPolicy, cass_retry_policy_default_new, cass_retry_policy_fallthrough_new,
         },
-        statement::{cass_statement_free, cass_statement_new, cass_statement_set_retry_policy},
+        statements::batch::{
+            CassBatchType, cass_batch_add_statement, cass_batch_free, cass_batch_new,
+            cass_batch_set_retry_policy,
+        },
+        statements::statement::{
+            cass_statement_free, cass_statement_new, cass_statement_set_retry_policy,
+        },
         testing::{
             assert_cass_error_eq, cass_future_wait_check_and_free, generic_drop_queries_rules,
             handshake_rules, mock_init_rules, setup_tracing, test_with_one_proxy,

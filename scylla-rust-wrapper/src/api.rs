@@ -387,7 +387,7 @@ pub mod future {
 pub mod statement {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
-    pub use crate::statement::{
+    pub use crate::statements::statement::{
         CassStatement,
         cass_statement_bind_bool,
         cass_statement_bind_bool_by_name,
@@ -483,7 +483,7 @@ pub mod statement {
 pub mod prepared {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
-    pub use crate::prepared::{
+    pub use crate::statements::prepared::{
         CassPrepared,
         cass_prepared_bind,
         cass_prepared_free,
@@ -497,7 +497,7 @@ pub mod prepared {
 pub mod batch {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
-    pub use crate::batch::{
+    pub use crate::statements::batch::{
         CassBatch,
         CassBatchType,
         cass_batch_add_statement,

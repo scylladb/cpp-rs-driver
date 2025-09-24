@@ -1,9 +1,9 @@
 use crate::argconv::*;
 use crate::cass_error::{CassError, CassErrorMessage, CassErrorResult, ToCassError as _};
 use crate::cql_types::uuid::CassUuid;
-use crate::prepared::CassPrepared;
 use crate::query_result::{CassNode, CassResult};
 use crate::runtime::Runtime;
+use crate::statements::prepared::CassPrepared;
 use crate::types::*;
 use futures::future;
 use std::future::Future;

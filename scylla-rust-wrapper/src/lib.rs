@@ -10,7 +10,6 @@ mod binding;
 pub mod api;
 // pub, because doctests defined in `argconv` module need to access it.
 pub mod argconv;
-pub(crate) mod batch;
 pub(crate) mod cass_error;
 pub(crate) mod cluster;
 pub(crate) mod config_value;
@@ -23,7 +22,6 @@ pub(crate) mod iterator;
 mod load_balancing;
 mod logging;
 pub(crate) mod metadata;
-pub(crate) mod prepared;
 pub(crate) mod query_result;
 pub(crate) mod retry_policy;
 pub(crate) mod runtime;
@@ -31,7 +29,7 @@ pub(crate) mod runtime;
 mod ser_de_tests;
 pub(crate) mod session;
 pub(crate) mod ssl;
-pub(crate) mod statement;
+pub(crate) mod statements;
 #[cfg(test)]
 pub(crate) mod testing;
 pub(crate) mod timestamp_generator;

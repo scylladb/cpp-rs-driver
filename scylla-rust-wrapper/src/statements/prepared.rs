@@ -6,7 +6,7 @@ use crate::{
     cass_error::CassError,
     cql_types::data_type::{CassDataType, get_column_type},
     query_result::CassResultMetadata,
-    statement::{BoundPreparedStatement, CassStatement},
+    statements::statement::{BoundPreparedStatement, CassStatement},
     types::size_t,
 };
 use scylla::statement::prepared::PreparedStatement;

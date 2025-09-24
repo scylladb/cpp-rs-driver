@@ -5,9 +5,9 @@ use crate::cql_types::CassConsistency;
 use crate::cql_types::inet::CassInet;
 use crate::cql_types::value::{self, CassCqlValue};
 use crate::exec_profile::PerStatementExecProfile;
-use crate::prepared::CassPrepared;
 use crate::query_result::{CassNode, CassResult};
 use crate::retry_policy::CassRetryPolicy;
+use crate::statements::prepared::CassPrepared;
 use crate::types::*;
 use scylla::frame::types::Consistency;
 use scylla::policies::load_balancing::{NodeIdentifier, SingleTargetLoadBalancingPolicy};
@@ -876,7 +876,7 @@ mod tests {
     use crate::argconv::{BoxFFI, RefFFI};
     use crate::cass_error::CassError;
     use crate::cql_types::inet::CassInet;
-    use crate::statement::{
+    use crate::statements::statement::{
         cass_statement_set_host, cass_statement_set_host_inet, cass_statement_set_node,
     };
     use crate::testing::assert_cass_error_eq;

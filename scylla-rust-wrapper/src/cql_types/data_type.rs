@@ -1,7 +1,7 @@
 use crate::argconv::*;
-use crate::batch::CassBatchType;
 use crate::cass_error::CassError;
 use crate::cql_types::CassValueType;
+use crate::statements::batch::CassBatchType;
 use crate::types::*;
 use scylla::cluster::metadata::{CollectionType, NativeType};
 use scylla::frame::response::result::ColumnType;
