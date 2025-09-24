@@ -609,7 +609,7 @@ fn check_for_all_consistencies_and_setting_options(
 #[ntest::timeout(60000)]
 async fn consistency_is_correctly_set_in_cql_requests() {
     setup_tracing();
-    let res = test_with_3_node_dry_mode_cluster(|proxy_uris, mut running_proxy| async move {
+    let res = test_with_3_node_dry_mode_cluster(|proxy_uris, mut running_proxy| {
         let request_rules = |tx| {
             handshake_rules()
                 .into_iter()
@@ -659,13 +659,7 @@ async fn consistency_is_correctly_set_in_cql_requests() {
             running_node.change_request_rules(Some(request_rules(request_tx.clone())));
         }
 
-        // The test must be executed in a blocking context, because otherwise the tokio runtime
-        // will panic on blocking operations that C API performs.
-        tokio::task::spawn_blocking(move || {
-            check_for_all_consistencies_and_setting_options(request_rx, proxy_uris)
-        })
-        .await
-        .unwrap();
+        check_for_all_consistencies_and_setting_options(request_rx, proxy_uris);
 
         running_proxy
     })

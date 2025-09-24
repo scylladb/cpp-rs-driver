@@ -1,5 +1,4 @@
 use bytes::BytesMut;
-use futures::Future;
 use libc::c_char;
 use scylla_cpp_driver::api::error::{CassError, cass_error_desc};
 use scylla_cpp_driver::api::future::{
@@ -26,10 +25,9 @@ pub(crate) fn setup_tracing() {
         .try_init();
 }
 
-pub(crate) async fn test_with_3_node_dry_mode_cluster<F, Fut>(test: F) -> Result<(), ProxyError>
+pub(crate) async fn test_with_3_node_dry_mode_cluster<F>(test: F) -> Result<(), ProxyError>
 where
-    F: FnOnce([String; 3], RunningProxy) -> Fut,
-    Fut: Future<Output = RunningProxy>,
+    F: FnOnce([String; 3], RunningProxy) -> RunningProxy + Send + 'static,
 {
     let proxy1_uri = format!("{}:9042", scylla_proxy::get_exclusive_local_address());
     let proxy2_uri = format!("{}:9042", scylla_proxy::get_exclusive_local_address());
@@ -46,7 +44,10 @@ where
 
     let running_proxy = proxy.run().await.unwrap();
 
-    let running_proxy = test([proxy1_uri, proxy2_uri, proxy3_uri], running_proxy).await;
+    let running_proxy =
+        tokio::task::spawn_blocking(|| test([proxy1_uri, proxy2_uri, proxy3_uri], running_proxy))
+            .await
+            .unwrap();
 
     running_proxy.finish().await
 }
