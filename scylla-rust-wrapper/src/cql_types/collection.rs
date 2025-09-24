@@ -1,9 +1,9 @@
+use crate::argconv::*;
 use crate::cass_collection_types::CassCollectionType;
 use crate::cass_error::CassError;
 use crate::cass_types::{CassDataType, CassDataTypeInner, MapDataType};
+use crate::cql_types::value::{self, CassCqlValue};
 use crate::types::*;
-use crate::value::CassCqlValue;
-use crate::{argconv::*, value};
 use std::convert::TryFrom;
 use std::sync::Arc;
 use std::sync::LazyLock;
@@ -285,7 +285,7 @@ mod tests {
             CassDataType, CassDataTypeInner, CassValueType, MapDataType,
             cass_data_type_add_sub_type, cass_data_type_free, cass_data_type_new,
         },
-        collection::{
+        cql_types::collection::{
             cass_collection_append_double, cass_collection_append_float, cass_collection_free,
         },
         testing::assert_cass_error_eq,

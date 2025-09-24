@@ -562,7 +562,7 @@ pub mod data_type {
 pub mod collection {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
-    pub use crate::collection::{
+    pub use crate::cql_types::collection::{
         CassCollection,
         cass_collection_append_bool,
         cass_collection_append_bytes,
@@ -594,7 +594,7 @@ pub mod collection {
 pub mod tuple {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
-    pub use crate::tuple::{
+    pub use crate::cql_types::tuple::{
         CassTuple,
         cass_tuple_data_type,
         cass_tuple_free,
@@ -627,7 +627,7 @@ pub mod tuple {
 pub mod user_type {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
-    pub use crate::user_type::{
+    pub use crate::cql_types::user_type::{
         CassUserType,
         cass_user_type_data_type,
         cass_user_type_free,
@@ -832,7 +832,7 @@ pub mod value {
 pub mod uuid_gen {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
-    pub use crate::uuid::{
+    pub use crate::cql_types::uuid::{
         CassUuidGen,
         cass_uuid_gen_free,
         cass_uuid_gen_from_time,
@@ -846,7 +846,7 @@ pub mod uuid_gen {
 pub mod uuid {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
-    pub use crate::uuid::{
+    pub use crate::cql_types::uuid::{
         cass_uuid_from_string,
         cass_uuid_from_string_n,
         cass_uuid_max_from_time,
@@ -927,7 +927,7 @@ pub mod log {
 pub mod inet {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
-    pub use crate::inet::{
+    pub use crate::cql_types::inet::{
         CassInet,
         cass_inet_from_string,
         cass_inet_from_string_n,
@@ -940,7 +940,7 @@ pub mod inet {
 pub mod date_time {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
-    pub use crate::date_time::{
+    pub use crate::cql_types::date_time::{
         cass_date_from_epoch,
         cass_date_time_to_epoch,
         cass_time_from_epoch

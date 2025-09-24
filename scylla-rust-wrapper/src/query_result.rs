@@ -6,9 +6,9 @@ use crate::cass_types::{
     CassColumnSpec, CassDataType, CassDataTypeInner, MapDataType, cass_data_type_type,
     get_column_type,
 };
-use crate::inet::CassInet;
+use crate::cql_types::inet::CassInet;
+use crate::cql_types::uuid::CassUuid;
 use crate::types::*;
-use crate::uuid::CassUuid;
 use cass_raw_value::CassRawValue;
 use row_with_self_borrowed_result_data::RowWithSelfBorrowedResultData;
 use scylla::cluster::metadata::{ColumnType, NativeType};

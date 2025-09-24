@@ -1,14 +1,14 @@
+use crate::argconv::*;
 use crate::cass_error::CassError;
 use crate::cass_types::CassConsistency;
 use crate::config_value::{MaybeUnsetConfig, RequestTimeout};
+use crate::cql_types::inet::CassInet;
+use crate::cql_types::value::{self, CassCqlValue};
 use crate::exec_profile::PerStatementExecProfile;
-use crate::inet::CassInet;
 use crate::prepared::CassPrepared;
 use crate::query_result::{CassNode, CassResult};
 use crate::retry_policy::CassRetryPolicy;
 use crate::types::*;
-use crate::value::CassCqlValue;
-use crate::{argconv::*, value};
 use scylla::frame::types::Consistency;
 use scylla::policies::load_balancing::{NodeIdentifier, SingleTargetLoadBalancingPolicy};
 use scylla::response::{PagingState, PagingStateResponse};
@@ -875,7 +875,7 @@ mod tests {
 
     use crate::argconv::{BoxFFI, RefFFI};
     use crate::cass_error::CassError;
-    use crate::inet::CassInet;
+    use crate::cql_types::inet::CassInet;
     use crate::statement::{
         cass_statement_set_host, cass_statement_set_host_inet, cass_statement_set_node,
     };

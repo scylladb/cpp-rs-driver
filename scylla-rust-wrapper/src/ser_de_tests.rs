@@ -27,7 +27,8 @@ use crate::argconv::{
 };
 use crate::cass_error::CassError;
 use crate::cass_types::get_column_type;
-use crate::inet::CassInet;
+use crate::cql_types::inet::CassInet;
+use crate::cql_types::uuid::CassUuid;
 use crate::iterator::{
     CassIterator, CassIteratorType, cass_iterator_fields_from_user_type, cass_iterator_free,
     cass_iterator_from_collection, cass_iterator_from_map, cass_iterator_from_tuple,
@@ -44,7 +45,6 @@ use crate::query_result::{
 };
 use crate::testing::{assert_cass_error_eq, setup_tracing};
 use crate::types::size_t;
-use crate::uuid::CassUuid;
 
 fn do_serialize<T: SerializeValue>(t: T, typ: &ColumnType) -> Vec<u8> {
     let mut ret = Vec::new();

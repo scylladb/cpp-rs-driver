@@ -1,8 +1,8 @@
+use crate::argconv::*;
 use crate::cass_error::CassError;
 use crate::cass_types::{CassDataType, CassDataTypeInner};
+use crate::cql_types::value::{self, CassCqlValue};
 use crate::types::*;
-use crate::value::CassCqlValue;
-use crate::{argconv::*, value};
 use std::os::raw::c_char;
 use std::sync::Arc;
 

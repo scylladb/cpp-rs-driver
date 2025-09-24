@@ -417,7 +417,7 @@ mod tests {
 
     use crate::{
         cass_types::{CassDataType, CassDataTypeInner, CassValueType, MapDataType, UdtDataType},
-        value::{CassCqlValue, is_type_compatible},
+        cql_types::value::{CassCqlValue, is_type_compatible},
     };
 
     fn all_value_data_types() -> Vec<CassDataType> {

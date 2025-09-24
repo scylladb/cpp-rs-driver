@@ -2,9 +2,9 @@ use crate::argconv::*;
 use crate::cass_error::CassError;
 use crate::cass_types::CassDataType;
 use crate::cass_types::CassDataTypeInner;
+use crate::cql_types::value;
+use crate::cql_types::value::CassCqlValue;
 use crate::types::*;
-use crate::value;
-use crate::value::CassCqlValue;
 use std::sync::Arc;
 use std::sync::LazyLock;
 
