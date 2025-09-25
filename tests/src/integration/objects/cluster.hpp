@@ -17,6 +17,7 @@
 #ifndef __TEST_CLUSTER_HPP__
 #define __TEST_CLUSTER_HPP__
 #include "cassandra.h"
+#include "cassandra_deleted_functions.h"
 
 #include "object_base.hpp"
 

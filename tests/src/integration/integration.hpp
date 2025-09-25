@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "cassandra.h"
+#include "cassandra_deleted_functions.h"
 
 #include "bridge.hpp"
 #include "logger.hpp"

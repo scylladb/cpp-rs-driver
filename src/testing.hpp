@@ -18,6 +18,7 @@
 #define DATASTAX_INTERNAL_TESTING_HPP
 
 #include "cassandra.h"
+#include "cassandra_deleted_functions.h"
 #include "string.hpp"
 #include "string_ref.hpp"
 #include "vector.hpp"
