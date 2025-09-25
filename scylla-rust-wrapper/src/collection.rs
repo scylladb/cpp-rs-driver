@@ -88,6 +88,9 @@ impl CassCollection {
                     if let Some(subtype) = subtype
                         && !value::is_type_compatible(value, subtype)
                     {
+                        tracing::error!(
+                            "Tried to append to a collection, but the value type is incompatible with the collection's data type."
+                        );
                         return CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE;
                     }
                 }
@@ -99,14 +102,23 @@ impl CassCollection {
                     match typ {
                         MapDataType::Key(k_typ) => {
                             if index % 2 == 0 && !value::is_type_compatible(value, k_typ) {
+                                tracing::error!(
+                                    "Tried to append to a collection, but the value type is incompatible with the collection's data type."
+                                );
                                 return CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE;
                             }
                         }
                         MapDataType::KeyAndValue(k_typ, v_typ) => {
                             if index % 2 == 0 && !value::is_type_compatible(value, k_typ) {
+                                tracing::error!(
+                                    "Tried to append to a collection, but the value type is incompatible with the collection's data type."
+                                );
                                 return CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE;
                             }
                             if index % 2 != 0 && !value::is_type_compatible(value, v_typ) {
+                                tracing::error!(
+                                    "Tried to append to a collection, but the value type is incompatible with the collection's data type."
+                                );
                                 return CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE;
                             }
                         }
@@ -114,7 +126,10 @@ impl CassCollection {
                         MapDataType::Untyped => (),
                     }
                 }
-                _ => return CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE,
+                _ => {
+                    tracing::error!("Tried to append to a non-collection!");
+                    return CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE;
+                }
             }
         }
 

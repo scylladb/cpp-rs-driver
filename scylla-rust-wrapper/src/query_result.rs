@@ -592,7 +592,8 @@ pub unsafe extern "C" fn cass_result_column_name(
     let index_usize: usize = index.try_into().unwrap();
 
     let CassResultKind::Rows(CassRowsResult { shared_data, .. }) = &result_from_raw.kind else {
-        return CassError::CASS_ERROR_LIB_INDEX_OUT_OF_BOUNDS;
+        tracing::error!("Provided result which is not of kind Rows to cass_result_column_name!");
+        return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
     if index_usize >= shared_data.metadata.col_specs.len() {
@@ -1364,7 +1365,7 @@ mod tests {
                     addr_of_mut!(name_ptr),
                     addr_of_mut!(name_length),
                 );
-                assert_eq!(CassError::CASS_ERROR_LIB_INDEX_OUT_OF_BOUNDS, cass_err);
+                assert_eq!(CassError::CASS_ERROR_LIB_BAD_PARAMS, cass_err);
             }
         }
     }
