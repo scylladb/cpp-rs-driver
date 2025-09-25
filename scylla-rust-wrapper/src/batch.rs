@@ -67,6 +67,9 @@ pub unsafe extern "C" fn cass_batch_set_consistency(
     let Ok(maybe_set_consistency) = MaybeUnsetConfig::<_, Consistency>::from_c_value(consistency)
     else {
         // Invalid consistency value provided.
+        tracing::error!(
+            "Provided invalid consistency value to cass_batch_set_consistency: {consistency:?}"
+        );
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
@@ -106,6 +109,9 @@ pub unsafe extern "C" fn cass_batch_set_serial_consistency(
     let Ok(maybe_set_serial_consistency) =
         MaybeUnsetConfig::<_, Option<SerialConsistency>>::from_c_value(serial_consistency)
     else {
+        tracing::error!(
+            "Provided invalid serial consistency value to cass_batch_set_serial_consistency: {serial_consistency:?}"
+        );
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 

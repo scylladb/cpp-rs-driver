@@ -96,21 +96,21 @@ pub unsafe extern "C" fn cass_inet_from_string_n(
     input_length: size_t,
     inet_raw: *mut CassInet,
 ) -> CassError {
-    let input = unsafe { ptr_to_cstr_n(input_raw, input_length) };
-    if input.is_none() {
+    let Some(input_str) = (unsafe { ptr_to_cstr_n(input_raw, input_length) }) else {
+        tracing::error!("Provided null input string to cass_inet_from_string(_n)!");
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
-    }
+    };
 
-    let input_str = input.unwrap();
-    let ip_addr = IpAddr::from_str(input_str);
+    let Ok(ip_addr) = IpAddr::from_str(input_str) else {
+        tracing::error!(
+            "Provided input string which does not represent a valid IP address to cass_inet_from_string(_n)!"
+        );
+        return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+    };
 
-    match ip_addr {
-        Ok(ip_addr) => {
-            unsafe { std::ptr::write(inet_raw, ip_addr.into()) };
-            CassError::CASS_OK
-        }
-        Err(_) => CassError::CASS_ERROR_LIB_BAD_PARAMS,
-    }
+    unsafe { std::ptr::write(inet_raw, ip_addr.into()) };
+
+    CassError::CASS_OK
 }
 
 impl TryFrom<CassInet> for IpAddr {

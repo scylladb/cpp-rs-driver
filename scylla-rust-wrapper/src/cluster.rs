@@ -1082,7 +1082,12 @@ pub(crate) unsafe fn set_load_balance_rack_aware_n(
             (local_dc_str.to_owned(), local_rack_str.to_owned())
         }
         // One of them either is a null pointer, is an empty string or is not a proper utf-8.
-        _ => return CassError::CASS_ERROR_LIB_BAD_PARAMS,
+        _ => {
+            tracing::error!(
+                "Provided local_dc or local_rack that is null, empty or non-UTF-8 to cass_*_set_load_balance_rack_aware(_n)!"
+            );
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
     };
 
     load_balancing_config.load_balancing_kind = Some(LoadBalancingKind::RackAware {
@@ -1124,6 +1129,9 @@ pub unsafe extern "C" fn cass_cluster_set_protocol_version(
         // Rust Driver supports only protocol version 4
         CassError::CASS_OK
     } else {
+        tracing::error!(
+            "Provided unsupported protocol version to cass_cluster_set_protocol_version! The only supported version is 4."
+        );
         CassError::CASS_ERROR_LIB_BAD_PARAMS
     }
 }
@@ -1151,6 +1159,9 @@ pub unsafe extern "C" fn cass_cluster_set_constant_speculative_execution_policy(
     };
 
     if constant_delay_ms < 0 || max_speculative_executions < 0 {
+        tracing::error!(
+            "Provided negative parameters to cass_cluster_set_constant_speculative_execution_policy!"
+        );
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     }
 
@@ -1464,12 +1475,16 @@ pub unsafe extern "C" fn cass_cluster_set_consistency(
     let Ok(maybe_set_consistency) = MaybeUnsetConfig::<_, Consistency>::from_c_value(consistency)
     else {
         // Invalid consistency value provided.
+        tracing::error!("Provided invalid consistency value to cass_cluster_set_consistency!");
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
     match maybe_set_consistency {
         MaybeUnsetConfig::Unset(_) => {
             // `CASS_CONSISTENCY_UNKNOWN` is not supported in the cluster settings.
+            tracing::error!(
+                "CASS_CONSISTENCY_UNKNOWN is not supported in cass_cluster_set_consistency!"
+            );
             return CassError::CASS_ERROR_LIB_BAD_PARAMS;
         }
         MaybeUnsetConfig::Set(consistency) => {
@@ -1497,12 +1512,18 @@ pub unsafe extern "C" fn cass_cluster_set_serial_consistency(
         MaybeUnsetConfig::<_, Option<SerialConsistency>>::from_c_value(serial_consistency)
     else {
         // Invalid serial consistency value provided.
+        tracing::error!(
+            "Provided invalid serial consistency value to cass_cluster_set_serial_consistency!"
+        );
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
     match maybe_set_serial_consistency {
         MaybeUnsetConfig::Unset(_) => {
             // `CASS_CONSISTENCY_UNKNOWN` is not supported in the cluster settings.
+            tracing::error!(
+                "CASS_CONSISTENCY_UNKNOWN is not supported in cass_cluster_set_serial_consistency!"
+            );
             return CassError::CASS_ERROR_LIB_BAD_PARAMS;
         }
         MaybeUnsetConfig::Set(serial_consistency) => {
@@ -1533,7 +1554,12 @@ pub unsafe extern "C" fn cass_cluster_set_execution_profile_n(
     profile: CassBorrowedExclusivePtr<CassExecProfile, CMut>,
 ) -> CassError {
     let Some(cluster) = BoxFFI::as_mut_ref(cluster) else {
-        tracing::error!("Provided null cluster pointer to cass_cluster_set_execution_profile_n!");
+        tracing::error!("Provided null cluster pointer to cass_cluster_set_execution_profile(_n)!");
+        return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+    };
+
+    let Some(profile) = BoxFFI::as_ref(profile) else {
+        tracing::error!("Provided null profile pointer to cass_cluster_set_execution_profile(_n)!");
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
@@ -1543,15 +1569,13 @@ pub unsafe extern "C" fn cass_cluster_set_execution_profile_n(
         name
     } else {
         // Got NULL or empty string, which is invalid name for a profile.
-        return CassError::CASS_ERROR_LIB_BAD_PARAMS;
-    };
-    let profile = if let Some(profile) = BoxFFI::as_ref(profile) {
-        profile.clone()
-    } else {
+        tracing::error!(
+            "Provided null or empty profile name to cass_cluster_set_execution_profile(_n)!"
+        );
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
-    cluster.execution_profile_map.insert(name, profile);
+    cluster.execution_profile_map.insert(name, profile.clone());
 
     CassError::CASS_OK
 }

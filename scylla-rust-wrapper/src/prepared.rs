@@ -118,17 +118,15 @@ pub unsafe extern "C" fn cass_prepared_parameter_name(
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
-    match prepared
+    let Some(col_spec) = prepared
         .statement
         .get_variable_col_specs()
         .get_by_index(index as usize)
-    {
-        Some(col_spec) => {
-            unsafe { write_str_to_c(col_spec.name(), name, name_length) };
-            CassError::CASS_OK
-        }
-        None => CassError::CASS_ERROR_LIB_INDEX_OUT_OF_BOUNDS,
-    }
+    else {
+        return CassError::CASS_ERROR_LIB_INDEX_OUT_OF_BOUNDS;
+    };
+    unsafe { write_str_to_c(col_spec.name(), name, name_length) };
+    CassError::CASS_OK
 }
 
 #[unsafe(no_mangle)]
