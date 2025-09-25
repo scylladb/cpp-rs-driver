@@ -155,7 +155,6 @@ SCYLLA_EXAMPLES_TO_RUN := \
 	# logging <- unimplemented `cass_cluster_set_host_listener_callback()`
 	# perf <- unimplemented `cass_cluster_set_queue_size_io()`
 	# schema_meta <- unimplemented multiple schema-related functions
-	# cloud <- out of interest for us, not related to ScyllaDB
 endif
 
 ifndef CCM_COMMIT_ID
