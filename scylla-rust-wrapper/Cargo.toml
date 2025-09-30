@@ -1,5 +1,5 @@
 [package]
-name = "scylla-cpp-driver-rust"
+name = "scylla-rust-wrapper"
 version = "0.5.1"
 edition = "2024"
 description = "Wrapper for Scylla's Rust driver, exports functions to be used by C"
