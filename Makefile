@@ -1,11 +1,11 @@
 EMPTY :=
 SPACE := ${EMPTY} ${EMPTY}
-SHELL = bash
 
 SHELL = bash
 ifeq ($(OS),Windows_NT)
     SHELL := pwsh.exe
     .SHELLFLAGS := -NoProfile -Command
+    .ONESHELL:
 endif
 
 UNAME_S := $(shell uname -s)
@@ -196,7 +196,12 @@ BUILD_DIR := "${CURRENT_DIR}build"
 INTEGRATION_TEST_BIN := ${BUILD_DIR}/cassandra-integration-tests
 CMAKE_FLAGS ?=
 CMAKE_BUILD_TYPE ?= Release
-CMAKE_INSTALL_PREFIX ?= /usr
+
+ifeq ($(OS_TYPE),macos)
+  CMAKE_INSTALL_PREFIX ?= /usr/local
+else
+  CMAKE_INSTALL_PREFIX ?= /usr
+endif
 
 ifeq ($(OS_TYPE),macos)
   CPACK_GENERATORS ?= DragNDrop productbuild
@@ -298,13 +303,21 @@ build-examples:
 		$(MAKE) .ubuntu-package-install-dependencies; \
 	fi
 
-.package-build-prepare-windows:
-	if (-not (choco list --local-only --exact openssl.light | Select-String '^openssl.light$')) { choco install openssl.light --no-progress -y }
-	if (-not (choco list --local-only --exact pkgconfiglite | Select-String '^pkgconfiglite$')) { choco install pkgconfiglite --no-progress -y }
+.package-build-prepare-windows-openssl:
+	if (-not (choco list --local-only --exact openssl.light | Select-String '^openssl.light$$')) {
+	    choco install openssl.light --no-progress -y
+	}
+
+.package-build-prepare-windows-pkgconfiglite:
+	if (-not (choco list --local-only --exact pkgconfiglite | Select-String '^pkgconfiglite$$')) {
+		choco install pkgconfiglite --no-progress -y
+	}
+
+.package-build-prepare-windows: .package-build-prepare-windows-openssl .package-build-prepare-windows-pkgconfiglite
 
 ifeq ($(OS_TYPE),macos)
 .package-build-prepare:
-ifeq ($(OS_TYPE),windows)
+else ifeq ($(OS_TYPE),windows)
 .package-build-prepare: .package-build-prepare-windows
 else
 .package-build-prepare: .package-build-prepare-ubuntu
@@ -312,9 +325,9 @@ endif
 
 .package-configure: .package-build-prepare
 ifeq ($(OS_TYPE),windows)
-	cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) -DCMAKE_INSTALL_PREFIX=$(CMAKE_INSTALL_PREFIX) $(CMAKE_FLAGS)
-else
 	cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) $(CMAKE_FLAGS)
+else
+	cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) -DCMAKE_INSTALL_PREFIX=$(CMAKE_INSTALL_PREFIX) $(CMAKE_FLAGS)
 endif
 
 build-driver: .package-configure

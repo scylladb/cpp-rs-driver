@@ -47,41 +47,20 @@ jobs:
       - name: Build packages
         run: make build-package
 
-      - name: Install driver package (DEB)
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          DRIVER_PACKAGES=(build/*.deb)
-          if [ "${#DRIVER_PACKAGES[@]}" -eq 0 ]; then
-            echo "No driver DEB packages produced"
-            exit 1
-          fi
-          sudo dpkg -i "${DRIVER_PACKAGES[@]}"
-          sudo apt-get install -f -y
+      - name: Install driver dev package (DEB)
+        run: make -C packaging/smoke-test-app install-driver-dev-deb
 
-      - name: Build smoke-test application package
-        run: |
-          set -euo pipefail
-          make -C packaging/smoke-test-app package \
-            BUILD_TYPE=${{ inputs.build-type }} \
-            CMAKE_GENERATOR=Ninja \
-            INSTALL_PREFIX=/usr \
-            CPACK_GENERATORS="DEB RPM"
+      - name: Build smoke-test application package (DEB)
+        run: make -C packaging/smoke-test-app package
+
+      - name: Install driver dev package (DEB)
+        run: make -C packaging/smoke-test-app install-driver-dev-deb
 
       - name: Install smoke-test application package (DEB)
-        run: |
-          set -euo pipefail
-          make -C packaging/smoke-test-app install-deb
+        run: make -C packaging/smoke-test-app install-app-deb
 
       - name: Run smoke-test application against local Scylla
-        run: |
-          set -euo pipefail
-          cleanup() {
-            sudo docker compose -f tests/examples_cluster/docker-compose.yml down --remove-orphans
-          }
-          trap cleanup EXIT
-          sudo docker compose -f tests/examples_cluster/docker-compose.yml up -d --wait
-          /usr/bin/scylla-cpp-driver-smoke-test 172.43.0.2
+        run: make -C packaging/smoke-test-app test-package
 
       - name: Collect artifacts
         run: |
@@ -103,14 +82,17 @@ jobs:
 
   macos:
     name: macOS packages
-    runs-on: macos-13
+    runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@v4
 
       - name: Build packages
         run: make build-package
 
-      - name: Install driver package (pkg)
+      - name: Build smoke-test application package
+        run: make -C packaging/smoke-test-app package BUILD_TYPE=${{ inputs.build-type }}
+
+      - name: Install driver packages (pkg)
         run: |
           set -euo pipefail
           shopt -s nullglob
@@ -119,30 +101,35 @@ jobs:
             echo "No driver pkg packages produced"
             exit 1
           fi
+          echo "Installing ${#packages[@]} pkg package(s):"
+          for pkg in "${packages[@]}"; do
+            echo "  - $(basename "$pkg")"
+          done
+          # Install all packages (macOS productbuild creates a single package with components)
           for pkg in "${packages[@]}"; do
             sudo installer -pkg "$pkg" -target /
           done
 
-      - name: Build smoke-test application package
+      - name: Verify dev package installation
         run: |
           set -euo pipefail
-          make -C packaging/smoke-test-app package \
-            BUILD_TYPE=${{ inputs.build-type }}
+          # Verify headers are installed
+          if [ ! -f /usr/local/include/cassandra.h ]; then
+            echo "ERROR: cassandra.h header not found - dev package may not be installed"
+            exit 1
+          fi
+          # Verify pkg-config file is installed
+          if ! PKG_CONFIG_PATH=/usr/local/lib/pkgconfig pkg-config --exists scylla-cpp-driver; then
+            echo "ERROR: scylla-cpp-driver.pc not found - dev package may not be installed"
+            exit 1
+          fi
+          echo "Dev package verification successful"
 
       - name: Install smoke-test application package (pkg)
-        run: |
-          set -euo pipefail
-          make -C packaging/smoke-test-app install-pkg
+        run: make -C packaging/smoke-test-app install-app-pkg
 
       - name: Run smoke-test application against local Scylla
-        run: |
-          set -euo pipefail
-          cleanup() {
-            docker compose -f tests/examples_cluster/docker-compose.yml down --remove-orphans
-          }
-          trap cleanup EXIT
-          docker compose -f tests/examples_cluster/docker-compose.yml up -d --wait
-          /usr/local/bin/scylla-cpp-driver-smoke-test 172.43.0.2
+        run: make -C packaging/smoke-test-app test-package
 
       - name: Collect artifacts
         run: |
@@ -168,6 +155,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Docker
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dockerService = Get-Service -Name docker -ErrorAction SilentlyContinue
+          if (-not $dockerService) {
+            Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+            Install-Module -Name DockerMsftProvider -Repository PSGallery -Force
+            Install-Package -Name docker -ProviderName DockerMsftProvider -Force
+          }
+          try {
+            Start-Service docker -ErrorAction Stop
+          } catch {
+            Write-Warning "Docker service failed to start: $($_.Exception.Message)"
+          }
+
       - name: Add WiX to PATH
         shell: pwsh
         run: |
@@ -177,7 +180,7 @@ jobs:
       - name: Build packages
         run: make build-package
 
-      - name: Install driver package (MSI)
+      - name: Install driver packages (MSI)
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -185,12 +188,34 @@ jobs:
           if (-not $packages) {
             throw "No driver MSI packages produced"
           }
+          Write-Host "Installing $($packages.Count) MSI package(s):"
+          foreach ($pkg in $packages) {
+            Write-Host "  - $($pkg.Name)"
+          }
+          # Install all packages (Windows WIX creates a single MSI with components)
           foreach ($pkg in $packages) {
             $process = Start-Process msiexec.exe -ArgumentList "/i `"$($pkg.FullName)`" /qn /norestart" -Wait -PassThru
             if ($process.ExitCode -ne 0) {
               throw "Failed to install driver package $($pkg.Name): exit code $($process.ExitCode)"
             }
           }
+
+      - name: Verify dev package installation
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installPath = "C:\Program Files\ScyllaDB\Scylla CPP Driver"
+          # Verify headers are installed
+          $headerPath = Join-Path $installPath "include\cassandra.h"
+          if (-not (Test-Path $headerPath)) {
+            throw "ERROR: cassandra.h header not found at $headerPath - dev package may not be installed"
+          }
+          # Verify pkg-config file is installed
+          $pkgConfigPath = Join-Path $installPath "lib\pkgconfig\scylla-cpp-driver.pc"
+          if (-not (Test-Path $pkgConfigPath)) {
+            throw "ERROR: scylla-cpp-driver.pc not found at $pkgConfigPath - dev package may not be installed"
+          }
+          Write-Host "Dev package verification successful"
 
       - name: Build smoke-test application package
         shell: pwsh

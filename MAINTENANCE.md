@@ -35,10 +35,9 @@ Description of this PR should consist of just release notes. **NOTE: Preferably 
 8. Create a new tag (e.g. `git tag -a v1.2.0 -m "Release 1.2.0"`).
 9. Push `master` and the new tag, preferably using atomic push (e.g. `git push --atomic origin master v1.2.0`).
 10. Remove `version` file if present. This file contains version information (`X.Y.Z.<DATE>.<COMMIT_ID>`) and should be generated from scratch when releasing new version. The file will be re-generated automatically by instructions described in the next steps.
-11. Build binary packages with CPack on each target platform (Linux, macOS, Windows). The README provides the exact command sequence (`cmake -S`, `cmake --build`, `cpack -G <generator>`). If you do not have access to the platforms locally, trigger a run of the reusable workflow `.github/workflows/build-cpack-packages.yml` from another workflow and download the resulting artifacts.
-12. Go to https://github.com/scylladb/cpp-rust-driver/releases , click the `Draft new release` button and follow the procedure to create a new release on GitHub. Use the release notes as its description.
-13. After the release is published, the `Attach Packages to Release` workflow (`.github/workflows/release-upload-packages.yml`) automatically builds fresh packages using CPack and uploads every artifact to the release. Verify that the workflow finished successfully and that RPM/DEB/MSI/PKG/DMG files are attached.
-14. (Mandatory for major / minor release, optional for patch release) Publish a post on the forum:
+11. Go to https://github.com/scylladb/cpp-rs-driver/releases , click the `Draft new release` button and follow the procedure to create a new release on GitHub. Use the release notes as its description.
+12. After the release is published, the `Attach Packages to Release` workflow (`.github/workflows/release-upload-packages.yml`) automatically builds fresh packages using CPack and uploads every artifact to the release. Verify that the workflow finished successfully and that RPM/DEB/MSI/PKG/DMG files are attached.
+13. (Mandatory for major / minor release, optional for patch release) Publish a post on the forum:
     - Go to [Release notes](https://forum.scylladb.com/c/scylladb-release-notes/18) section.
     - Click "New Topic".
     - Title should be `[RELEASE] ScyllaDB CPP RS Driver <version>`, e.g. `[RELEASE] ScyllaDB CPP RS Driver 0.5.0`

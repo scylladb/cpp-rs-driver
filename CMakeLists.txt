@@ -58,6 +58,16 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
   )
 endif()
 
+# Component metadata used for macOS productbuild packages. Other platforms
+# ignore these values, so keep the defaults empty by default.
+set(SCYLLA_DRIVER_COMPONENT_NAME "scylla_cpp_driver")
+set(SCYLLA_DRIVER_COMPONENT_ARGS COMPONENT ${SCYLLA_DRIVER_COMPONENT_NAME})
+
+# Define component names for runtime and dev packages
+# These must be set before add_subdirectory() calls so install commands can use them
+set(SCYLLA_DRIVER_RUNTIME_COMPONENT_NAME "${SCYLLA_DRIVER_COMPONENT_NAME}")
+set(SCYLLA_DRIVER_DEV_COMPONENT_NAME "${SCYLLA_DRIVER_COMPONENT_NAME}-dev")
+
 if(CASS_BUILD_SHARED)
   set(BUILD_SHARED_LIBS ON)
 endif()
@@ -261,7 +271,7 @@ set(CPACK_PACKAGE_VENDOR "ScyllaDB")
 set(CPACK_PACKAGE_CONTACT "ScyllaDB <info@scylladb.com>")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
   "ScyllaDB C++ driver backed by the Rust core driver")
-set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/scylladb/cpp-rust-driver")
+set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/scylladb/cpp-rs-driver")
 set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION_STRING})
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
 set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
@@ -275,6 +285,25 @@ else()
 endif()
 set(CPACK_MONOLITHIC_INSTALL ON)
 set(CPACK_VERBATIM_VARIABLES ON)
+
+set(CPACK_MONOLITHIC_INSTALL OFF)
+
+# Set the list of components for CPack
+set(CPACK_COMPONENTS_ALL ${SCYLLA_DRIVER_RUNTIME_COMPONENT_NAME} ${SCYLLA_DRIVER_DEV_COMPONENT_NAME})
+
+include(CPackComponent)
+
+# Runtime component: shared libraries only
+cpack_add_component(${SCYLLA_DRIVER_RUNTIME_COMPONENT_NAME}
+  DISPLAY_NAME "Scylla C++ Driver Runtime"
+  DESCRIPTION "Shared libraries for the Scylla C++ Driver"
+  REQUIRED)
+
+# Dev component: headers, static libraries, pkg-config files, and development symlinks
+cpack_add_component(${SCYLLA_DRIVER_DEV_COMPONENT_NAME}
+  DISPLAY_NAME "Scylla C++ Driver Development"
+  DESCRIPTION "Headers, static libraries, and development files for the Scylla C++ Driver"
+  DEPENDS ${SCYLLA_DRIVER_RUNTIME_COMPONENT_NAME})
 
 if(WIN32)
   set(CPACK_GENERATOR "WIX")
@@ -290,22 +319,48 @@ elseif(APPLE)
   set(CPACK_GENERATOR "productbuild;DragNDrop")
   set(CPACK_PACKAGE_FILE_NAME
     "${_CPACK_PACKAGE_NAME}-${PROJECT_VERSION_STRING}-macos")
-  set(CPACK_PRODUCTBUILD_IDENTIFIER "com.scylladb.cpp-rust-driver")
+  set(CPACK_PRODUCTBUILD_IDENTIFIER "com.scylladb.cpp-rs-driver")
   set(CPACK_PRODUCTBUILD_SIGNING_IDENTITY "")
+  set(CPACK_PRODUCTBUILD_COMPONENT_INSTALL ON)
+
 else()
   set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
   set(CPACK_GENERATOR "DEB;RPM")
   set(CPACK_PACKAGE_FILE_NAME
     "${_CPACK_PACKAGE_NAME}-${PROJECT_VERSION_STRING}-${CMAKE_SYSTEM_NAME}")
+
+  # DEB package configuration
+  set(CPACK_DEB_COMPONENT_INSTALL ON)
   set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
   set(CPACK_DEBIAN_PACKAGE_MAINTAINER "ScyllaDB")
   set(CPACK_DEBIAN_PACKAGE_SECTION "database")
   set(CPACK_DEBIAN_PACKAGE_HOMEPAGE ${CPACK_PACKAGE_HOMEPAGE_URL})
   set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+
+  # DEB runtime package
+  set(CPACK_DEBIAN_${SCYLLA_DRIVER_RUNTIME_COMPONENT_NAME}_PACKAGE_NAME "${_CPACK_PACKAGE_NAME}")
+  set(CPACK_DEBIAN_${SCYLLA_DRIVER_RUNTIME_COMPONENT_NAME}_PACKAGE_SECTION "libs")
+
+  # DEB dev package
+  set(CPACK_DEBIAN_${SCYLLA_DRIVER_DEV_COMPONENT_NAME}_PACKAGE_NAME "${_CPACK_PACKAGE_NAME}-dev")
+  set(CPACK_DEBIAN_${SCYLLA_DRIVER_DEV_COMPONENT_NAME}_PACKAGE_SECTION "libdevel")
+  set(CPACK_DEBIAN_${SCYLLA_DRIVER_DEV_COMPONENT_NAME}_PACKAGE_DEPENDS "${_CPACK_PACKAGE_NAME} (= \${CPACK_DEBIAN_PACKAGE_VERSION})")
+
+  # RPM package configuration
+  set(CPACK_RPM_COMPONENT_INSTALL ON)
   set(CPACK_RPM_PACKAGE_LICENSE "Apache-2.0")
   set(CPACK_RPM_PACKAGE_URL ${CPACK_PACKAGE_HOMEPAGE_URL})
   set(CPACK_RPM_PACKAGE_RELEASE 1)
   set(CPACK_RPM_PACKAGE_GROUP "Applications/Databases")
+
+  # RPM runtime package
+  set(CPACK_RPM_${SCYLLA_DRIVER_RUNTIME_COMPONENT_NAME}_PACKAGE_NAME "${_CPACK_PACKAGE_NAME}")
+  set(CPACK_RPM_${SCYLLA_DRIVER_RUNTIME_COMPONENT_NAME}_PACKAGE_GROUP "System Environment/Libraries")
+
+  # RPM dev package (devel suffix is standard for RPM)
+  set(CPACK_RPM_${SCYLLA_DRIVER_DEV_COMPONENT_NAME}_PACKAGE_NAME "${_CPACK_PACKAGE_NAME}-devel")
+  set(CPACK_RPM_${SCYLLA_DRIVER_DEV_COMPONENT_NAME}_PACKAGE_GROUP "Development/Libraries")
+  set(CPACK_RPM_${SCYLLA_DRIVER_DEV_COMPONENT_NAME}_PACKAGE_REQUIRES "${_CPACK_PACKAGE_NAME} = ${PROJECT_VERSION_STRING}-${CPACK_RPM_PACKAGE_RELEASE}")
 endif()
 
 include(CPack)
