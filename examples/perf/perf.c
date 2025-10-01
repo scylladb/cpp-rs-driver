@@ -136,7 +136,6 @@ CassCluster* create_cluster(const char* hosts) {
   cass_cluster_set_contact_points(cluster, hosts);
   cass_cluster_set_credentials(cluster, "cassandra", "cassandra");
   cass_cluster_set_num_threads_io(cluster, NUM_IO_WORKER_THREADS);
-  cass_cluster_set_queue_size_io(cluster, 10000);
   cass_cluster_set_core_connections_per_shard(cluster, 1);
   return cluster;
 }

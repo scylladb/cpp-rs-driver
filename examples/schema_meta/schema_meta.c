@@ -204,8 +204,6 @@ void print_schema_value(const CassValue* value);
 void print_schema_bytes(const CassValue* value);
 void print_schema_list(const CassValue* value);
 void print_schema_map(const CassValue* value);
-void print_meta_field(const CassIterator* iterator, int indent);
-void print_meta_fields(CassIterator* iterator, int indent);
 void print_column_meta(const CassColumnMeta* meta, int indent);
 void print_index_meta(const CassIndexMeta* meta, int indent);
 
@@ -318,27 +316,6 @@ void print_schema_map(const CassValue* value) {
   cass_iterator_free(iterator);
 }
 
-void print_meta_field(const CassIterator* iterator, int indent) {
-  const char* name;
-  size_t name_length;
-  const CassValue* value;
-
-  cass_iterator_get_meta_field_name(iterator, &name, &name_length);
-  value = cass_iterator_get_meta_field_value(iterator);
-
-  print_indent(indent);
-  printf("%.*s: ", (int)name_length, name);
-  print_schema_value(value);
-  printf("\n");
-}
-
-void print_meta_fields(CassIterator* iterator, int indent) {
-  while (cass_iterator_next(iterator)) {
-    print_meta_field(iterator, indent);
-  }
-  cass_iterator_free(iterator);
-}
-
 void print_keyspace_meta(const CassKeyspaceMeta* meta, int indent) {
   const char* name;
   size_t name_length;
@@ -347,9 +324,6 @@ void print_keyspace_meta(const CassKeyspaceMeta* meta, int indent) {
   print_indent(indent);
   cass_keyspace_meta_name(meta, &name, &name_length);
   printf("Keyspace \"%.*s\":\n", (int)name_length, name);
-
-  print_meta_fields(cass_iterator_fields_from_keyspace_meta(meta), indent + 1);
-  printf("\n");
 
   iterator = cass_iterator_tables_from_keyspace_meta(meta);
   while (cass_iterator_next(iterator)) {
@@ -368,9 +342,6 @@ void print_table_meta(const CassTableMeta* meta, int indent) {
   print_indent(indent);
   cass_table_meta_name(meta, &name, &name_length);
   printf("Table \"%.*s\":\n", (int)name_length, name);
-
-  print_meta_fields(cass_iterator_fields_from_table_meta(meta), indent + 1);
-  printf("\n");
 
   iterator = cass_iterator_columns_from_table_meta(meta);
   while (cass_iterator_next(iterator)) {
@@ -396,9 +367,6 @@ void print_function_meta(const CassFunctionMeta* meta, int indent) {
   print_indent(indent);
   cass_function_meta_name(meta, &name, &name_length);
   printf("Function \"%.*s\":\n", (int)name_length, name);
-
-  print_meta_fields(cass_iterator_fields_from_function_meta(meta), indent + 1);
-  printf("\n");
 }
 
 void print_aggregate_meta(const CassAggregateMeta* meta, int indent) {
@@ -408,9 +376,6 @@ void print_aggregate_meta(const CassAggregateMeta* meta, int indent) {
   print_indent(indent);
   cass_aggregate_meta_name(meta, &name, &name_length);
   printf("Aggregate \"%.*s\":\n", (int)name_length, name);
-
-  print_meta_fields(cass_iterator_fields_from_aggregate_meta(meta), indent + 1);
-  printf("\n");
 }
 
 void print_column_meta(const CassColumnMeta* meta, int indent) {
@@ -420,8 +385,6 @@ void print_column_meta(const CassColumnMeta* meta, int indent) {
   print_indent(indent);
   cass_column_meta_name(meta, &name, &name_length);
   printf("Column \"%.*s\":\n", (int)name_length, name);
-  print_meta_fields(cass_iterator_fields_from_column_meta(meta), indent + 1);
-  printf("\n");
 }
 
 void print_index_meta(const CassIndexMeta* meta, int indent) {
@@ -431,6 +394,4 @@ void print_index_meta(const CassIndexMeta* meta, int indent) {
   print_indent(indent);
   cass_index_meta_name(meta, &name, &name_length);
   printf("Index \"%.*s\":\n", (int)name_length, name);
-  print_meta_fields(cass_iterator_fields_from_index_meta(meta), indent + 1);
-  printf("\n");
 }
