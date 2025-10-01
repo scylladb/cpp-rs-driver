@@ -1632,6 +1632,8 @@ cass_cluster_set_ssl(CassCluster* cluster,
 /**
  * Sets custom authenticator
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassCluster
  *
  * @param[in] cluster
@@ -1817,6 +1819,8 @@ cass_cluster_set_reconnect_wait_time(CassCluster* cluster,
  *
  * @public @memberof CassCluster
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @param[in] cluster
  * @param[in] delay_ms Time in milliseconds to delay attempting a reconnection;
  * 0 to perform a reconnection immediately.
@@ -1829,6 +1833,8 @@ cass_cluster_set_constant_reconnect(CassCluster* cluster,
  * Configures the cluster to use a reconnection policy that waits exponentially
  * longer between each reconnection attempt; however will maintain a constant
  * delay once the maximum delay is reached.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * <b>Default:</b>
  * <ul>
@@ -1918,6 +1924,8 @@ cass_cluster_set_request_timeout(CassCluster* cluster,
 
 /**
  * Sets the timeout for waiting for DNS name resolution.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * <b>Default:</b> 2000 milliseconds
  *
@@ -2477,6 +2485,8 @@ cass_cluster_set_use_schema(CassCluster* cluster,
 /**
  * Enable/Disable the randomization of the contact points list.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * <b>Default:</b> cass_true (enabled).
  *
  * <b>Important:</b> This setting should only be disabled for debugging or
@@ -2567,6 +2577,8 @@ cass_cluster_set_execution_profile_n(CassCluster* cluster,
 /**
  * Prepare statements on all available hosts.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * <b>Default:</b> cass_true
  *
  * @public @memberof CassCluster
@@ -2581,6 +2593,8 @@ cass_cluster_set_prepare_on_all_hosts(CassCluster* cluster,
 
 /**
  * Sets a callback for handling host state changes in the cluster.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * <b>Note:</b> The callback is invoked only when state changes in the cluster
  * are applicable to the configured load balancing policy(s).
@@ -2926,6 +2940,8 @@ cass_session_get_metrics(const CassSession* session,
 /**
  * Gets a copy of this session's speculative execution metrics.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassSession
  *
  * @param[in] session
@@ -2965,6 +2981,8 @@ cass_schema_meta_free(const CassSchemaMeta* schema_meta);
 /**
  * Gets the version of the schema metadata snapshot.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassSchemaMeta
  *
  * @param[in] schema_meta
@@ -2976,6 +2994,8 @@ cass_schema_meta_snapshot_version(const CassSchemaMeta* schema_meta);
 
 /**
  * Gets the version of the connected Cassandra cluster.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassSchemaMeta
  *
@@ -3222,6 +3242,8 @@ cass_keyspace_meta_aggregate_by_name_n(const CassKeyspaceMeta* keyspace_meta,
  * Gets a metadata field for the provided name. Metadata fields allow direct
  * access to the column data found in the underlying "keyspaces" metadata table.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassKeyspaceMeta
  *
  * @param[in] keyspace_meta
@@ -3235,6 +3257,8 @@ cass_keyspace_meta_field_by_name(const CassKeyspaceMeta* keyspace_meta,
 /**
  * Same as cass_keyspace_meta_field_by_name(), but with lengths for string
  * parameters.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassKeyspaceMeta
  *
@@ -3266,6 +3290,8 @@ cass_table_meta_name(const CassTableMeta* table_meta,
 
 /**
  * Determine if the table is a virtual table.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassTableMeta
  *
@@ -3334,6 +3360,8 @@ cass_table_meta_column(const CassTableMeta* table_meta,
 /**
  * Gets the index metadata for the provided index name.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassTableMeta
  *
  * @param[in] table_meta
@@ -3348,6 +3376,8 @@ cass_table_meta_index_by_name(const CassTableMeta* table_meta,
 /**
  * Same as cass_table_meta_index_by_name(), but with lengths for string
  * parameters.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassTableMeta
  *
@@ -3365,6 +3395,8 @@ cass_table_meta_index_by_name_n(const CassTableMeta* table_meta,
 
 /**
  * Gets the total number of indexes for the table.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassTableMeta
  *
@@ -3498,6 +3530,8 @@ cass_table_meta_clustering_key(const CassTableMeta* table_meta,
 /**
  * Gets the clustering order column metadata for the provided index.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassTableMeta
  *
  * @param[in] table_meta
@@ -3515,6 +3549,8 @@ cass_table_meta_clustering_key_order(const CassTableMeta* table_meta,
  * Gets a metadata field for the provided name. Metadata fields allow direct
  * access to the column data found in the underlying "tables" metadata table.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassTableMeta
  *
  * @param[in] table_meta
@@ -3528,6 +3564,8 @@ cass_table_meta_field_by_name(const CassTableMeta* table_meta,
 /**
  * Same as cass_table_meta_field_by_name(), but with lengths for string
  * parameters.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassTableMeta
  *
@@ -3676,6 +3714,8 @@ cass_materialized_view_meta_clustering_key(const CassMaterializedViewMeta* view_
 /**
  * Gets the clustering order column metadata for the provided index.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassMaterializedViewMeta
  *
  * @param[in] view_meta
@@ -3693,6 +3733,8 @@ cass_materialized_view_meta_clustering_key_order(const CassMaterializedViewMeta*
  * Gets a metadata field for the provided name. Metadata fields allow direct
  * access to the column data found in the underlying "views" metadata view.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassMaterializedViewMeta
  *
  * @param[in] view_meta
@@ -3706,6 +3748,8 @@ cass_materialized_view_meta_field_by_name(const CassMaterializedViewMeta* view_m
 /**
  * Same as cass_materialized_view_meta_field_by_name(), but with lengths for string
  * parameters.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassMaterializedViewMeta
  *
@@ -3761,6 +3805,8 @@ cass_column_meta_data_type(const CassColumnMeta* column_meta);
  * Gets a metadata field for the provided name. Metadata fields allow direct
  * access to the column data found in the underlying "columns" metadata table.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassColumnMeta
  *
  * @param[in] column_meta
@@ -3774,6 +3820,8 @@ cass_column_meta_field_by_name(const CassColumnMeta* column_meta,
 /**
  * Same as cass_column_meta_field_by_name(), but with lengths for string
  * parameters.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassColumnMeta
  *
@@ -3792,6 +3840,8 @@ cass_column_meta_field_by_name_n(const CassColumnMeta* column_meta,
 /**
  * Gets the name of the index.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassIndexMeta
  *
  * @param[in] index_meta
@@ -3806,6 +3856,8 @@ cass_index_meta_name(const CassIndexMeta* index_meta,
 /**
  * Gets the type of the index.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassIndexMeta
  *
  * @param[in] index_meta
@@ -3816,6 +3868,8 @@ cass_index_meta_type(const CassIndexMeta* index_meta);
 
 /**
  * Gets the target of the index.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassIndexMeta
  *
@@ -3831,6 +3885,8 @@ cass_index_meta_target(const CassIndexMeta* index_meta,
 /**
  * Gets the options of the index.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassIndexMeta
  *
  * @param[in] index_meta
@@ -3842,6 +3898,8 @@ cass_index_meta_options(const CassIndexMeta* index_meta);
 /**
  * Gets a metadata field for the provided name. Metadata fields allow direct
  * access to the index data found in the underlying "indexes" metadata table.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassIndexMeta
  *
@@ -3856,6 +3914,8 @@ cass_index_meta_field_by_name(const CassIndexMeta* index_meta,
 /**
  * Same as cass_index_meta_field_by_name(), but with lengths for string
  * parameters.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassIndexMeta
  *
@@ -3874,6 +3934,8 @@ cass_index_meta_field_by_name_n(const CassIndexMeta* index_meta,
 /**
  * Gets the name of the function.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassFunctionMeta
  *
  * @param[in] function_meta
@@ -3890,6 +3952,8 @@ cass_function_meta_name(const CassFunctionMeta* function_meta,
  * function's name and the function's signature:
  * "name(type1 type2.. typeN)".
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassFunctionMeta
  *
  * @param[in] function_meta
@@ -3903,6 +3967,8 @@ cass_function_meta_full_name(const CassFunctionMeta* function_meta,
 
 /**
  * Gets the body of the function.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassFunctionMeta
  *
@@ -3918,6 +3984,8 @@ cass_function_meta_body(const CassFunctionMeta* function_meta,
 /**
  * Gets the language of the function.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassFunctionMeta
  *
  * @param[in] function_meta
@@ -3932,6 +4000,8 @@ cass_function_meta_language(const CassFunctionMeta* function_meta,
 /**
  * Gets whether a function is called on "null".
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassFunctionMeta
  *
  * @param[in] function_meta
@@ -3943,6 +4013,8 @@ cass_function_meta_called_on_null_input(const CassFunctionMeta* function_meta);
 /**
  * Gets the number of arguments this function takes.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassFunctionMeta
  *
  * @param[in] function_meta
@@ -3953,6 +4025,8 @@ cass_function_meta_argument_count(const CassFunctionMeta* function_meta);
 
 /**
  * Gets the function's argument name and type for the provided index.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassFunctionMeta
  *
@@ -3973,6 +4047,8 @@ cass_function_meta_argument(const CassFunctionMeta* function_meta,
 /**
  * Gets the function's argument and type for the provided name.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassFunctionMeta
  *
  * @param[in] function_meta
@@ -3986,6 +4062,8 @@ cass_function_meta_argument_type_by_name(const CassFunctionMeta* function_meta,
 /**
  * Same as cass_function_meta_argument_type_by_name(), but with lengths for string
  * parameters.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassFunctionMeta
  *
@@ -4004,6 +4082,8 @@ cass_function_meta_argument_type_by_name_n(const CassFunctionMeta* function_meta
 /**
  * Gets the return type of the function.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassFunctionMeta
  *
  * @param[in] function_meta
@@ -4015,6 +4095,8 @@ cass_function_meta_return_type(const CassFunctionMeta* function_meta);
 /**
  * Gets a metadata field for the provided name. Metadata fields allow direct
  * access to the column data found in the underlying "functions" metadata table.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassFunctionMeta
  *
@@ -4029,6 +4111,8 @@ cass_function_meta_field_by_name(const CassFunctionMeta* function_meta,
 /**
  * Same as cass_function_meta_field_by_name(), but with lengths for string
  * parameters.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassFunctionMeta
  *
@@ -4047,6 +4131,8 @@ cass_function_meta_field_by_name_n(const CassFunctionMeta* function_meta,
 /**
  * Gets the name of the aggregate.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassAggregateMeta
  *
  * @param[in] aggregate_meta
@@ -4063,6 +4149,8 @@ cass_aggregate_meta_name(const CassAggregateMeta* aggregate_meta,
  * aggregate's name and the aggregate's signature:
  * "name(type1 type2.. typeN)".
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassAggregateMeta
  *
  * @param[in] aggregate_meta
@@ -4077,6 +4165,8 @@ cass_aggregate_meta_full_name(const CassAggregateMeta* aggregate_meta,
 /**
  * Gets the number of arguments this aggregate takes.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassAggregateMeta
  *
  * @param[in] aggregate_meta
@@ -4087,6 +4177,8 @@ cass_aggregate_meta_argument_count(const CassAggregateMeta* aggregate_meta);
 
 /**
  * Gets the aggregate's argument type for the provided index.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassAggregateMeta
  *
@@ -4101,6 +4193,8 @@ cass_aggregate_meta_argument_type(const CassAggregateMeta* aggregate_meta,
 /**
  * Gets the return type of the aggregate.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassAggregateMeta
  *
  * @param[in] aggregate_meta
@@ -4111,6 +4205,8 @@ cass_aggregate_meta_return_type(const CassAggregateMeta* aggregate_meta);
 
 /**
  * Gets the state type of the aggregate.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassAggregateMeta
  *
@@ -4123,6 +4219,8 @@ cass_aggregate_meta_state_type(const CassAggregateMeta* aggregate_meta);
 /**
  * Gets the function metadata for the aggregate's state function.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassAggregateMeta
  *
  * @param[in] aggregate_meta
@@ -4134,6 +4232,8 @@ cass_aggregate_meta_state_func(const CassAggregateMeta* aggregate_meta);
 /**
  * Gets the function metadata for the aggregates's final function.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassAggregateMeta
  *
  * @param[in] aggregate_meta
@@ -4144,6 +4244,8 @@ cass_aggregate_meta_final_func(const CassAggregateMeta* aggregate_meta);
 
 /**
  * Gets the initial condition value for the aggregate.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * <b>Note:</b> The value of the initial condition will always be
  * a "varchar" type for Cassandra 3.0+.
@@ -4160,6 +4262,8 @@ cass_aggregate_meta_init_cond(const CassAggregateMeta* aggregate_meta);
  * Gets a metadata field for the provided name. Metadata fields allow direct
  * access to the column data found in the underlying "aggregates" metadata table.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassAggregateMeta
  *
  * @param[in] aggregate_meta
@@ -4173,6 +4277,8 @@ cass_aggregate_meta_field_by_name(const CassAggregateMeta* aggregate_meta,
 /**
  * Same as cass_aggregate_meta_field_by_name(), but with lengths for string
  * parameters.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassAggregateMeta
  *
@@ -4385,6 +4491,8 @@ cass_ssl_set_private_key_n(CassSsl* ssl,
 /**
  * Gets the IP address of the host being authenticated.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @param[in] auth
  * @param[out] address
  *
@@ -4396,6 +4504,8 @@ cass_authenticator_address(const CassAuthenticator* auth,
 
 /**
  * Gets the hostname of the host being authenticated.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassAuthenticator
  *
@@ -4409,6 +4519,8 @@ cass_authenticator_hostname(const CassAuthenticator* auth,
 
 /**
  * Gets the class name for the server-side IAuthentication implementation.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassAuthenticator
  *
@@ -4424,6 +4536,8 @@ cass_authenticator_class_name(const CassAuthenticator* auth,
  * Gets the user data created during the authenticator exchange. This
  * is set using cass_authenticator_set_exchange_data().
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassAuthenticator
  *
  * @param[in] auth
@@ -4437,6 +4551,8 @@ cass_authenticator_exchange_data(CassAuthenticator* auth);
 
 /**
  * Sets the user data to be used during the authenticator exchange.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassAuthenticator
  *
@@ -4452,6 +4568,8 @@ cass_authenticator_set_exchange_data(CassAuthenticator* auth,
 /**
  * Gets a response token buffer of the provided size.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassAuthenticator
  *
  * @param[in] auth
@@ -4464,6 +4582,8 @@ cass_authenticator_response(CassAuthenticator* auth,
 
 /**
  * Sets the response token.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassAuthenticator
  *
@@ -4479,6 +4599,8 @@ cass_authenticator_set_response(CassAuthenticator* auth,
 /**
  * Sets an error for the authenticator exchange.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassAuthenticator
  *
  * @param[in] auth
@@ -4493,6 +4615,8 @@ cass_authenticator_set_error(CassAuthenticator* auth,
  * parameters.
  *
  * @public @memberof CassAuthenticator
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @param[in] auth
  * @param[in] message
@@ -4665,6 +4789,8 @@ cass_future_tracing_id(CassFuture* future,
  * Gets a the number of custom payload items from a response future. If the future is not
  * ready this method will wait for the future to be set.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassFuture
  *
  * @param[in] future
@@ -4676,6 +4802,8 @@ cass_future_custom_payload_item_count(CassFuture* future);
 /**
  * Gets a custom payload item from a response future at the specified index. If the future is not
  * ready this method will wait for the future to be set.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassFuture
  *
@@ -4784,6 +4912,8 @@ cass_statement_free(CassStatement* statement);
  * This is not necessary and will not work for bound statements, as the keyspace
  * is determined by the prepared statement metadata.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassStatement
  *
  * @param[in] statement
@@ -4797,6 +4927,8 @@ cass_statement_set_keyspace(CassStatement* statement,
 /**
  * Same as cass_statement_set_keyspace(), but with lengths for string
  * parameters.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassStatement
  *
@@ -4956,6 +5088,8 @@ cass_statement_set_retry_policy(CassStatement* statement,
 
 /**
  * Sets the statement's custom payload.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassStatement
  *
@@ -6185,6 +6319,8 @@ cass_batch_free(CassBatch* batch);
  * <b>Note:</b> If not set explicitly then the batch will inherit the keyspace
  * of the first child statement with a non-empty keyspace.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassBatch
  *
  * @param[in] batch
@@ -6198,6 +6334,8 @@ cass_batch_set_keyspace(CassBatch* batch,
 /**
  * Same as cass_batch_set_keyspace(), but with lengths for string
  * parameters.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassBatch
  *
@@ -6307,6 +6445,8 @@ cass_batch_set_retry_policy(CassBatch* batch,
 
 /**
  * Sets the batch's custom payload.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassBatch
  *
@@ -9018,6 +9158,8 @@ cass_iterator_fields_from_user_type(const CassValue* value);
  * Creates a new iterator for the specified schema metadata.
  * This can be used to iterate over keyspace.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassSchemaMeta
  *
  * @param[in] schema_meta
@@ -9078,6 +9220,8 @@ cass_iterator_user_types_from_keyspace_meta(const CassKeyspaceMeta* keyspace_met
  * Creates a new iterator for the specified keyspace metadata.
  * This can be used to iterate over functions.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassKeyspaceMeta
  *
  * @param[in] keyspace_meta
@@ -9092,6 +9236,8 @@ cass_iterator_functions_from_keyspace_meta(const CassKeyspaceMeta* keyspace_meta
 /**
  * Creates a new iterator for the specified keyspace metadata.
  * This can be used to iterate over aggregates.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassKeyspaceMeta
  *
@@ -9109,6 +9255,8 @@ cass_iterator_aggregates_from_keyspace_meta(const CassKeyspaceMeta* keyspace_met
  * fields allow direct access to the column data found in the underlying
  * "keyspaces" metadata table. This can be used to iterate those metadata
  * field entries.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassKeyspaceMeta
  *
@@ -9141,6 +9289,8 @@ cass_iterator_columns_from_table_meta(const CassTableMeta* table_meta);
  * Creates a new iterator for the specified table metadata.
  * This can be used to iterate over indexes.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassTableMeta
  *
  * @param[in] table_meta
@@ -9172,6 +9322,8 @@ cass_iterator_materialized_views_from_table_meta(const CassTableMeta* table_meta
  * fields allow direct access to the column data found in the underlying
  * "tables" metadata table. This can be used to iterate those metadata
  * field entries.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassTableMeta
  *
@@ -9206,6 +9358,8 @@ cass_iterator_columns_from_materialized_view_meta(const CassMaterializedViewMeta
  * underlying "views" metadata view. This can be used to iterate those metadata
  * field entries.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassMaterializedViewMeta
  *
  * @param[in] view_meta
@@ -9223,6 +9377,8 @@ cass_iterator_fields_from_materialized_view_meta(const CassMaterializedViewMeta*
  * fields allow direct access to the column data found in the underlying
  * "columns" metadata table. This can be used to iterate those metadata
  * field entries.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassColumnMeta
  *
@@ -9242,6 +9398,8 @@ cass_iterator_fields_from_column_meta(const CassColumnMeta* column_meta);
  * "indexes" metadata table. This can be used to iterate those metadata
  * field entries.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassIndexMeta
  *
  * @param[in] index_meta
@@ -9260,6 +9418,8 @@ cass_iterator_fields_from_index_meta(const CassIndexMeta* index_meta);
  * "functions" metadata table. This can be used to iterate those metadata
  * field entries.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassFunctionMeta
  *
  * @param[in] function_meta
@@ -9276,6 +9436,8 @@ cass_iterator_fields_from_function_meta(const CassFunctionMeta* function_meta);
  * fields allow direct access to the column data found in the underlying
  * "aggregates" metadata table. This can be used to iterate those metadata
  * field entries.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassAggregateMeta
  *
@@ -9464,6 +9626,8 @@ cass_iterator_get_user_type(const CassIterator* iterator);
  * Calling cass_iterator_next() will invalidate the previous
  * value returned by this method.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassIterator
  *
  * @param[in] iterator
@@ -9477,6 +9641,8 @@ cass_iterator_get_function_meta(const CassIterator* iterator);
  *
  * Calling cass_iterator_next() will invalidate the previous
  * value returned by this method.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassIterator
  *
@@ -9506,6 +9672,8 @@ cass_iterator_get_column_meta(const CassIterator* iterator);
  * Calling cass_iterator_next() will invalidate the previous
  * value returned by this method.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassIterator
  *
  * @param[in] iterator
@@ -9519,6 +9687,8 @@ cass_iterator_get_index_meta(const CassIterator* iterator);
  *
  * Calling cass_iterator_next() will invalidate the previous
  * value returned by this method.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassIterator
  *
@@ -9537,6 +9707,8 @@ cass_iterator_get_meta_field_name(const CassIterator* iterator,
  *
  * Calling cass_iterator_next() will invalidate the previous
  * value returned by this method.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassIterator
  *
@@ -10277,6 +10449,8 @@ cass_retry_policy_free(CassRetryPolicy* policy);
 /**
  * Creates a new custom payload.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassCustomPayload
  *
  * @return Returns a custom payload that must be freed.
@@ -10289,6 +10463,8 @@ cass_custom_payload_new();
 /**
  * Frees a custom payload instance.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassCustomPayload
  *
  * @param[in] payload
@@ -10298,6 +10474,8 @@ cass_custom_payload_free(CassCustomPayload* payload);
 
 /**
  * Sets an item to the custom payload.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassCustomPayload
  *
@@ -10315,6 +10493,8 @@ cass_custom_payload_set(CassCustomPayload* payload,
 /**
  * Same as cass_custom_payload_set(), but with lengths for string
  * parameters.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassCustomPayload
  *
@@ -10334,6 +10514,8 @@ cass_custom_payload_set_n(CassCustomPayload* payload,
 /**
  * Removes an item from the custom payload.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassCustomPayload
  *
  * @param[in] payload
@@ -10346,6 +10528,8 @@ cass_custom_payload_remove(CassCustomPayload* payload,
 /**
  * Same as cass_custom_payload_set(), but with lengths for string
  * parameters.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassCustomPayload
  *
@@ -10578,6 +10762,8 @@ cass_date_time_to_epoch(cass_uint32_t date,
 
 /**
  * Set custom allocation functions.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * <b>Note:</b> This is not thread-safe. The allocation functions must be set
  * before any other library function is called.
