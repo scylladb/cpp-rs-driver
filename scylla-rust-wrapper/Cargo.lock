@@ -1149,36 +1149,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "scylla-cpp-driver-rust"
-version = "0.5.1"
-dependencies = [
- "assert_matches",
- "bindgen",
- "bytes",
- "chrono",
- "futures",
- "itertools 0.10.5",
- "libc",
- "machine-uid",
- "ntest",
- "num-derive",
- "num-traits",
- "openssl",
- "openssl-sys",
- "rand 0.8.5",
- "rusty-fork",
- "scylla",
- "scylla-cql",
- "scylla-proxy",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "uuid",
- "yoke",
-]
-
-[[package]]
 name = "scylla-cql"
 version = "1.3.0"
 source = "git+https://github.com/scylladb/scylla-rust-driver.git?rev=v1.3.0#c9ca852b7dd476886f033d3797790d2d0206987f"
@@ -1225,6 +1195,36 @@ dependencies = [
  "tokio",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "scylla-rust-wrapper"
+version = "0.5.1"
+dependencies = [
+ "assert_matches",
+ "bindgen",
+ "bytes",
+ "chrono",
+ "futures",
+ "itertools 0.10.5",
+ "libc",
+ "machine-uid",
+ "ntest",
+ "num-derive",
+ "num-traits",
+ "openssl",
+ "openssl-sys",
+ "rand 0.8.5",
+ "rusty-fork",
+ "scylla",
+ "scylla-cql",
+ "scylla-proxy",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+ "yoke",
 ]
 
 [[package]]
