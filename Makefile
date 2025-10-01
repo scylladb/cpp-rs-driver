@@ -307,7 +307,7 @@ build-examples:
 
 ifeq ($(OS_TYPE),macos)
 .package-build-prepare:
-ifeq ($(OS_TYPE),windows)
+else ifeq ($(OS_TYPE),windows)
 .package-build-prepare: .package-build-prepare-windows
 else
 .package-build-prepare: .package-build-prepare-ubuntu
