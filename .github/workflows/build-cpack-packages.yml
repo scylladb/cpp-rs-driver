@@ -1,0 +1,118 @@
+name: Build CPack Packages
+
+on:
+  workflow_call:
+    inputs:
+      build-type:
+        description: CMake build type used for packaging
+        type: string
+        default: Release
+      extra-cmake-flags:
+        description: Additional flags passed to CMake configure step
+        type: string
+        default: ""
+      save-artifacts:
+        description: Save built packages as artifacts
+        type: boolean
+        default: false
+    secrets: {}
+  workflow_dispatch:
+    inputs:
+      build-type:
+        description: CMake build type used for packaging
+        type: string
+        default: Release
+      extra-cmake-flags:
+        description: Additional flags passed to CMake configure step
+        type: string
+        default: ""
+      save-artifacts:
+        description: Save built packages as artifacts
+        type: boolean
+        default: false
+    secrets: {}
+
+env:
+  CARGO_TERM_COLOR: always
+  CMAKE_BUILD_TYPE: ${{ inputs.build-type }}
+  CMAKE_FLAGS: ${{ inputs.extra-cmake-flags }}
+
+jobs:
+  linux:
+    name: Linux packages
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build packages
+        run: make build-package
+
+      - name: Collect artifacts
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          mkdir -p artifacts/linux
+          for file in build/*.deb build/*.rpm; do
+            cp "$file" artifacts/linux/
+          done
+
+      - uses: actions/upload-artifact@v4
+        if: inputs.save-artifacts
+        with:
+          name: linux-packages
+          path: artifacts/linux
+          retention-days: 7
+
+  macos:
+    name: macOS packages
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build packages
+        run: make build-package
+
+      - name: Collect artifacts
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          mkdir -p artifacts/macos
+          for file in build/*.pkg build/*.dmg; do
+            cp "$file" artifacts/macos/
+          done
+
+      - uses: actions/upload-artifact@v4
+        if: inputs.save-artifacts
+        with:
+          name: macos-packages
+          path: artifacts/macos
+          retention-days: 7
+
+  windows:
+    name: Windows packages
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add WiX to PATH
+        shell: pwsh
+        run: |
+          $wixPath = "C:\\Program Files (x86)\\WiX Toolset v3.11\\bin"
+          if (Test-Path $wixPath) { Add-Content -Path $env:GITHUB_PATH -Value $wixPath }
+
+      - name: Build packages
+        run: make build-package
+
+      - name: Collect artifacts
+        if: inputs.save-artifacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path artifacts\windows -Force | Out-Null
+          Get-ChildItem build -Filter *.msi | Copy-Item -Destination artifacts\windows
+
+      - uses: actions/upload-artifact@v4
+        if: inputs.save-artifacts
+        with:
+          name: windows-packages
+          path: artifacts/windows
+          retention-days: 7
