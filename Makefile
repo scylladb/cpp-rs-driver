@@ -302,8 +302,12 @@ build-examples:
 	fi
 
 .package-build-prepare-windows:
-	if (-not (choco list --local-only --exact openssl.light | Select-String '^openssl.light$')) { choco install openssl.light --no-progress -y }
-	if (-not (choco list --local-only --exact pkgconfiglite | Select-String '^pkgconfiglite$')) { choco install pkgconfiglite --no-progress -y }
+	if (-not (choco list --local-only --exact openssl.light | Select-String '^openssl.light$$')) { \
+	    choco install openssl.light --no-progress -y \
+	}; \
+	if (-not (choco list --local-only --exact pkgconfiglite | Select-String '^pkgconfiglite$$')) { \
+		choco install pkgconfiglite --no-progress -y \
+	}
 
 ifeq ($(OS_TYPE),macos)
 .package-build-prepare:
