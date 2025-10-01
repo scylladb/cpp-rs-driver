@@ -47,12 +47,50 @@ jobs:
       - name: Build packages
         run: make build-package
 
+      - name: Install driver package (DEB)
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          DRIVER_PACKAGES=(build/*.deb)
+          if [ "${#DRIVER_PACKAGES[@]}" -eq 0 ]; then
+            echo "No driver DEB packages produced"
+            exit 1
+          fi
+          sudo dpkg -i "${DRIVER_PACKAGES[@]}"
+          sudo apt-get install -f -y
+
+      - name: Build smoke-test application package
+        run: |
+          set -euo pipefail
+          make -C packaging/smoke-test-app package \
+            BUILD_TYPE=${{ inputs.build-type }} \
+            CMAKE_GENERATOR=Ninja \
+            INSTALL_PREFIX=/usr \
+            CPACK_GENERATORS="DEB RPM"
+
+      - name: Install smoke-test application package (DEB)
+        run: |
+          set -euo pipefail
+          make -C packaging/smoke-test-app install-deb
+
+      - name: Run smoke-test application against local Scylla
+        run: |
+          set -euo pipefail
+          cleanup() {
+            sudo docker compose -f tests/examples_cluster/docker-compose.yml down --remove-orphans
+          }
+          trap cleanup EXIT
+          sudo docker compose -f tests/examples_cluster/docker-compose.yml up -d --wait
+          /usr/bin/scylla-cpp-driver-smoke-test 172.43.0.2
+
       - name: Collect artifacts
         run: |
           set -euo pipefail
           shopt -s nullglob
           mkdir -p artifacts/linux
-          for file in build/*.deb build/*.rpm; do
+          for file in build/*.deb build/*.rpm \
+                      packaging/smoke-test-app/build/*.deb \
+                      packaging/smoke-test-app/build/*.rpm; do
             cp "$file" artifacts/linux/
           done
 
@@ -72,12 +110,48 @@ jobs:
       - name: Build packages
         run: make build-package
 
+      - name: Install driver package (pkg)
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          packages=(build/*.pkg)
+          if [ "${#packages[@]}" -eq 0 ]; then
+            echo "No driver pkg packages produced"
+            exit 1
+          fi
+          for pkg in "${packages[@]}"; do
+            sudo installer -pkg "$pkg" -target /
+          done
+
+      - name: Build smoke-test application package
+        run: |
+          set -euo pipefail
+          make -C packaging/smoke-test-app package \
+            BUILD_TYPE=${{ inputs.build-type }}
+
+      - name: Install smoke-test application package (pkg)
+        run: |
+          set -euo pipefail
+          make -C packaging/smoke-test-app install-pkg
+
+      - name: Run smoke-test application against local Scylla
+        run: |
+          set -euo pipefail
+          cleanup() {
+            docker compose -f tests/examples_cluster/docker-compose.yml down --remove-orphans
+          }
+          trap cleanup EXIT
+          docker compose -f tests/examples_cluster/docker-compose.yml up -d --wait
+          /usr/local/bin/scylla-cpp-driver-smoke-test 172.43.0.2
+
       - name: Collect artifacts
         run: |
           set -euo pipefail
           shopt -s nullglob
           mkdir -p artifacts/macos
-          for file in build/*.pkg build/*.dmg; do
+          for file in build/*.pkg build/*.dmg \
+                      packaging/smoke-test-app/build/*.pkg \
+                      packaging/smoke-test-app/build/*.dmg; do
             cp "$file" artifacts/macos/
           done
 
@@ -103,12 +177,77 @@ jobs:
       - name: Build packages
         run: make build-package
 
+      - name: Install driver package (MSI)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $packages = Get-ChildItem build -Filter *.msi
+          if (-not $packages) {
+            throw "No driver MSI packages produced"
+          }
+          foreach ($pkg in $packages) {
+            $process = Start-Process msiexec.exe -ArgumentList "/i `"$($pkg.FullName)`" /qn /norestart" -Wait -PassThru
+            if ($process.ExitCode -ne 0) {
+              throw "Failed to install driver package $($pkg.Name): exit code $($process.ExitCode)"
+            }
+          }
+
+      - name: Build smoke-test application package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:PKG_CONFIG_PATH = "C:/Program Files/ScyllaDB/Scylla CPP Driver/lib/pkgconfig"
+          cmake -S packaging/smoke-test-app -B packaging/smoke-test-app/build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=${{ inputs.build-type }}
+          cmake --build packaging/smoke-test-app/build --config ${{ inputs.build-type }}
+          Push-Location packaging/smoke-test-app/build
+          cpack -G WIX -C ${{ inputs.build-type }}
+          Pop-Location
+
+      - name: Install smoke-test application package (MSI)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $packages = Get-ChildItem packaging/smoke-test-app/build -Filter *.msi
+          if (-not $packages) {
+            throw "No smoke-test MSI packages produced"
+          }
+          foreach ($pkg in $packages) {
+            $process = Start-Process msiexec.exe -ArgumentList "/i `"$($pkg.FullName)`" /qn /norestart" -Wait -PassThru
+            if ($process.ExitCode -ne 0) {
+              throw "Failed to install smoke-test package $($pkg.Name): exit code $($process.ExitCode)"
+            }
+          }
+
+      - name: Run smoke-test application against local Scylla
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $composeFile = "tests/examples_cluster/docker-compose.yml"
+          function Cleanup {
+            docker compose -f $composeFile down --remove-orphans | Out-Null
+          }
+          try {
+            $dockerService = Get-Service -Name docker -ErrorAction SilentlyContinue
+            if ($dockerService -and $dockerService.Status -ne 'Running') {
+              Start-Service docker
+            }
+            docker compose -f $composeFile up -d --wait
+            $smokePath = "C:\Program Files\ScyllaDB\Scylla CPP Driver Smoke Test\bin\scylla-cpp-driver-smoke-test.exe"
+            if (-not (Test-Path $smokePath)) {
+              throw "Smoke-test binary not found at $smokePath"
+            }
+            & $smokePath 172.43.0.2
+          } finally {
+            Cleanup
+          }
+
       - name: Collect artifacts
         if: inputs.save-artifacts
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path artifacts\windows -Force | Out-Null
           Get-ChildItem build -Filter *.msi | Copy-Item -Destination artifacts\windows
+          Get-ChildItem packaging/smoke-test-app/build -Filter *.msi | Copy-Item -Destination artifacts\windows
 
       - uses: actions/upload-artifact@v4
         if: inputs.save-artifacts
