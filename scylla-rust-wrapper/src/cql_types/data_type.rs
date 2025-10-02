@@ -1,5 +1,7 @@
 use crate::argconv::*;
 use crate::cass_error::CassError;
+use crate::cql_types::CassValueType;
+use crate::statements::batch::CassBatchType;
 use crate::types::*;
 use scylla::cluster::metadata::{CollectionType, NativeType};
 use scylla::frame::response::result::ColumnType;
@@ -7,10 +9,6 @@ use scylla::statement::batch::BatchType;
 use std::cell::UnsafeCell;
 use std::os::raw::c_char;
 use std::sync::Arc;
-
-pub use crate::cass_batch_types::CassBatchType;
-pub use crate::cass_consistency_types::CassConsistency;
-pub use crate::cass_data_types::CassValueType;
 
 #[derive(Clone, Debug)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
@@ -324,10 +322,7 @@ impl CassDataTypeInner {
     fn add_sub_data_type(&mut self, sub_type: Arc<CassDataType>) -> Result<(), CassError> {
         match self {
             CassDataTypeInner::List { typ, .. } | CassDataTypeInner::Set { typ, .. } => match typ {
-                Some(_) => {
-                    tracing::error!("Trying to add sub-type to already typed list/set!");
-                    Err(CassError::CASS_ERROR_LIB_BAD_PARAMS)
-                }
+                Some(_) => Err(CassError::CASS_ERROR_LIB_BAD_PARAMS),
                 None => {
                     *typ = Some(sub_type);
                     Ok(())
@@ -336,10 +331,7 @@ impl CassDataTypeInner {
             CassDataTypeInner::Map {
                 typ: MapDataType::KeyAndValue(_, _),
                 ..
-            } => {
-                tracing::error!("Trying to add sub-type to already fully typed map!");
-                Err(CassError::CASS_ERROR_LIB_BAD_PARAMS)
-            }
+            } => Err(CassError::CASS_ERROR_LIB_BAD_PARAMS),
             CassDataTypeInner::Map {
                 typ: MapDataType::Key(k),
                 frozen,
@@ -364,10 +356,7 @@ impl CassDataTypeInner {
                 types.push(sub_type);
                 Ok(())
             }
-            _ => {
-                tracing::error!("Trying to add sub-type to non-collection/tuple data type!");
-                Err(CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE)
-            }
+            _ => Err(CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE),
         }
     }
 
@@ -560,10 +549,7 @@ pub unsafe extern "C" fn cass_data_type_type_name(
             unsafe { write_str_to_c(name, type_name, type_name_length) };
             CassError::CASS_OK
         }
-        _ => {
-            tracing::error!("Trying to get type name from non-UDT data type!");
-            CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE
-        }
+        _ => CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE,
     }
 }
 
@@ -595,10 +581,7 @@ pub unsafe extern "C" fn cass_data_type_set_type_name_n(
             udt_data_type.name = type_name_string;
             CassError::CASS_OK
         }
-        _ => {
-            tracing::error!("Trying to set type name on non-UDT data type!");
-            CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE
-        }
+        _ => CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE,
     }
 }
 
@@ -618,10 +601,7 @@ pub unsafe extern "C" fn cass_data_type_keyspace(
             unsafe { write_str_to_c(name, keyspace, keyspace_length) };
             CassError::CASS_OK
         }
-        _ => {
-            tracing::error!("Trying to get keyspace from non-UDT data type!");
-            CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE
-        }
+        _ => CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE,
     }
 }
 
@@ -653,10 +633,7 @@ pub unsafe extern "C" fn cass_data_type_set_keyspace_n(
             udt_data_type.keyspace = keyspace_string;
             CassError::CASS_OK
         }
-        _ => {
-            tracing::error!("Trying to set keyspace on non-UDT data type!");
-            CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE
-        }
+        _ => CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE,
     }
 }
 
@@ -676,10 +653,7 @@ pub unsafe extern "C" fn cass_data_type_class_name(
             unsafe { write_str_to_c(name, class_name, class_name_length) };
             CassError::CASS_OK
         }
-        _ => {
-            tracing::error!("Trying to get class name from non-Custom data type!");
-            CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE
-        }
+        _ => CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE,
     }
 }
 
@@ -710,10 +684,7 @@ pub unsafe extern "C" fn cass_data_type_set_class_name_n(
             *name = class_string;
             CassError::CASS_OK
         }
-        _ => {
-            tracing::error!("Trying to set class name on non-Custom data type!");
-            CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE
-        }
+        _ => CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE,
     }
 }
 
@@ -820,10 +791,7 @@ pub unsafe extern "C" fn cass_data_type_sub_type_name(
                 CassError::CASS_OK
             }
         },
-        _ => {
-            tracing::error!("Trying to get sub-type name from non-UDT data type!");
-            CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE
-        }
+        _ => CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE,
     }
 }
 
@@ -887,10 +855,7 @@ pub unsafe extern "C" fn cass_data_type_add_sub_type_by_name_n(
             udt_data_type.field_types.push((name_string, sub_data_type));
             CassError::CASS_OK
         }
-        _ => {
-            tracing::error!("Trying to add sub-type by name to non-UDT data type!");
-            CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE
-        }
+        _ => CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE,
     }
 }
 

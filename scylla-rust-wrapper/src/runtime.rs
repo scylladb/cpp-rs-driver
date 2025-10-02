@@ -136,7 +136,7 @@ mod tests {
         cluster::{cass_cluster_free, cass_cluster_new, cass_cluster_set_contact_points_n},
         future::cass_future_free,
         session::{cass_session_close, cass_session_connect, cass_session_free, cass_session_new},
-        testing::{
+        testing::utils::{
             assert_cass_error_eq, cass_future_wait_check_and_free, mock_init_rules,
             rusty_fork_test_with_proxy, setup_tracing, test_with_one_proxy_at_ip,
         },

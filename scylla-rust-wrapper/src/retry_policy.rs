@@ -69,7 +69,7 @@ pub enum CassRetryPolicy {
     DowngradingConsistency(Arc<DowngradingConsistencyRetryPolicy>),
     Logging(Arc<CassLoggingRetryPolicy>),
     #[cfg(cpp_integration_testing)]
-    Ignoring(Arc<crate::integration_testing::IgnoringRetryPolicy>),
+    Ignoring(Arc<crate::testing::integration::IgnoringRetryPolicy>),
 }
 
 impl RetryPolicy for CassRetryPolicy {

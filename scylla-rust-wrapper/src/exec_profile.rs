@@ -18,17 +18,17 @@ use crate::argconv::{
     ArcFFI, BoxFFI, CMut, CassBorrowedExclusivePtr, CassBorrowedSharedPtr, CassOwnedExclusivePtr,
     FFI, FromBox, ptr_to_cstr_n, strlen,
 };
-use crate::batch::CassBatch;
 use crate::cass_error::CassError;
-use crate::cass_types::CassConsistency;
 use crate::cluster::{
     set_load_balance_dc_aware_n, set_load_balance_rack_aware_n, update_comma_delimited_list,
 };
 use crate::config_value::{MaybeUnsetConfig, RequestTimeout};
+use crate::cql_types::CassConsistency;
 use crate::load_balancing::{LoadBalancingConfig, LoadBalancingKind};
 use crate::retry_policy::CassRetryPolicy;
 use crate::session::CassConnectedSession;
-use crate::statement::CassStatement;
+use crate::statements::batch::CassBatch;
+use crate::statements::statement::CassStatement;
 use crate::types::{
     cass_bool_t, cass_double_t, cass_int32_t, cass_int64_t, cass_uint32_t, cass_uint64_t, size_t,
 };
@@ -869,15 +869,17 @@ mod tests {
     use super::*;
 
     use crate::argconv::CassPtr;
+    use crate::cql_types::CassConsistency;
     use crate::retry_policy::{
         cass_retry_policy_downgrading_consistency_new, cass_retry_policy_free,
     };
-    use crate::testing::{assert_cass_error_eq, setup_tracing};
+    use crate::testing::utils::{assert_cass_error_eq, setup_tracing};
     use crate::{
         argconv::{make_c_str, str_to_c_str_n},
-        batch::{cass_batch_add_statement, cass_batch_free, cass_batch_new},
-        cass_types::CassBatchType,
-        statement::{cass_statement_free, cass_statement_new},
+        statements::batch::{
+            CassBatchType, cass_batch_add_statement, cass_batch_free, cass_batch_new,
+        },
+        statements::statement::{cass_statement_free, cass_statement_new},
     };
 
     use assert_matches::assert_matches;

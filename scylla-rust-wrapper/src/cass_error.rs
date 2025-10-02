@@ -1,6 +1,5 @@
 use crate::argconv::*;
-use crate::cass_types::CassConsistency;
-use crate::misc::CassWriteType;
+use crate::cql_types::{CassConsistency, CassWriteType};
 use crate::types::*;
 use libc::c_char;
 use scylla::deserialize::DeserializationError;
@@ -15,7 +14,7 @@ use thiserror::Error;
 
 // Re-export error types.
 pub use crate::cass_error_types::{CassError, CassErrorSource};
-use crate::statement::UnknownNamedParameterError;
+use crate::statements::statement::UnknownNamedParameterError;
 
 pub(crate) trait ToCassError {
     fn to_cass_error(&self) -> CassError;

@@ -6,7 +6,8 @@ use crate::argconv::{
     CassOwnedExclusivePtr, FFI, FromBox, RefFFI, write_str_to_c,
 };
 use crate::cass_error::CassError;
-use crate::cass_types::{CassDataType, CassDataTypeInner, CassValueType, MapDataType};
+use crate::cql_types::CassValueType;
+use crate::cql_types::data_type::{CassDataType, CassDataTypeInner, MapDataType};
 use crate::metadata::{
     CassColumnMeta, CassKeyspaceMeta, CassMaterializedViewMeta, CassSchemaMeta, CassTableMeta,
 };

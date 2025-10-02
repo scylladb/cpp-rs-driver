@@ -4,9 +4,9 @@ use std::{os::raw::c_char, sync::Arc};
 use crate::{
     argconv::*,
     cass_error::CassError,
-    cass_types::{CassDataType, get_column_type},
+    cql_types::data_type::{CassDataType, get_column_type},
     query_result::CassResultMetadata,
-    statement::{BoundPreparedStatement, CassStatement},
+    statements::statement::{BoundPreparedStatement, CassStatement},
     types::size_t,
 };
 use scylla::statement::prepared::PreparedStatement;

@@ -59,7 +59,7 @@ macro_rules! make_index_binder {
         ) -> CassError {
             // For some reason detected as unused, which is not true
             #[allow(unused_imports)]
-            use crate::value::CassCqlValue::*;
+            use crate::cql_types::value::CassCqlValue::*;
             let Some(this) = BoxFFI::as_mut_ref(this) else {
                 tracing::error!("Provided null pointer to {}!", stringify!($fn_by_idx));
                 return CassError::CASS_ERROR_LIB_BAD_PARAMS;
@@ -83,7 +83,7 @@ macro_rules! make_name_binder {
         ) -> CassError {
             // For some reason detected as unused, which is not true
             #[allow(unused_imports)]
-            use crate::value::CassCqlValue::*;
+            use crate::cql_types::value::CassCqlValue::*;
             let Some(this) = BoxFFI::as_mut_ref(this) else {
                 tracing::error!("Provided null pointer to {}!", stringify!($fn_by_name));
                 return CassError::CASS_ERROR_LIB_BAD_PARAMS;
@@ -109,7 +109,7 @@ macro_rules! make_name_n_binder {
         ) -> CassError {
             // For some reason detected as unused, which is not true
             #[allow(unused_imports)]
-            use crate::value::CassCqlValue::*;
+            use crate::cql_types::value::CassCqlValue::*;
             let Some(this) = BoxFFI::as_mut_ref(this) else {
                 tracing::error!("Provided null pointer to {}!", stringify!($fn_by_name_n));
                 return CassError::CASS_ERROR_LIB_BAD_PARAMS;
@@ -133,7 +133,7 @@ macro_rules! make_appender {
         ) -> CassError {
             // For some reason detected as unused, which is not true
             #[allow(unused_imports)]
-            use crate::value::CassCqlValue::*;
+            use crate::cql_types::value::CassCqlValue::*;
             let Some(this) = BoxFFI::as_mut_ref(this) else {
                 tracing::error!("Provided null pointer to {}!", stringify!($fn_append));
                 return CassError::CASS_ERROR_LIB_BAD_PARAMS;
@@ -263,8 +263,8 @@ macro_rules! invoke_binder_maker_macro_with_type {
             $this,
             $consume_v,
             $fn,
-            |v: crate::uuid::CassUuid| Ok(Some(Uuid(v.into()))),
-            [v @ crate::uuid::CassUuid]
+            |v: crate::cql_types::uuid::CassUuid| Ok(Some(Uuid(v.into()))),
+            [v @ crate::cql_types::uuid::CassUuid]
         );
     };
     (inet, $macro_name:ident, $this:ty, $consume_v:expr, $fn:ident) => {
@@ -272,7 +272,7 @@ macro_rules! invoke_binder_maker_macro_with_type {
             $this,
             $consume_v,
             $fn,
-            |v: crate::inet::CassInet| {
+            |v: crate::cql_types::inet::CassInet| {
                 // Err if length in struct is invalid.
                 // cppdriver doesn't check this - it encodes any length given to it
                 // but it doesn't seem like something we wanna do. Also, rust driver can't
@@ -282,7 +282,7 @@ macro_rules! invoke_binder_maker_macro_with_type {
                     Err(_) => Err(CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE),
                 }
             },
-            [v @ crate::inet::CassInet]
+            [v @ crate::cql_types::inet::CassInet]
         );
     };
     (duration, $macro_name:ident, $this:ty, $consume_v:expr, $fn:ident) => {
@@ -318,10 +318,10 @@ macro_rules! invoke_binder_maker_macro_with_type {
             $this,
             $consume_v,
             $fn,
-            |p: CassBorrowedSharedPtr<crate::collection::CassCollection, CConst>| {
+            |p: CassBorrowedSharedPtr<crate::cql_types::collection::CassCollection, CConst>| {
                 Ok(Some(std::convert::Into::into(BoxFFI::as_ref(p).unwrap())))
             },
-            [p @ CassBorrowedSharedPtr<crate::collection::CassCollection, CConst>]
+            [p @ CassBorrowedSharedPtr<crate::cql_types::collection::CassCollection, CConst>]
         );
     };
     (tuple, $macro_name:ident, $this:ty, $consume_v:expr, $fn:ident) => {
@@ -329,10 +329,10 @@ macro_rules! invoke_binder_maker_macro_with_type {
             $this,
             $consume_v,
             $fn,
-            |p: CassBorrowedSharedPtr<crate::tuple::CassTuple, CConst>| {
+            |p: CassBorrowedSharedPtr<crate::cql_types::tuple::CassTuple, CConst>| {
                 Ok(Some(BoxFFI::as_ref(p).unwrap().into()))
             },
-            [p @ CassBorrowedSharedPtr<crate::tuple::CassTuple, CConst>]
+            [p @ CassBorrowedSharedPtr<crate::cql_types::tuple::CassTuple, CConst>]
         );
     };
     (user_type, $macro_name:ident, $this:ty, $consume_v:expr, $fn:ident) => {
@@ -340,10 +340,10 @@ macro_rules! invoke_binder_maker_macro_with_type {
             $this,
             $consume_v,
             $fn,
-            |p: CassBorrowedSharedPtr<crate::user_type::CassUserType, CConst>| {
+            |p: CassBorrowedSharedPtr<crate::cql_types::user_type::CassUserType, CConst>| {
                 Ok(Some(BoxFFI::as_ref(p).unwrap().into()))
             },
-            [p @ CassBorrowedSharedPtr<crate::user_type::CassUserType, CConst>]
+            [p @ CassBorrowedSharedPtr<crate::cql_types::user_type::CassUserType, CConst>]
         );
     };
 }

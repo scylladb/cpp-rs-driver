@@ -1,7 +1,6 @@
 use crate::argconv::*;
 use crate::cass_column_types::CassColumnType;
-use crate::cass_types::CassDataType;
-use crate::cass_types::get_column_type;
+use crate::cql_types::data_type::{CassDataType, get_column_type};
 use crate::types::*;
 use scylla::cluster::metadata::{ColumnKind, Table};
 use std::collections::HashMap;

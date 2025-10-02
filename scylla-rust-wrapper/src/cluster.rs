@@ -1,7 +1,8 @@
 use crate::argconv::*;
 use crate::cass_error::CassError;
-use crate::cass_types::CassConsistency;
 use crate::config_value::MaybeUnsetConfig;
+use crate::cql_types::CassConsistency;
+use crate::cql_types::uuid::CassUuid;
 use crate::exec_profile::{CassExecProfile, ExecProfileName, exec_profile_builder_modify};
 use crate::load_balancing::{
     CassHostFilter, DcRestriction, LoadBalancingConfig, LoadBalancingKind,
@@ -11,7 +12,6 @@ use crate::runtime::{RUNTIMES, Runtime};
 use crate::ssl::CassSsl;
 use crate::timestamp_generator::CassTimestampGen;
 use crate::types::*;
-use crate::uuid::CassUuid;
 use openssl::ssl::SslContextBuilder;
 use openssl_sys::SSL_CTX_up_ref;
 use scylla::client::execution_profile::ExecutionProfileBuilder;
@@ -1617,7 +1617,7 @@ pub unsafe extern "C" fn cass_cluster_set_metadata_request_serverside_timeout(
 
 #[cfg(test)]
 mod tests {
-    use crate::testing::{assert_cass_error_eq, setup_tracing};
+    use crate::testing::utils::{assert_cass_error_eq, setup_tracing};
 
     use super::*;
     use crate::{

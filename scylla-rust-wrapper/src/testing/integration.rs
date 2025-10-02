@@ -12,13 +12,13 @@ use crate::argconv::{
     ArcFFI, BoxFFI, CConst, CMut, CassBorrowedExclusivePtr, CassBorrowedSharedPtr,
     CassOwnedSharedPtr,
 };
-use crate::batch::CassBatch;
 use crate::cluster::CassCluster;
 use crate::future::{CassFuture, CassResultValue};
 use crate::retry_policy::CassRetryPolicy;
 #[cfg(test)]
 use crate::runtime::Runtime;
-use crate::statement::{BoundStatement, CassStatement};
+use crate::statements::batch::CassBatch;
+use crate::statements::statement::{BoundStatement, CassStatement};
 use crate::types::{cass_bool_t, cass_int32_t, cass_uint16_t, cass_uint64_t, size_t};
 
 #[unsafe(no_mangle)]

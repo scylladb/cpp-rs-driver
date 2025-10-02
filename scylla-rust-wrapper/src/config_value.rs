@@ -5,7 +5,7 @@ use scylla::{
     statement::{Consistency, SerialConsistency},
 };
 
-use crate::{cass_types::CassConsistency, retry_policy::CassRetryPolicy, types::cass_uint64_t};
+use crate::{cql_types::CassConsistency, retry_policy::CassRetryPolicy, types::cass_uint64_t};
 
 /// Represents a configuration value that may or may not be set.
 /// If a configuration value is unset, it means that the default value

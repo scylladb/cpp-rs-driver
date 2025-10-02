@@ -1,14 +1,14 @@
 use crate::argconv::*;
 use crate::cass_error::CassErrorResult;
 use crate::cass_error::{CassError, ToCassError};
-pub use crate::cass_types::CassValueType;
-use crate::cass_types::{
+pub use crate::cql_types::CassValueType;
+use crate::cql_types::data_type::{
     CassColumnSpec, CassDataType, CassDataTypeInner, MapDataType, cass_data_type_type,
     get_column_type,
 };
-use crate::inet::CassInet;
+use crate::cql_types::inet::CassInet;
+use crate::cql_types::uuid::CassUuid;
 use crate::types::*;
-use crate::uuid::CassUuid;
 use cass_raw_value::CassRawValue;
 use row_with_self_borrowed_result_data::RowWithSelfBorrowedResultData;
 use scylla::cluster::metadata::{ColumnType, NativeType};
@@ -1178,11 +1178,11 @@ mod tests {
     use scylla::response::query_result::ColumnSpecs;
 
     use crate::argconv::{CConst, CassBorrowedSharedPtr, ptr_to_cstr_n};
-    use crate::cass_types::{CassDataType, CassDataTypeInner};
+    use crate::cql_types::data_type::{CassDataType, CassDataTypeInner};
     use crate::{
         argconv::{ArcFFI, RefFFI},
         cass_error::CassError,
-        cass_types::CassValueType,
+        cql_types::CassValueType,
         query_result::{
             cass_result_column_data_type, cass_result_column_name, cass_result_first_row, size_t,
         },
