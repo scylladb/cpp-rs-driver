@@ -134,7 +134,11 @@ impl ToCassError for DbError {
             DbError::AlreadyExists { .. } => CassError::CASS_ERROR_SERVER_ALREADY_EXISTS,
             DbError::Unprepared { .. } => CassError::CASS_ERROR_SERVER_UNPREPARED,
             DbError::Other(num) => {
-                CassError((CassErrorSource::CASS_ERROR_SOURCE_SERVER.0 << 24) | *num as u32)
+                // On windows enums are i32, so we need to cast it
+                #[allow(clippy::unnecessary_cast)]
+                let source = CassErrorSource::CASS_ERROR_SOURCE_SERVER.0 as u32;
+                let code = (source << 24) | (*num as u32);
+                CassError(code as _)
             }
             // TODO: add appropriate error if rate limit reached
             DbError::RateLimitReached { .. } => CassError::CASS_ERROR_SERVER_UNAVAILABLE,

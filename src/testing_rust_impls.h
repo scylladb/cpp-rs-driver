@@ -25,33 +25,34 @@ CASS_EXPORT void testing_cluster_get_contact_points(CassCluster* cluster, char**
 // This method fails if the future resolved to some error.
 //
 // On success, it allocates a host string which needs to be then freed wih `testing_free_cstring`.
-CASS_EXPORT void testing_future_get_host(const CassFuture* future, char** host, size_t* host_length);
+CASS_EXPORT void testing_future_get_host(const CassFuture* future, char** host,
+                                         size_t* host_length);
 
-CASS_EXPORT void testing_free_cstring(char *s);
+CASS_EXPORT void testing_free_cstring(char* s);
 
 // Sets a sleeping history listener on the statement.
 // This can be used to enforce a sleep time during statement execution, which increases the latency.
-CASS_EXPORT void testing_statement_set_sleeping_history_listener(CassStatement *statement,
+CASS_EXPORT void testing_statement_set_sleeping_history_listener(CassStatement* statement,
                                                                  cass_uint64_t sleep_time_ms);
 
 // Sets a sleeping history listener on the batch.
 // This can be used to enforce a sleep time during batch execution, which increases the latency.
-CASS_EXPORT void testing_batch_set_sleeping_history_listener(CassBatch *batch,
-    cass_uint64_t sleep_time_ms);
+CASS_EXPORT void testing_batch_set_sleeping_history_listener(CassBatch* batch,
+                                                             cass_uint64_t sleep_time_ms);
 }
 
 // Sets a recording history listener on the statement.
 // This can be used to collect addresses of hosts attempted during statement execution.
 // Those can be later retrieved using `testing_future_get_attempted_hosts`.
-CASS_EXPORT void testing_statement_set_recording_history_listener(CassStatement *statement,
-    cass_bool_t enable);
+CASS_EXPORT void testing_statement_set_recording_history_listener(CassStatement* statement,
+                                                                  cass_bool_t enable);
 
 // Retrieves a concatenated string of attempted hosts from the future.
 // Hosts are delimited with '\n' character.
 // Hosts are recorded only if `testing_statement_set_recording_history_listener`
 // was called on the statement previously.
 // The returned pointer is allocated and must be freed with `testing_free_cstring`.
-CASS_EXPORT char* testing_future_get_attempted_hosts(CassFuture *future);
+CASS_EXPORT char* testing_future_get_attempted_hosts(CassFuture* future);
 
 /**
  * Creates a new ignoring retry policy.

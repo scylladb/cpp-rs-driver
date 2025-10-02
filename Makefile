@@ -1,5 +1,21 @@
 EMPTY :=
 SPACE := ${EMPTY} ${EMPTY}
+SHELL = bash
+
+SHELL = bash
+ifeq ($(OS),Windows_NT)
+    SHELL := pwsh.exe
+    .SHELLFLAGS := -NoProfile -Command
+endif
+
+UNAME_S := $(shell uname -s)
+ifeq ($(OS),Windows_NT)
+    OS_TYPE = windows
+else ifeq ($(UNAME_S),Darwin)
+	OS_TYPE = macos
+else
+	OS_TYPE = linux
+endif
 
 ifndef SCYLLA_TEST_FILTER
 SCYLLA_TEST_FILTER := $(subst ${SPACE},${EMPTY},ClusterTests.*\
@@ -181,6 +197,22 @@ FULL_RUSTFLAGS := --cfg cpp_rust_unstable --cfg cpp_integration_testing
 CURRENT_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 BUILD_DIR := "${CURRENT_DIR}build"
 INTEGRATION_TEST_BIN := ${BUILD_DIR}/cassandra-integration-tests
+CMAKE_FLAGS ?=
+CMAKE_BUILD_TYPE ?= Release
+
+ifeq ($(OS_TYPE),macos)
+  CMAKE_INSTALL_PREFIX ?= /usr/local
+else
+  CMAKE_INSTALL_PREFIX ?= /usr
+endif
+
+ifeq ($(OS_TYPE),macos)
+  CPACK_GENERATORS ?= DragNDrop productbuild
+else ifeq ($(OS_TYPE),windows)
+  CPACK_GENERATORS ?= WIX
+else
+  CPACK_GENERATORS ?= DEB RPM
+endif
 
 clean:
 	rm -rf "${BUILD_DIR}"
@@ -259,6 +291,51 @@ build-examples:
 		cd "${BUILD_DIR}";\
 		cmake -DCASS_BUILD_INTEGRATION_TESTS=off -DCASS_BUILD_EXAMPLES=on -DCMAKE_BUILD_TYPE=Release .. && (make -j 4 || make);\
 	}
+
+.ubuntu-package-install-dependencies: update-apt-cache-if-needed
+	sudo apt-get install -y rpm ninja-build pkg-config
+
+.package-build-prepare-ubuntu:
+	@missing=""; \
+	for bin in ninja rpmbuild pkg-config; do \
+		if ! command -v $$bin >/dev/null 2>&1; then \
+			missing="$$missing $$bin"; \
+		fi; \
+	done; \
+	if [ -n "$$missing" ]; then \
+		$(MAKE) .ubuntu-package-install-dependencies; \
+	fi
+
+.package-build-prepare-windows:
+	if (-not (choco list --local-only --exact openssl.light | Select-String '^openssl.light$$')) {
+	    choco install openssl.light --no-progress -y
+	};
+	if (-not (choco list --local-only --exact pkgconfiglite | Select-String '^pkgconfiglite$$')) {
+		choco install pkgconfiglite --no-progress -y
+	}
+
+ifeq ($(OS_TYPE),macos)
+.package-build-prepare:
+else ifeq ($(OS_TYPE),windows)
+.package-build-prepare: .package-build-prepare-windows
+else
+.package-build-prepare: .package-build-prepare-ubuntu
+endif
+
+.package-configure: .package-build-prepare
+ifeq ($(OS_TYPE),windows)
+	cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) $(CMAKE_FLAGS)
+else
+	cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) -DCMAKE_INSTALL_PREFIX=$(CMAKE_INSTALL_PREFIX) $(CMAKE_FLAGS)
+endif
+
+build-driver: .package-configure
+	cmake --build build --config $(CMAKE_BUILD_TYPE)
+
+build-package: build-driver
+	@cd build; for gen in $(CPACK_GENERATORS); do \
+		cpack -G $${gen} -C $(CMAKE_BUILD_TYPE); \
+	done
 
 _update-rust-tooling:
 	@echo "Run rustup update"

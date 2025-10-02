@@ -35,9 +35,9 @@ Description of this PR should consist of just release notes. **NOTE: Preferably 
 8. Create a new tag (e.g. `git tag -a v1.2.0 -m "Release 1.2.0"`).
 9. Push `master` and the new tag, preferably using atomic push (e.g. `git push --atomic origin master v1.2.0`).
 10. Remove `version` file if present. This file contains version information (`X.Y.Z.<DATE>.<COMMIT_ID>`) and should be generated from scratch when releasing new version. The file will be re-generated automatically by instructions described in the next steps.
-11. Build RPM packages (e.g. `./dist/redhat/build_rpm.sh --target rocky-8-x86_64`) - see `Build rpm package` section of README.md for more details. We don't have a strict policy which distribution versions to choose during release. As an example, during release 0.4.0, we provided packages for Fedora40, Fedora41 and Rocky9. This would correspond to two latest Fedora versions and latest Rocky version at the time. Ideally, the chosen versions should be in-sync with distribution versions we use in our CI.
-12. Build DEB packages (e.g. .`/dist/debian/build_deb.sh --target jammy`) - see `Build deb package` section of README.md for more details. Again, we don't have a strict policy regarding the chosen distribution versions. Looking at the previous releases, we always built packages for `jammy` and `noble`.
-13. Go to https://github.com/scylladb/cpp-rs-driver/releases , click the `Draft new release` button and follow the procedure to create a new release on GitHub. Use the release notes as its description. Be sure to upload built packages from the previous steps - see previous releases to check which files are included.
+11. Build binary packages with CPack on each target platform (Linux, macOS, Windows). The README provides the exact command sequence (`cmake -S`, `cmake --build`, `cpack -G <generator>`). If you do not have access to the platforms locally, trigger a run of the reusable workflow `.github/workflows/build-cpack-packages.yml` from another workflow and download the resulting artifacts.
+12. Go to https://github.com/scylladb/cpp-rust-driver/releases , click the `Draft new release` button and follow the procedure to create a new release on GitHub. Use the release notes as its description.
+13. After the release is published, the `Attach Packages to Release` workflow (`.github/workflows/release-upload-packages.yml`) automatically builds fresh packages using CPack and uploads every artifact to the release. Verify that the workflow finished successfully and that RPM/DEB/MSI/PKG/DMG files are attached.
 14. (Mandatory for major / minor release, optional for patch release) Publish a post on the forum:
     - Go to [Release notes](https://forum.scylladb.com/c/scylladb-release-notes/18) section.
     - Click "New Topic".
@@ -143,4 +143,3 @@ Contributors since the last release:
 | 17      | Mercedes Marks    |
 
 ```
-
