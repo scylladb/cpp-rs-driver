@@ -199,7 +199,12 @@ BUILD_DIR := "${CURRENT_DIR}build"
 INTEGRATION_TEST_BIN := ${BUILD_DIR}/cassandra-integration-tests
 CMAKE_FLAGS ?=
 CMAKE_BUILD_TYPE ?= Release
-CMAKE_INSTALL_PREFIX ?= /usr
+
+ifeq ($(OS_TYPE),macos)
+  CMAKE_INSTALL_PREFIX ?= /usr/local
+else
+  CMAKE_INSTALL_PREFIX ?= /usr
+endif
 
 ifeq ($(OS_TYPE),macos)
   CPACK_GENERATORS ?= DragNDrop productbuild
