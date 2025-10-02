@@ -1,6 +1,8 @@
 #include "cassandra.h"
 #include <stdexcept>
 
+extern "C" {
+
 CASS_EXPORT size_t cass_aggregate_meta_argument_count(const CassAggregateMeta* aggregate_meta) {
   throw std::runtime_error("UNIMPLEMENTED cass_aggregate_meta_argument_count\n");
 }
@@ -219,3 +221,5 @@ CASS_EXPORT CassError cass_user_type_set_custom_by_name(CassUserType* user_type,
                                                         size_t value_size) {
   throw std::runtime_error("UNIMPLEMENTED cass_user_type_set_custom_by_name\n");
 }
+
+} // extern "C"

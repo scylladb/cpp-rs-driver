@@ -1632,6 +1632,8 @@ cass_cluster_set_ssl(CassCluster* cluster,
 /**
  * Sets custom authenticator
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassCluster
  *
  * @param[in] cluster
@@ -1756,41 +1758,6 @@ cass_cluster_set_num_threads_io(CassCluster* cluster,
                                 unsigned num_threads);
 
 /**
- * Sets the size of the fixed size queue that stores
- * pending requests.
- *
- * <b>Default:</b> 8192
- *
- * @public @memberof CassCluster
- *
- * @param[in] cluster
- * @param[in] queue_size
- * @return CASS_OK if successful, otherwise an error occurred.
- */
-CASS_EXPORT CassError
-cass_cluster_set_queue_size_io(CassCluster* cluster,
-                               unsigned queue_size);
-
-/**
- * Sets the size of the fixed size queue that stores
- * events.
- *
- * <b>Default:</b> 8192
- *
- * @public @memberof CassCluster
- *
- * @deprecated This is no longer useful and does nothing. Expect this to be
- * removed in a future release.
- *
- * @param[in] cluster
- * @param[in] queue_size
- * @return CASS_OK if successful, otherwise an error occurred.
- */
-CASS_EXPORT CASS_DEPRECATED(CassError
-cass_cluster_set_queue_size_event(CassCluster* cluster,
-                                  unsigned queue_size));
-
-/**
  * Sets the number of connections opened by the driver to each host.
  *
  * Notice that this overrides the number of connections per shard
@@ -1832,25 +1799,6 @@ cass_cluster_set_core_connections_per_shard(CassCluster* cluster,
                                            unsigned num_connections);
 
 /**
- * Sets the maximum number of connections made to each server in each
- * IO thread.
- *
- * <b>Default:</b> 2
- *
- * @public @memberof CassCluster
- *
- * @deprecated This is no longer useful and does nothing. Expect this to be
- * removed in a future release.
- *
- * @param[in] cluster
- * @param[in] num_connections
- * @return CASS_OK if successful, otherwise an error occurred.
- */
-CASS_EXPORT CASS_DEPRECATED(CassError
-cass_cluster_set_max_connections_per_host(CassCluster* cluster,
-                                          unsigned num_connections));
-
-/**
  * Sets the amount of time to wait before attempting to reconnect.
  *
  * @public @memberof CassCluster
@@ -1871,6 +1819,8 @@ cass_cluster_set_reconnect_wait_time(CassCluster* cluster,
  *
  * @public @memberof CassCluster
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @param[in] cluster
  * @param[in] delay_ms Time in milliseconds to delay attempting a reconnection;
  * 0 to perform a reconnection immediately.
@@ -1883,6 +1833,8 @@ cass_cluster_set_constant_reconnect(CassCluster* cluster,
  * Configures the cluster to use a reconnection policy that waits exponentially
  * longer between each reconnection attempt; however will maintain a constant
  * delay once the maximum delay is reached.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * <b>Default:</b>
  * <ul>
@@ -1943,165 +1895,6 @@ cass_cluster_set_coalesce_delay(CassCluster* cluster,
                                 cass_int64_t delay_us);
 
 /**
- * Sets the ratio of time spent processing new requests versus handling the I/O
- * and processing of outstanding requests. The range of this setting is 1 to 100,
- * where larger values allocate more time to processing new requests and smaller
- * values allocate more time to processing outstanding requests.
- *
- * <b>Default:</b> 50
- *
- * @public @memberof CassCluster
- *
- * @param[in] cluster
- * @param[in] ratio
- * @return CASS_OK if successful, otherwise an error occurred.
- */
-CASS_EXPORT CassError
-cass_cluster_set_new_request_ratio(CassCluster* cluster,
-                                   cass_int32_t ratio);
-
-/**
- * Sets the maximum number of connections that will be created concurrently.
- * Connections are created when the current connections are unable to keep up with
- * request throughput.
- *
- * <b>Default:</b> 1
- *
- * @public @memberof CassCluster
- *
- * @deprecated This is no longer useful and does nothing. Expect this to be
- * removed in a future release.
- *
- * @param[in] cluster
- * @param[in] num_connections
- * @return CASS_OK if successful, otherwise an error occurred.
- */
-CASS_EXPORT CASS_DEPRECATED(CassError
-cass_cluster_set_max_concurrent_creation(CassCluster* cluster,
-                                         unsigned num_connections));
-
-/**
- * Sets the threshold for the maximum number of concurrent requests in-flight
- * on a connection before creating a new connection. The number of new connections
- * created will not exceed max_connections_per_host.
- *
- * <b>Default:</b> 100
- *
- * @public @memberof CassCluster
- *
- * @deprecated This is no longer useful and does nothing. Expect this to be
- * removed in a future release.
- *
- * @param[in] cluster
- * @param[in] num_requests
- * @return CASS_OK if successful, otherwise an error occurred.
- */
-CASS_EXPORT CASS_DEPRECATED(CassError
-cass_cluster_set_max_concurrent_requests_threshold(CassCluster* cluster,
-                                                   unsigned num_requests));
-
-/**
- * Sets the maximum number of requests processed by an IO worker
- * per flush.
- *
- * <b>Default:</b> 128
- *
- * @public @memberof CassCluster
- *
- * @deprecated This is no longer useful and does nothing. Expect this to be
- * removed in a future release.
- *
- * @param[in] cluster
- * @param[in] num_requests
- * @return CASS_OK if successful, otherwise an error occurred.
- */
-CASS_EXPORT CASS_DEPRECATED(CassError
-cass_cluster_set_max_requests_per_flush(CassCluster* cluster,
-                                        unsigned num_requests));
-
-/**
- * Sets the high water mark for the number of bytes outstanding
- * on a connection. Disables writes to a connection if the number
- * of bytes queued exceed this value.
- *
- * <b>Default:</b> 64 KB
- *
- * @public @memberof CassCluster
- *
- * @deprecated This is no longer useful and does nothing. Expect this to be
- * removed in a future release.
- *
- * @param[in] cluster
- * @param[in] num_bytes
- * @return CASS_OK if successful, otherwise an error occurred.
- */
-CASS_EXPORT CASS_DEPRECATED(CassError
-cass_cluster_set_write_bytes_high_water_mark(CassCluster* cluster,
-                                             unsigned num_bytes));
-
-/**
- * Sets the low water mark for number of bytes outstanding on a
- * connection. After exceeding high water mark bytes, writes will
- * only resume once the number of bytes fall below this value.
- *
- * <b>Default:</b> 32 KB
- *
- * @public @memberof CassCluster
- *
- * @deprecated This is no longer useful and does nothing. Expect this to be
- * removed in a future release.
- *
- * @param[in] cluster
- * @param[in] num_bytes
- * @return CASS_OK if successful, otherwise an error occurred.
- */
-CASS_EXPORT CASS_DEPRECATED(CassError
-cass_cluster_set_write_bytes_low_water_mark(CassCluster* cluster,
-                                            unsigned num_bytes));
-
-/**
- * Sets the high water mark for the number of requests queued waiting
- * for a connection in a connection pool. Disables writes to a
- * host on an IO worker if the number of requests queued exceed this
- * value.
- *
- * <b>Default:</b> 256
- *
- * @public @memberof CassCluster
- *
- * @deprecated This is no longer useful and does nothing. Expect this to be
- * removed in a future release.
- *
- * @param[in] cluster
- * @param[in] num_requests
- * @return CASS_OK if successful, otherwise an error occurred.
- */
-CASS_EXPORT CASS_DEPRECATED(CassError
-cass_cluster_set_pending_requests_high_water_mark(CassCluster* cluster,
-                                                  unsigned num_requests));
-
-/**
- * Sets the low water mark for the number of requests queued waiting
- * for a connection in a connection pool. After exceeding high water mark
- * requests, writes to a host will only resume once the number of requests
- * fall below this value.
- *
- * <b>Default:</b> 128
- *
- * @public @memberof CassCluster
- *
- * @deprecated This is no longer useful and does nothing. Expect this to be
- * removed in a future release.
- *
- * @param[in] cluster
- * @param[in] num_requests
- * @return CASS_OK if successful, otherwise an error occurred.
- */
-CASS_EXPORT CASS_DEPRECATED(CassError
-cass_cluster_set_pending_requests_low_water_mark(CassCluster* cluster,
-                                                 unsigned num_requests));
-
-/**
  * Sets the timeout for connecting to a node.
  *
  * <b>Default:</b> 5000 milliseconds
@@ -2131,6 +1924,8 @@ cass_cluster_set_request_timeout(CassCluster* cluster,
 
 /**
  * Sets the timeout for waiting for DNS name resolution.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * <b>Default:</b> 2000 milliseconds
  *
@@ -2172,45 +1967,6 @@ cass_cluster_set_max_schema_wait_time(CassCluster* cluster,
 CASS_EXPORT void
 cass_cluster_set_schema_agreement_interval(CassCluster* cluster,
                                            unsigned interval_ms);
-
-/**
- * Sets the maximum time to wait for tracing data to become available.
- *
- * <b>Default:</b> 15 milliseconds
- *
- * @param[in] cluster
- * @param[in] max_wait_time_ms
- */
-CASS_EXPORT void
-cass_cluster_set_tracing_max_wait_time(CassCluster* cluster,
-                                       unsigned max_wait_time_ms);
-
-/**
- * Sets the amount of time to wait between attempts to check to see if tracing is
- * available.
- *
- * <b>Default:</b> 3 milliseconds
- *
- * @param[in] cluster
- * @param[in] retry_wait_time_ms
- */
-CASS_EXPORT void
-cass_cluster_set_tracing_retry_wait_time(CassCluster* cluster,
-                                         unsigned retry_wait_time_ms);
-
-/**
- * Sets the consistency level to use for checking to see if tracing data is
- * available.
- *
- * <b>Default:</b> CASS_CONSISTENCY_ONE
- *
- * @param[in] cluster
- * @param[in] consistency
- */
-CASS_EXPORT void
-cass_cluster_set_tracing_consistency(CassCluster* cluster,
-                                     CassConsistency consistency);
-
 
 /**
  * Sets credentials for plain text authentication.
@@ -2727,27 +2483,9 @@ cass_cluster_set_use_schema(CassCluster* cluster,
                             cass_bool_t enabled);
 
 /**
- * Enable/Disable retrieving hostnames for IP addresses using reverse IP lookup.
- *
- * This is useful for authentication (Kerberos) or encryption (SSL) services
- * that require a valid hostname for verification.
- *
- * <b>Default:</b> cass_false (disabled).
- *
- * @public @memberof CassCluster
- *
- * @param[in] cluster
- * @param[in] enabled
- * @return CASS_OK if successful, otherwise an error occurred
- *
- * @see cass_cluster_set_resolve_timeout()
- */
-CASS_EXPORT CassError
-cass_cluster_set_use_hostname_resolution(CassCluster* cluster,
-                                         cass_bool_t enabled);
-
-/**
  * Enable/Disable the randomization of the contact points list.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * <b>Default:</b> cass_true (enabled).
  *
@@ -2791,27 +2529,6 @@ cass_cluster_set_constant_speculative_execution_policy(CassCluster* cluster,
  */
 CASS_EXPORT CassError
 cass_cluster_set_no_speculative_execution_policy(CassCluster* cluster);
-
-/**
- * Sets the maximum number of "pending write" objects that will be
- * saved for re-use for marshalling new requests. These objects may
- * hold on to a significant amount of memory and reducing the
- * number of these objects may reduce memory usage of the application.
- *
- * The cost of reducing the value of this setting is potentially slower
- * marshalling of requests prior to sending.
- *
- * <b>Default:</b> Max unsigned integer value
- *
- * @public @memberof CassCluster
- *
- * @param[in] cluster
- * @param[in] num_objects
- * @return CASS_OK if successful, otherwise an error occurred.
- */
-CASS_EXPORT CassError
-cass_cluster_set_max_reusable_write_objects(CassCluster* cluster,
-                                            unsigned num_objects);
 
 /**
  * Associates a named execution profile which can be utilized during execution.
@@ -2860,6 +2577,8 @@ cass_cluster_set_execution_profile_n(CassCluster* cluster,
 /**
  * Prepare statements on all available hosts.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * <b>Default:</b> cass_true
  *
  * @public @memberof CassCluster
@@ -2873,49 +2592,9 @@ cass_cluster_set_prepare_on_all_hosts(CassCluster* cluster,
                                       cass_bool_t enabled);
 
 /**
- * Enable pre-preparing cached prepared statements when existing hosts become
- * available again or when new hosts are added to the cluster.
- *
- * This can help mitigate request latency when executing prepared statements
- * by avoiding an extra round trip in cases where the statement is
- * unprepared on a freshly started server. The main tradeoff is extra background
- * network traffic is required to prepare the statements on hosts as they become
- * available.
- *
- * <b>Default:</b> cass_true
- *
- * @param cluster
- * @param enabled
- * @return CASS_OK if successful, otherwise an error occurred
- */
-CASS_EXPORT CassError
-cass_cluster_set_prepare_on_up_or_add_host(CassCluster* cluster,
-                                           cass_bool_t enabled);
-
-/**
- * Enable the <b>NO_COMPACT</b> startup option.
- *
- * This can help facilitate uninterrupted cluster upgrades where tables using
- * <b>COMPACT_STORAGE</b> will operate in "compatibility mode" for
- * <b>BATCH</b>, <b>DELETE</b>, <b>SELECT</b>, and <b>UPDATE</b> CQL operations.
- *
- * <b>Default:</b> cass_false
- *
- * @cassandra{3.0.16+}
- * @cassandra{3.11.2+}
- * @cassandra{4.0+}
- *
- * @public @memberof CassCluster
- *
- * @param[in] cluster
- * @param[in] enabled
- */
-CASS_EXPORT CassError
-cass_cluster_set_no_compact(CassCluster* cluster,
-                            cass_bool_t enabled);
-
-/**
  * Sets a callback for handling host state changes in the cluster.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * <b>Note:</b> The callback is invoked only when state changes in the cluster
  * are applicable to the configured load balancing policy(s).
@@ -2931,71 +2610,6 @@ CASS_EXPORT CassError
 cass_cluster_set_host_listener_callback(CassCluster* cluster,
                                         CassHostListenerCallback callback,
                                         void* data);
-
-/**
- * Sets the secure connection bundle path for processing DBaaS credentials.
- *
- * This will pre-configure a cluster using the credentials format provided by
- * the DBaaS cloud provider.
- *
- * @param[in] cluster
- * @param[in] path Absolute path to DBaaS credentials file.
- * @return CASS_OK if successful, otherwise error occured.
- */
-CASS_EXPORT CassError
-cass_cluster_set_cloud_secure_connection_bundle(CassCluster* cluster,
-                                                const char* path);
-
-/**
- * Same as cass_cluster_set_cloud_secure_connection_bundle(), but with lengths
- * for string parameters.
- *
- * @see cass_cluster_set_cloud_secure_connection_bundle()
- *
- * @param[in] cluster
- * @param[in] path Absolute path to DBaaS credentials file.
- * @param[in] path_length Length of path variable.
- * @return CASS_OK if successful, otherwise error occured.
- */
-CASS_EXPORT CassError
-cass_cluster_set_cloud_secure_connection_bundle_n(CassCluster* cluster,
-                                                  const char* path,
-                                                  size_t path_length);
-
-/**
- * Same as cass_cluster_set_cloud_secure_connection_bundle(), but it does not
- * initialize the underlying SSL library implementation. The SSL library still
- * needs to be initialized, but it's up to the client application to handle
- * initialization. This is similar to the function cass_ssl_new_no_lib_init(),
- * and its documentation should be used as a reference to properly initialize
- * the underlying SSL library.
- *
- * @see cass_ssl_new_no_lib_init()
- * @see cass_cluster_set_cloud_secure_connection_bundle()
- *
- * @param[in] cluster
- * @param[in] path Absolute path to DBaaS credentials file.
- * @return CASS_OK if successful, otherwise error occured.
- */
-CASS_EXPORT CassError
-cass_cluster_set_cloud_secure_connection_bundle_no_ssl_lib_init(CassCluster* cluster,
-                                                                const char* path);
-
-/**
- * Same as cass_cluster_set_cloud_secure_connection_bundle_no_ssl_lib_init(),
- * but with lengths for string parameters.
- *
- * @see cass_cluster_set_cloud_secure_connection_bundle_no_ssl_lib_init()
- *
- * @param[in] cluster
- * @param[in] path Absolute path to DBaaS credentials file.
- * @param[in] path_length Length of path variable.
- * @return CASS_OK if successful, otherwise error occured.
- */
-CASS_EXPORT CassError
-cass_cluster_set_cloud_secure_connection_bundle_no_ssl_lib_init_n(CassCluster* cluster,
-                                                                  const char* path,
-                                                                  size_t path_length);
 
 /**
  * Set the application name.
@@ -3077,20 +2691,6 @@ cass_cluster_set_application_version_n(CassCluster* cluster,
  */
 CASS_EXPORT void
 cass_cluster_set_client_id(CassCluster* cluster, CassUuid client_id);
-
-/**
- * Sets the amount of time between monitor reporting event messages.
- *
- * <b>Default:</b> 300 seconds.
- *
- * @public @memberof CassCluster
- *
- * @param[in] cluster
- * @param[in] interval_secs Use 0 to disable monitor reporting event messages.
- */
-CASS_EXPORT void
-cass_cluster_set_monitor_reporting_interval(CassCluster* cluster,
-                                            unsigned interval_secs);
 
 /**
  * Sets the preferred compression algorithm.
@@ -3340,6 +2940,8 @@ cass_session_get_metrics(const CassSession* session,
 /**
  * Gets a copy of this session's speculative execution metrics.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassSession
  *
  * @param[in] session
@@ -3379,6 +2981,8 @@ cass_schema_meta_free(const CassSchemaMeta* schema_meta);
 /**
  * Gets the version of the schema metadata snapshot.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassSchemaMeta
  *
  * @param[in] schema_meta
@@ -3390,6 +2994,8 @@ cass_schema_meta_snapshot_version(const CassSchemaMeta* schema_meta);
 
 /**
  * Gets the version of the connected Cassandra cluster.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassSchemaMeta
  *
@@ -3633,38 +3239,6 @@ cass_keyspace_meta_aggregate_by_name_n(const CassKeyspaceMeta* keyspace_meta,
                                        size_t arguments_length);
 
 /**
- * Gets a metadata field for the provided name. Metadata fields allow direct
- * access to the column data found in the underlying "keyspaces" metadata table.
- *
- * @public @memberof CassKeyspaceMeta
- *
- * @param[in] keyspace_meta
- * @param[in] name
- * @return A metadata field value. NULL if the field does not exist.
- */
-CASS_EXPORT const CassValue*
-cass_keyspace_meta_field_by_name(const CassKeyspaceMeta* keyspace_meta,
-                                 const char* name);
-
-/**
- * Same as cass_keyspace_meta_field_by_name(), but with lengths for string
- * parameters.
- *
- * @public @memberof CassKeyspaceMeta
- *
- * @param[in] keyspace_meta
- * @param[in] name
- * @param[in] name_length
- * @return same as cass_keyspace_meta_field_by_name()
- *
- * @see cass_keyspace_meta_field_by_name()
- */
-CASS_EXPORT const CassValue*
-cass_keyspace_meta_field_by_name_n(const CassKeyspaceMeta* keyspace_meta,
-                                   const char* name,
-                                   size_t name_length);
-
-/**
  * Gets the name of the table.
  *
  * @public @memberof CassTableMeta
@@ -3680,6 +3254,8 @@ cass_table_meta_name(const CassTableMeta* table_meta,
 
 /**
  * Determine if the table is a virtual table.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassTableMeta
  *
@@ -3748,6 +3324,8 @@ cass_table_meta_column(const CassTableMeta* table_meta,
 /**
  * Gets the index metadata for the provided index name.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassTableMeta
  *
  * @param[in] table_meta
@@ -3762,6 +3340,8 @@ cass_table_meta_index_by_name(const CassTableMeta* table_meta,
 /**
  * Same as cass_table_meta_index_by_name(), but with lengths for string
  * parameters.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassTableMeta
  *
@@ -3779,6 +3359,8 @@ cass_table_meta_index_by_name_n(const CassTableMeta* table_meta,
 
 /**
  * Gets the total number of indexes for the table.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassTableMeta
  *
@@ -3912,6 +3494,8 @@ cass_table_meta_clustering_key(const CassTableMeta* table_meta,
 /**
  * Gets the clustering order column metadata for the provided index.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassTableMeta
  *
  * @param[in] table_meta
@@ -3924,38 +3508,6 @@ cass_table_meta_clustering_key(const CassTableMeta* table_meta,
 CASS_EXPORT CassClusteringOrder
 cass_table_meta_clustering_key_order(const CassTableMeta* table_meta,
                                      size_t index);
-
-/**
- * Gets a metadata field for the provided name. Metadata fields allow direct
- * access to the column data found in the underlying "tables" metadata table.
- *
- * @public @memberof CassTableMeta
- *
- * @param[in] table_meta
- * @param[in] name
- * @return A metadata field value. NULL if the field does not exist.
- */
-CASS_EXPORT const CassValue*
-cass_table_meta_field_by_name(const CassTableMeta* table_meta,
-                              const char* name);
-
-/**
- * Same as cass_table_meta_field_by_name(), but with lengths for string
- * parameters.
- *
- * @public @memberof CassTableMeta
- *
- * @param[in] table_meta
- * @param[in] name
- * @param[in] name_length
- * @return same as cass_table_meta_field_by_name()
- *
- * @see cass_table_meta_field_by_name()
- */
-CASS_EXPORT const CassValue*
-cass_table_meta_field_by_name_n(const CassTableMeta* table_meta,
-                                const char* name,
-                                size_t name_length);
 
 /**
  * Gets the column metadata for the provided column name.
@@ -4090,6 +3642,8 @@ cass_materialized_view_meta_clustering_key(const CassMaterializedViewMeta* view_
 /**
  * Gets the clustering order column metadata for the provided index.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassMaterializedViewMeta
  *
  * @param[in] view_meta
@@ -4102,38 +3656,6 @@ cass_materialized_view_meta_clustering_key(const CassMaterializedViewMeta* view_
 CASS_EXPORT CassClusteringOrder
 cass_materialized_view_meta_clustering_key_order(const CassMaterializedViewMeta* view_meta,
                                                  size_t index);
-
-/**
- * Gets a metadata field for the provided name. Metadata fields allow direct
- * access to the column data found in the underlying "views" metadata view.
- *
- * @public @memberof CassMaterializedViewMeta
- *
- * @param[in] view_meta
- * @param[in] name
- * @return A metadata field value. NULL if the field does not exist.
- */
-CASS_EXPORT const CassValue*
-cass_materialized_view_meta_field_by_name(const CassMaterializedViewMeta* view_meta,
-                                          const char* name);
-
-/**
- * Same as cass_materialized_view_meta_field_by_name(), but with lengths for string
- * parameters.
- *
- * @public @memberof CassMaterializedViewMeta
- *
- * @param[in] view_meta
- * @param[in] name
- * @param[in] name_length
- * @return same as cass_materialized_view_meta_field_by_name()
- *
- * @see cass_materialized_view_meta_field_by_name()
- */
-CASS_EXPORT const CassValue*
-cass_materialized_view_meta_field_by_name_n(const CassMaterializedViewMeta* view_meta,
-                                            const char* name,
-                                            size_t name_length);
 
 /**
  * Gets the name of the column.
@@ -4172,39 +3694,9 @@ CASS_EXPORT const CassDataType*
 cass_column_meta_data_type(const CassColumnMeta* column_meta);
 
 /**
- * Gets a metadata field for the provided name. Metadata fields allow direct
- * access to the column data found in the underlying "columns" metadata table.
- *
- * @public @memberof CassColumnMeta
- *
- * @param[in] column_meta
- * @param[in] name
- * @return A metadata field value. NULL if the field does not exist.
- */
-CASS_EXPORT const CassValue*
-cass_column_meta_field_by_name(const CassColumnMeta* column_meta,
-                               const char* name);
-
-/**
- * Same as cass_column_meta_field_by_name(), but with lengths for string
- * parameters.
- *
- * @public @memberof CassColumnMeta
- *
- * @param[in] column_meta
- * @param[in] name
- * @param[in] name_length
- * @return same as cass_column_meta_field_by_name()
- *
- * @see cass_column_meta_field_by_name()
- */
-CASS_EXPORT const CassValue*
-cass_column_meta_field_by_name_n(const CassColumnMeta* column_meta,
-                                 const char* name,
-                                 size_t name_length);
-
-/**
  * Gets the name of the index.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassIndexMeta
  *
@@ -4220,6 +3712,8 @@ cass_index_meta_name(const CassIndexMeta* index_meta,
 /**
  * Gets the type of the index.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassIndexMeta
  *
  * @param[in] index_meta
@@ -4230,6 +3724,8 @@ cass_index_meta_type(const CassIndexMeta* index_meta);
 
 /**
  * Gets the target of the index.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassIndexMeta
  *
@@ -4245,6 +3741,8 @@ cass_index_meta_target(const CassIndexMeta* index_meta,
 /**
  * Gets the options of the index.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassIndexMeta
  *
  * @param[in] index_meta
@@ -4254,39 +3752,9 @@ CASS_EXPORT const CassValue*
 cass_index_meta_options(const CassIndexMeta* index_meta);
 
 /**
- * Gets a metadata field for the provided name. Metadata fields allow direct
- * access to the index data found in the underlying "indexes" metadata table.
- *
- * @public @memberof CassIndexMeta
- *
- * @param[in] index_meta
- * @param[in] name
- * @return A metadata field value. NULL if the field does not exist.
- */
-CASS_EXPORT const CassValue*
-cass_index_meta_field_by_name(const CassIndexMeta* index_meta,
-                               const char* name);
-
-/**
- * Same as cass_index_meta_field_by_name(), but with lengths for string
- * parameters.
- *
- * @public @memberof CassIndexMeta
- *
- * @param[in] index_meta
- * @param[in] name
- * @param[in] name_length
- * @return same as cass_index_meta_field_by_name()
- *
- * @see cass_index_meta_field_by_name()
- */
-CASS_EXPORT const CassValue*
-cass_index_meta_field_by_name_n(const CassIndexMeta* index_meta,
-                                 const char* name,
-                                 size_t name_length);
-
-/**
  * Gets the name of the function.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassFunctionMeta
  *
@@ -4304,6 +3772,8 @@ cass_function_meta_name(const CassFunctionMeta* function_meta,
  * function's name and the function's signature:
  * "name(type1 type2.. typeN)".
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassFunctionMeta
  *
  * @param[in] function_meta
@@ -4317,6 +3787,8 @@ cass_function_meta_full_name(const CassFunctionMeta* function_meta,
 
 /**
  * Gets the body of the function.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassFunctionMeta
  *
@@ -4332,6 +3804,8 @@ cass_function_meta_body(const CassFunctionMeta* function_meta,
 /**
  * Gets the language of the function.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassFunctionMeta
  *
  * @param[in] function_meta
@@ -4346,6 +3820,8 @@ cass_function_meta_language(const CassFunctionMeta* function_meta,
 /**
  * Gets whether a function is called on "null".
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassFunctionMeta
  *
  * @param[in] function_meta
@@ -4357,6 +3833,8 @@ cass_function_meta_called_on_null_input(const CassFunctionMeta* function_meta);
 /**
  * Gets the number of arguments this function takes.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassFunctionMeta
  *
  * @param[in] function_meta
@@ -4367,6 +3845,8 @@ cass_function_meta_argument_count(const CassFunctionMeta* function_meta);
 
 /**
  * Gets the function's argument name and type for the provided index.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassFunctionMeta
  *
@@ -4387,6 +3867,8 @@ cass_function_meta_argument(const CassFunctionMeta* function_meta,
 /**
  * Gets the function's argument and type for the provided name.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassFunctionMeta
  *
  * @param[in] function_meta
@@ -4400,6 +3882,8 @@ cass_function_meta_argument_type_by_name(const CassFunctionMeta* function_meta,
 /**
  * Same as cass_function_meta_argument_type_by_name(), but with lengths for string
  * parameters.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassFunctionMeta
  *
@@ -4418,6 +3902,8 @@ cass_function_meta_argument_type_by_name_n(const CassFunctionMeta* function_meta
 /**
  * Gets the return type of the function.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassFunctionMeta
  *
  * @param[in] function_meta
@@ -4427,39 +3913,9 @@ CASS_EXPORT const CassDataType*
 cass_function_meta_return_type(const CassFunctionMeta* function_meta);
 
 /**
- * Gets a metadata field for the provided name. Metadata fields allow direct
- * access to the column data found in the underlying "functions" metadata table.
- *
- * @public @memberof CassFunctionMeta
- *
- * @param[in] function_meta
- * @param[in] name
- * @return A metadata field value. NULL if the field does not exist.
- */
-CASS_EXPORT const CassValue*
-cass_function_meta_field_by_name(const CassFunctionMeta* function_meta,
-                                 const char* name);
-
-/**
- * Same as cass_function_meta_field_by_name(), but with lengths for string
- * parameters.
- *
- * @public @memberof CassFunctionMeta
- *
- * @param[in] function_meta
- * @param[in] name
- * @param[in] name_length
- * @return same as cass_function_meta_field_by_name()
- *
- * @see cass_function_meta_field_by_name()
- */
-CASS_EXPORT const CassValue*
-cass_function_meta_field_by_name_n(const CassFunctionMeta* function_meta,
-                                   const char* name,
-                                   size_t name_length);
-
-/**
  * Gets the name of the aggregate.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassAggregateMeta
  *
@@ -4477,6 +3933,8 @@ cass_aggregate_meta_name(const CassAggregateMeta* aggregate_meta,
  * aggregate's name and the aggregate's signature:
  * "name(type1 type2.. typeN)".
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassAggregateMeta
  *
  * @param[in] aggregate_meta
@@ -4491,6 +3949,8 @@ cass_aggregate_meta_full_name(const CassAggregateMeta* aggregate_meta,
 /**
  * Gets the number of arguments this aggregate takes.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassAggregateMeta
  *
  * @param[in] aggregate_meta
@@ -4501,6 +3961,8 @@ cass_aggregate_meta_argument_count(const CassAggregateMeta* aggregate_meta);
 
 /**
  * Gets the aggregate's argument type for the provided index.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassAggregateMeta
  *
@@ -4515,6 +3977,8 @@ cass_aggregate_meta_argument_type(const CassAggregateMeta* aggregate_meta,
 /**
  * Gets the return type of the aggregate.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassAggregateMeta
  *
  * @param[in] aggregate_meta
@@ -4525,6 +3989,8 @@ cass_aggregate_meta_return_type(const CassAggregateMeta* aggregate_meta);
 
 /**
  * Gets the state type of the aggregate.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassAggregateMeta
  *
@@ -4537,6 +4003,8 @@ cass_aggregate_meta_state_type(const CassAggregateMeta* aggregate_meta);
 /**
  * Gets the function metadata for the aggregate's state function.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassAggregateMeta
  *
  * @param[in] aggregate_meta
@@ -4547,6 +4015,8 @@ cass_aggregate_meta_state_func(const CassAggregateMeta* aggregate_meta);
 
 /**
  * Gets the function metadata for the aggregates's final function.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassAggregateMeta
  *
@@ -4559,6 +4029,8 @@ cass_aggregate_meta_final_func(const CassAggregateMeta* aggregate_meta);
 /**
  * Gets the initial condition value for the aggregate.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * <b>Note:</b> The value of the initial condition will always be
  * a "varchar" type for Cassandra 3.0+.
  *
@@ -4569,38 +4041,6 @@ cass_aggregate_meta_final_func(const CassAggregateMeta* aggregate_meta);
  */
 CASS_EXPORT const CassValue*
 cass_aggregate_meta_init_cond(const CassAggregateMeta* aggregate_meta);
-
-/**
- * Gets a metadata field for the provided name. Metadata fields allow direct
- * access to the column data found in the underlying "aggregates" metadata table.
- *
- * @public @memberof CassAggregateMeta
- *
- * @param[in] aggregate_meta
- * @param[in] name
- * @return A metadata field value. NULL if the field does not exist.
- */
-CASS_EXPORT const CassValue*
-cass_aggregate_meta_field_by_name(const CassAggregateMeta* aggregate_meta,
-                                  const char* name);
-
-/**
- * Same as cass_aggregate_meta_field_by_name(), but with lengths for string
- * parameters.
- *
- * @public @memberof CassAggregateMeta
- *
- * @param[in] aggregate_meta
- * @param[in] name
- * @param[in] name_length
- * @return same as cass_aggregate_meta_field_by_name()
- *
- * @see cass_aggregate_meta_field_by_name()
- */
-CASS_EXPORT const CassValue*
-cass_aggregate_meta_field_by_name_n(const CassAggregateMeta* aggregate_meta,
-                                    const char* name,
-                                    size_t name_length);
 
 /***********************************************************************************
  *
@@ -4799,6 +4239,8 @@ cass_ssl_set_private_key_n(CassSsl* ssl,
 /**
  * Gets the IP address of the host being authenticated.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @param[in] auth
  * @param[out] address
  *
@@ -4810,6 +4252,8 @@ cass_authenticator_address(const CassAuthenticator* auth,
 
 /**
  * Gets the hostname of the host being authenticated.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassAuthenticator
  *
@@ -4823,6 +4267,8 @@ cass_authenticator_hostname(const CassAuthenticator* auth,
 
 /**
  * Gets the class name for the server-side IAuthentication implementation.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassAuthenticator
  *
@@ -4838,6 +4284,8 @@ cass_authenticator_class_name(const CassAuthenticator* auth,
  * Gets the user data created during the authenticator exchange. This
  * is set using cass_authenticator_set_exchange_data().
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassAuthenticator
  *
  * @param[in] auth
@@ -4851,6 +4299,8 @@ cass_authenticator_exchange_data(CassAuthenticator* auth);
 
 /**
  * Sets the user data to be used during the authenticator exchange.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassAuthenticator
  *
@@ -4866,6 +4316,8 @@ cass_authenticator_set_exchange_data(CassAuthenticator* auth,
 /**
  * Gets a response token buffer of the provided size.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassAuthenticator
  *
  * @param[in] auth
@@ -4878,6 +4330,8 @@ cass_authenticator_response(CassAuthenticator* auth,
 
 /**
  * Sets the response token.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassAuthenticator
  *
@@ -4893,6 +4347,8 @@ cass_authenticator_set_response(CassAuthenticator* auth,
 /**
  * Sets an error for the authenticator exchange.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassAuthenticator
  *
  * @param[in] auth
@@ -4907,6 +4363,8 @@ cass_authenticator_set_error(CassAuthenticator* auth,
  * parameters.
  *
  * @public @memberof CassAuthenticator
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @param[in] auth
  * @param[in] message
@@ -5079,6 +4537,8 @@ cass_future_tracing_id(CassFuture* future,
  * Gets a the number of custom payload items from a response future. If the future is not
  * ready this method will wait for the future to be set.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassFuture
  *
  * @param[in] future
@@ -5090,6 +4550,8 @@ cass_future_custom_payload_item_count(CassFuture* future);
 /**
  * Gets a custom payload item from a response future at the specified index. If the future is not
  * ready this method will wait for the future to be set.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassFuture
  *
@@ -5191,33 +4653,14 @@ CASS_EXPORT void
 cass_statement_free(CassStatement* statement);
 
 /**
- * Adds a key index specifier to this a statement.
- * When using token-aware routing, this can be used to tell the driver which
- * parameters within a non-prepared, parameterized statement are part of
- * the partition key.
- *
- * Use consecutive calls for composite partition keys.
- *
- * This is not necessary for prepared statements, as the key
- * parameters are determined in the metadata processed in the prepare phase.
- *
- * @public @memberof CassStatement
- *
- * @param[in] statement
- * @param[in] index
- * @return CASS_OK if successful, otherwise an error occurred.
- */
-CASS_EXPORT CassError
-cass_statement_add_key_index(CassStatement* statement,
-                             size_t index);
-
-/**
  * Sets the statement's keyspace. This is used for token-aware routing and when
  * using protocol v5 or greater it also overrides the session's current
  * keyspace for the statement.
  *
  * This is not necessary and will not work for bound statements, as the keyspace
  * is determined by the prepared statement metadata.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassStatement
  *
@@ -5232,6 +4675,8 @@ cass_statement_set_keyspace(CassStatement* statement,
 /**
  * Same as cass_statement_set_keyspace(), but with lengths for string
  * parameters.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassStatement
  *
@@ -5391,6 +4836,8 @@ cass_statement_set_retry_policy(CassStatement* statement,
 
 /**
  * Sets the statement's custom payload.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassStatement
  *
@@ -6105,94 +5552,6 @@ cass_statement_bind_bytes_by_name_n(CassStatement* statement,
                                     size_t value_size);
 
 /**
- * Binds a "custom" to a query or bound statement at the specified index.
- *
- * @public @memberof CassStatement
- *
- * @param[in] statement
- * @param[in] index
- * @param[in] class_name
- * @param[in] value The value is copied into the statement object; the
- * memory pointed to by this parameter can be freed after this call.
- * @param[in] value_size
- * @return CASS_OK if successful, otherwise an error occurred.
- */
-CASS_EXPORT CassError
-cass_statement_bind_custom(CassStatement* statement,
-                           size_t index,
-                           const char* class_name,
-                           const cass_byte_t* value,
-                           size_t value_size);
-/**
- * Same as cass_statement_bind_custom(), but with lengths for string
- * parameters.
- *
- * @public @memberof CassStatement
- *
- * @param[in] statement
- * @param[in] index
- * @param[in] class_name
- * @param[in] class_name_length
- * @param[in] value The value is copied into the statement object; the
- * memory pointed to by this parameter can be freed after this call.
- * @param[in] value_size
- * @return CASS_OK if successful, otherwise an error occurred.
- */
-CASS_EXPORT CassError
-cass_statement_bind_custom_n(CassStatement* statement,
-                             size_t index,
-                             const char* class_name,
-                             size_t class_name_length,
-                             const cass_byte_t* value,
-                             size_t value_size);
-
-/**
- * Binds a "custom" to all the values with the specified name.
- *
- * @public @memberof CassStatement
- *
- * @param[in] statement
- * @param[in] name
- * @param[in] class_name
- * @param[in] value The value is copied into the statement object; the
- * memory pointed to by this parameter can be freed after this call.
- * @param[in] value_size
- * @return CASS_OK if successful, otherwise an error occurred.
- */
-CASS_EXPORT CassError
-cass_statement_bind_custom_by_name(CassStatement* statement,
-                                   const char* name,
-                                   const char* class_name,
-                                   const cass_byte_t* value,
-                                   size_t value_size);
-
-/**
- * Same as cass_statement_bind_custom_by_name(), but with lengths for string
- * parameters.
- *
- * @public @memberof CassStatement
- *
- * @param[in] statement
- * @param[in] name
- * @param[in] name_length
- * @param[in] class_name
- * @param[in] class_name_length
- * @param[in] value
- * @param[in] value_size
- * @return same as cass_statement_bind_custom_by_name()
- *
- * @see cass_statement_bind_custom_by_name()
- */
-CASS_EXPORT CassError
-cass_statement_bind_custom_by_name_n(CassStatement* statement,
-                                     const char* name,
-                                     size_t name_length,
-                                     const char* class_name,
-                                     size_t class_name_length,
-                                     const cass_byte_t* value,
-                                     size_t value_size);
-
-/**
  * Binds a "uuid" or "timeuuid" to a query or bound statement at the specified index.
  *
  * @public @memberof CassStatement
@@ -6708,6 +6067,8 @@ cass_batch_free(CassBatch* batch);
  * <b>Note:</b> If not set explicitly then the batch will inherit the keyspace
  * of the first child statement with a non-empty keyspace.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassBatch
  *
  * @param[in] batch
@@ -6721,6 +6082,8 @@ cass_batch_set_keyspace(CassBatch* batch,
 /**
  * Same as cass_batch_set_keyspace(), but with lengths for string
  * parameters.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassBatch
  *
@@ -6830,6 +6193,8 @@ cass_batch_set_retry_policy(CassBatch* batch,
 
 /**
  * Sets the batch's custom payload.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassBatch
  *
@@ -7519,46 +6884,6 @@ cass_collection_append_bytes(CassCollection* collection,
                              size_t value_size);
 
 /**
- * Appends a "custom" to the collection.
- *
- * @public @memberof CassCollection
- *
- * @param[in] collection
- * @param[in] class_name
- * @param[in] value The value is copied into the collection object; the
- * memory pointed to by this parameter can be freed after this call.
- * @param[in] value_size
- * @return CASS_OK if successful, otherwise an error occurred.
- */
-CASS_EXPORT CassError
-cass_collection_append_custom(CassCollection* collection,
-                              const char* class_name,
-                              const cass_byte_t* value,
-                              size_t value_size);
-
-/**
- * Same as cass_collection_append_custom(), but with lengths for string
- * parameters.
- *
- * @public @memberof CassCollection
- *
- * @param[in] collection
- * @param[in] class_name
- * @param[in] class_name_length
- * @param[in] value
- * @param[in] value_size
- * @return same as cass_collection_append_custom()
- *
- * @see cass_collection_append_custom()
- */
-CASS_EXPORT CassError
-cass_collection_append_custom_n(CassCollection* collection,
-                                const char* class_name,
-                                size_t class_name_length,
-                                const cass_byte_t* value,
-                                size_t value_size);
-
-/**
  * Appends a "uuid" or "timeuuid"  to the collection.
  *
  * @public @memberof CassCollection
@@ -7898,50 +7223,6 @@ cass_tuple_set_bytes(CassTuple* tuple,
                      size_t index,
                      const cass_byte_t* value,
                      size_t value_size);
-
-/**
- * Sets a "custom" in a tuple at the specified index.
- *
- * @public @memberof CassTuple
- *
- * @param[in] tuple
- * @param[in] index
- * @param[in] class_name
- * @param[in] value The value is copied into the tuple object; the
- * memory pointed to by this parameter can be freed after this call.
- * @param[in] value_size
- * @return CASS_OK if successful, otherwise an error occurred.
- */
-CASS_EXPORT CassError
-cass_tuple_set_custom(CassTuple* tuple,
-                      size_t index,
-                      const char* class_name,
-                      const cass_byte_t* value,
-                      size_t value_size);
-
-/**
- * Same as cass_tuple_set_custom(), but with lengths for string
- * parameters.
- *
- * @public @memberof CassTuple
- *
- * @param[in] tuple
- * @param[in] index
- * @param[in] class_name
- * @param[in] class_name_length
- * @param[in] value
- * @param[in] value_size
- * @return same as cass_tuple_set_custom()
- *
- * @see cass_tuple_set_custom()
- */
-CASS_EXPORT CassError
-cass_tuple_set_custom_n(CassTuple* tuple,
-                        size_t index,
-                        const char* class_name,
-                        size_t class_name_length,
-                        const cass_byte_t* value,
-                        size_t value_size);
 
 /**
  * Sets a "uuid" or "timeuuid" in a tuple at the specified index.
@@ -9685,6 +8966,8 @@ cass_iterator_user_types_from_keyspace_meta(const CassKeyspaceMeta* keyspace_met
  * Creates a new iterator for the specified keyspace metadata.
  * This can be used to iterate over functions.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassKeyspaceMeta
  *
  * @param[in] keyspace_meta
@@ -9700,6 +8983,8 @@ cass_iterator_functions_from_keyspace_meta(const CassKeyspaceMeta* keyspace_meta
  * Creates a new iterator for the specified keyspace metadata.
  * This can be used to iterate over aggregates.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassKeyspaceMeta
  *
  * @param[in] keyspace_meta
@@ -9710,24 +8995,6 @@ cass_iterator_functions_from_keyspace_meta(const CassKeyspaceMeta* keyspace_meta
  */
 CASS_EXPORT CassIterator*
 cass_iterator_aggregates_from_keyspace_meta(const CassKeyspaceMeta* keyspace_meta);
-
-/**
- * Creates a new fields iterator for the specified keyspace metadata. Metadata
- * fields allow direct access to the column data found in the underlying
- * "keyspaces" metadata table. This can be used to iterate those metadata
- * field entries.
- *
- * @public @memberof CassKeyspaceMeta
- *
- * @param[in] keyspace_meta
- * @return A new iterator that must be freed.
- *
- * @see cass_iterator_get_meta_field_name()
- * @see cass_iterator_get_meta_field_value()
- * @see cass_iterator_free()
- */
-CASS_EXPORT CassIterator*
-cass_iterator_fields_from_keyspace_meta(const CassKeyspaceMeta* keyspace_meta);
 
 /**
  * Creates a new iterator for the specified table metadata.
@@ -9747,6 +9014,8 @@ cass_iterator_columns_from_table_meta(const CassTableMeta* table_meta);
 /**
  * Creates a new iterator for the specified table metadata.
  * This can be used to iterate over indexes.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassTableMeta
  *
@@ -9775,24 +9044,6 @@ CASS_EXPORT CassIterator*
 cass_iterator_materialized_views_from_table_meta(const CassTableMeta* table_meta);
 
 /**
- * Creates a new fields iterator for the specified table metadata. Metadata
- * fields allow direct access to the column data found in the underlying
- * "tables" metadata table. This can be used to iterate those metadata
- * field entries.
- *
- * @public @memberof CassTableMeta
- *
- * @param[in] table_meta
- * @return A new iterator that must be freed.
- *
- * @see cass_iterator_get_meta_field_name()
- * @see cass_iterator_get_meta_field_value()
- * @see cass_iterator_free()
- */
-CASS_EXPORT CassIterator*
-cass_iterator_fields_from_table_meta(const CassTableMeta* table_meta);
-
-/**
  * Creates a new iterator for the specified materialized view metadata.
  * This can be used to iterate over columns.
  *
@@ -9806,94 +9057,6 @@ cass_iterator_fields_from_table_meta(const CassTableMeta* table_meta);
  */
 CASS_EXPORT CassIterator*
 cass_iterator_columns_from_materialized_view_meta(const CassMaterializedViewMeta* view_meta);
-
-/**
- * Creates a new fields iterator for the specified materialized view metadata.
- * Metadata fields allow direct access to the column data found in the
- * underlying "views" metadata view. This can be used to iterate those metadata
- * field entries.
- *
- * @public @memberof CassMaterializedViewMeta
- *
- * @param[in] view_meta
- * @return A new iterator that must be freed.
- *
- * @see cass_iterator_get_meta_field_name()
- * @see cass_iterator_get_meta_field_value()
- * @see cass_iterator_free()
- */
-CASS_EXPORT CassIterator*
-cass_iterator_fields_from_materialized_view_meta(const CassMaterializedViewMeta* view_meta);
-
-/**
- * Creates a new fields iterator for the specified column metadata. Metadata
- * fields allow direct access to the column data found in the underlying
- * "columns" metadata table. This can be used to iterate those metadata
- * field entries.
- *
- * @public @memberof CassColumnMeta
- *
- * @param[in] column_meta
- * @return A new iterator that must be freed.
- *
- * @see cass_iterator_get_meta_field_name()
- * @see cass_iterator_get_meta_field_value()
- * @see cass_iterator_free()
- */
-CASS_EXPORT CassIterator*
-cass_iterator_fields_from_column_meta(const CassColumnMeta* column_meta);
-
-/**
- * Creates a new fields iterator for the specified index metadata. Metadata
- * fields allow direct access to the index data found in the underlying
- * "indexes" metadata table. This can be used to iterate those metadata
- * field entries.
- *
- * @public @memberof CassIndexMeta
- *
- * @param[in] index_meta
- * @return A new iterator that must be freed.
- *
- * @see cass_iterator_get_meta_field_name()
- * @see cass_iterator_get_meta_field_value()
- * @see cass_iterator_free()
- */
-CASS_EXPORT CassIterator*
-cass_iterator_fields_from_index_meta(const CassIndexMeta* index_meta);
-
-/**
- * Creates a new fields iterator for the specified function metadata. Metadata
- * fields allow direct access to the column data found in the underlying
- * "functions" metadata table. This can be used to iterate those metadata
- * field entries.
- *
- * @public @memberof CassFunctionMeta
- *
- * @param[in] function_meta
- * @return A new iterator that must be freed.
- *
- * @see cass_iterator_get_meta_field()
- * @see cass_iterator_free()
- */
-CASS_EXPORT CassIterator*
-cass_iterator_fields_from_function_meta(const CassFunctionMeta* function_meta);
-
-/**
- * Creates a new fields iterator for the specified aggregate metadata. Metadata
- * fields allow direct access to the column data found in the underlying
- * "aggregates" metadata table. This can be used to iterate those metadata
- * field entries.
- *
- * @public @memberof CassAggregateMeta
- *
- * @param[in] aggregate_meta
- * @return A new iterator that must be freed.
- *
- * @see cass_iterator_get_meta_field()
- * @see cass_iterator_free()
- */
-CASS_EXPORT CassIterator*
-cass_iterator_fields_from_aggregate_meta(const CassAggregateMeta* aggregate_meta);
 
 /**
  * Advance the iterator to the next row, column or collection item.
@@ -10071,6 +9234,8 @@ cass_iterator_get_user_type(const CassIterator* iterator);
  * Calling cass_iterator_next() will invalidate the previous
  * value returned by this method.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassIterator
  *
  * @param[in] iterator
@@ -10084,6 +9249,8 @@ cass_iterator_get_function_meta(const CassIterator* iterator);
  *
  * Calling cass_iterator_next() will invalidate the previous
  * value returned by this method.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassIterator
  *
@@ -10113,6 +9280,8 @@ cass_iterator_get_column_meta(const CassIterator* iterator);
  * Calling cass_iterator_next() will invalidate the previous
  * value returned by this method.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassIterator
  *
  * @param[in] iterator
@@ -10120,38 +9289,6 @@ cass_iterator_get_column_meta(const CassIterator* iterator);
  */
 CASS_EXPORT const CassIndexMeta*
 cass_iterator_get_index_meta(const CassIterator* iterator);
-
-/**
- * Gets the metadata field name at the iterator's current position.
- *
- * Calling cass_iterator_next() will invalidate the previous
- * value returned by this method.
- *
- * @public @memberof CassIterator
- *
- * @param[in] iterator
- * @param[out] name
- * @param[out] name_length
- * @return CASS_OK if successful, otherwise error occurred
- */
-CASS_EXPORT CassError
-cass_iterator_get_meta_field_name(const CassIterator* iterator,
-                                  const char** name,
-                                  size_t* name_length);
-
-/**
- * Gets the metadata field value at the iterator's current position.
- *
- * Calling cass_iterator_next() will invalidate the previous
- * value returned by this method.
- *
- * @public @memberof CassIterator
- *
- * @param[in] iterator
- * @return A metadata field value
- */
-CASS_EXPORT const CassValue*
-cass_iterator_get_meta_field_value(const CassIterator* iterator);
 
 /***********************************************************************************
  *
@@ -10884,6 +10021,8 @@ cass_retry_policy_free(CassRetryPolicy* policy);
 /**
  * Creates a new custom payload.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassCustomPayload
  *
  * @return Returns a custom payload that must be freed.
@@ -10896,6 +10035,8 @@ cass_custom_payload_new();
 /**
  * Frees a custom payload instance.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassCustomPayload
  *
  * @param[in] payload
@@ -10905,6 +10046,8 @@ cass_custom_payload_free(CassCustomPayload* payload);
 
 /**
  * Sets an item to the custom payload.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassCustomPayload
  *
@@ -10922,6 +10065,8 @@ cass_custom_payload_set(CassCustomPayload* payload,
 /**
  * Same as cass_custom_payload_set(), but with lengths for string
  * parameters.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassCustomPayload
  *
@@ -10941,6 +10086,8 @@ cass_custom_payload_set_n(CassCustomPayload* payload,
 /**
  * Removes an item from the custom payload.
  *
+ * <b>Warning:</b> This function is not yet implemented.
+ *
  * @public @memberof CassCustomPayload
  *
  * @param[in] payload
@@ -10953,6 +10100,8 @@ cass_custom_payload_remove(CassCustomPayload* payload,
 /**
  * Same as cass_custom_payload_set(), but with lengths for string
  * parameters.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * @public @memberof CassCustomPayload
  *
@@ -11019,17 +10168,6 @@ cass_error_desc(CassError error);
  ***********************************************************************************/
 
 /**
- * Explicitly wait for the log to flush and deallocate resources.
- * This *MUST* be the last call using the library. It is an error
- * to call any cass_*() functions after this call.
- *
- * @deprecated This is no longer useful and does nothing. Expect this to be
- * removed in a future release.
- */
-CASS_EXPORT CASS_DEPRECATED(void
-cass_log_cleanup());
-
-/**
  * Sets the log level.
  *
  * <b>Note:</b> This needs to be done before any call that might log, such as
@@ -11066,22 +10204,6 @@ cass_log_set_callback(CassLogCallback callback,
  */
 CASS_EXPORT void
 cass_log_get_callback_and_data(CassLogCallback* callback_out, void** data_out);
-
-/**
- * Sets the log queue size.
- *
- * <b>Note:</b> This needs to be done before any call that might log, such as
- * any of the cass_cluster_*() or cass_ssl_*() functions.
- *
- * <b>Default:</b> 2048
- *
- * @deprecated This is no longer useful and does nothing. Expect this to be
- * removed in a future release.
- *
- * @param[in] queue_size
- */
-CASS_EXPORT CASS_DEPRECATED(void
-cass_log_set_queue_size(size_t queue_size));
 
 /**
  * Gets the string for a log level.
@@ -11212,6 +10334,8 @@ cass_date_time_to_epoch(cass_uint32_t date,
 
 /**
  * Set custom allocation functions.
+ *
+ * <b>Warning:</b> This function is not yet implemented.
  *
  * <b>Note:</b> This is not thread-safe. The allocation functions must be set
  * before any other library function is called.
