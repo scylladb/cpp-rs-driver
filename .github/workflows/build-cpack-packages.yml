@@ -47,29 +47,24 @@ jobs:
       - name: Build packages
         run: make build-package
 
-      - name: Install driver dev package (DEB)
-        run: make -C packaging/smoke-test-app install-driver-dev-deb
+      - name: Install driver dev package
+        run: make -C packaging/smoke-test-app install-driver-dev
 
-      - name: Build smoke-test application package (DEB)
+      - name: Build smoke-test application package
         run: make -C packaging/smoke-test-app package
 
-      - name: Install driver dev package (DEB)
-        run: make -C packaging/smoke-test-app install-driver-dev-deb
+      - name: Install smoke-test application package
+        run: make -C packaging/smoke-test-app install-app
 
-      - name: Install smoke-test application package (DEB)
-        run: make -C packaging/smoke-test-app install-app-deb
-
-      - name: Run smoke-test application against local Scylla
-        run: make -C packaging/smoke-test-app test-package
+      - name: Test smoke-test application
+        run: make -C packaging/smoke-test-app test-app-package
 
       - name: Collect artifacts
         run: |
           set -euo pipefail
           shopt -s nullglob
           mkdir -p artifacts/linux
-          for file in build/*.deb build/*.rpm \
-                      packaging/smoke-test-app/build/*.deb \
-                      packaging/smoke-test-app/build/*.rpm; do
+          for file in build/*.deb build/*.rpm; do
             cp "$file" artifacts/linux/
           done
 
@@ -89,47 +84,17 @@ jobs:
       - name: Build packages
         run: make build-package
 
+      - name: Install driver dev package
+        run: make -C packaging/smoke-test-app install-driver-dev
+
       - name: Build smoke-test application package
-        run: make -C packaging/smoke-test-app package BUILD_TYPE=${{ inputs.build-type }}
+        run: make -C packaging/smoke-test-app package
 
-      - name: Install driver packages (pkg)
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          packages=(build/*.pkg)
-          if [ "${#packages[@]}" -eq 0 ]; then
-            echo "No driver pkg packages produced"
-            exit 1
-          fi
-          echo "Installing ${#packages[@]} pkg package(s):"
-          for pkg in "${packages[@]}"; do
-            echo "  - $(basename "$pkg")"
-          done
-          # Install all packages (macOS productbuild creates a single package with components)
-          for pkg in "${packages[@]}"; do
-            sudo installer -pkg "$pkg" -target /
-          done
+      - name: Install smoke-test application package
+        run: make -C packaging/smoke-test-app install-app
 
-      - name: Verify dev package installation
-        run: |
-          set -euo pipefail
-          # Verify headers are installed
-          if [ ! -f /usr/local/include/cassandra.h ]; then
-            echo "ERROR: cassandra.h header not found - dev package may not be installed"
-            exit 1
-          fi
-          # Verify pkg-config file is installed
-          if ! PKG_CONFIG_PATH=/usr/local/lib/pkgconfig pkg-config --exists scylla-cpp-driver; then
-            echo "ERROR: scylla-cpp-driver.pc not found - dev package may not be installed"
-            exit 1
-          fi
-          echo "Dev package verification successful"
-
-      - name: Install smoke-test application package (pkg)
-        run: make -C packaging/smoke-test-app install-app-pkg
-
-      - name: Run smoke-test application against local Scylla
-        run: make -C packaging/smoke-test-app test-package
+      - name: Test smoke-test application
+        run: make -C packaging/smoke-test-app test-app-package
 
       - name: Collect artifacts
         run: |

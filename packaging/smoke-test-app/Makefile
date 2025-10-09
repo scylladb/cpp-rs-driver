@@ -145,6 +145,37 @@ install-driver-pkg:
 	package_nane="scylla-rs-driver PKG"
 	${INSTALL_PACKAGE_SCRIPT}
 
+ifeq ($(OS_TYPE),macos)
+install-driver: install-driver-pkg
+install-driver-dev: install-driver-dev-pkg
+install-app: install-app-pkg
+
+else ifeq ($(OS_TYPE),windows)
+install-driver:
+	echo "NOT IMPLEMENTED"
+	exit 1
+install-driver-dev:
+	echo "NOT IMPLEMENTED"
+	exit 1
+install-app:
+	echo "NOT IMPLEMENTED"
+	exit 1
+
+else ifeq ($(shell command -v dpkg >/dev/null 2>&1 && echo yes),yes)
+install-driver:
+	$(MAKE) install-driver-deb
+install-driver-dev:
+	$(MAKE) install-driver-dev-deb
+install-app:
+	$(MAKE) install-app-deb
+else
+install-driver:
+	$(MAKE) install-driver-rpm
+install-driver-dev:
+	$(MAKE) install-driver-dev-rpm
+install-app:
+	$(MAKE) install-app-rpm
+endif
 #ifeq ($(OS_TYPE),macos)
 #.install-package: .install-package-macos-pkg
 #else ifeq ($(OS_TYPE),windows)
@@ -153,7 +184,7 @@ install-driver-pkg:
 #.install-package:
 #endif
 
-test-package: .prepare-for-test
+test-app-package: .prepare-for-test
 	@cleanup() {\
 		sudo docker compose -f tests/examples_cluster/docker-compose.yml down --remove-orphans;\
 	};\
