@@ -60,11 +60,11 @@ define INSTALL_PACKAGE_SCRIPT
 		exit 1
 	fi
 	package=$${packages[0]}
-	if [[ "$$package" == *"$.deb" ]]; then
+	if [[ "$$package" == *".deb" ]]; then
 		sudo dpkg -i "$$package";
-	elif [[ "$$package" == *"$.pkg" ]]; then
+	elif [[ "$$package" == *".pkg" ]]; then
 		sudo installer -pkg "$$pkg" -target $(INSTALL_TARGET)
-	elif [[ "$$package" == *"$.rpm" ]]; then
+	elif [[ "$$package" == *".rpm" ]]; then
 		if command -v dnf >/dev/null 2>&1; then
 			sudo dnf -y install "$$package"
 		elif command -v yum >/dev/null 2>&1; then
@@ -156,7 +156,6 @@ install-driver-deb:
 	${INSTALL_PACKAGE_SCRIPT}
 
 install-driver-dev-rpm:
-	@$(MAKE) install-driver-rpm
 	@shopt -s nullglob
 	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver-devel_*.rpm)
 	package_name="scylla-rs-driver dev RPM"
@@ -169,7 +168,6 @@ install-driver-rpm:
 	${INSTALL_PACKAGE_SCRIPT}
 
 install-driver-dev-pkg:
-	@$(MAKE) install-driver-pkg
 	@shopt -s nullglob
 	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver-dev_*_macos.pkg)
 	package_name="scylla-rs-driver dev PKG"
@@ -198,19 +196,13 @@ install-app:
 	exit 1
 
 else ifeq ($(shell command -v dpkg >/dev/null 2>&1 && echo yes),yes)
-install-driver:
-	$(MAKE) install-driver-deb
-install-driver-dev:
-	$(MAKE) install-driver-dev-deb
-install-app:
-	$(MAKE) install-app-deb
+install-driver: install-driver-deb
+install-driver-dev: install-driver-dev-deb
+install-app: install-app-deb
 else
-install-driver:
-	$(MAKE) install-driver-rpm
-install-driver-dev:
-	$(MAKE) install-driver-dev-rpm
-install-app:
-	$(MAKE) install-app-rpm
+install-driver: install-driver-rpm
+install-driver-dev: install-driver-dev-rpm
+install-app: install-app-rpm
 endif
 
 remove-app-pkg:
@@ -284,19 +276,13 @@ remove-app:
 	exit 1
 
 else ifeq ($(shell command -v dpkg >/dev/null 2>&1 && echo yes),yes)
-remove-driver:
-	$(MAKE) remove-driver-deb
-remove-driver-dev:
-	$(MAKE) remove-driver-dev-deb
-remove-app:
-	$(MAKE) remove-app-deb
+remove-driver: remove-driver-deb
+remove-driver-dev: remove-driver-dev-deb
+remove-app: remove-app-deb
 else
-remove-driver:
-	$(MAKE) remove-driver-rpm
-remove-driver-dev:
-	$(MAKE) remove-driver-dev-rpm
-remove-app:
-	$(MAKE) remove-app-rpm
+remove-driver: remove-driver-rpm
+remove-driver-dev: remove-driver-dev-rpm
+remove-app: remove-app-rpm
 endif
 
 test-app-package: .prepare-for-test
