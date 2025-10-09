@@ -1,5 +1,0 @@
-scylla-cpp-rs-driver (%{version}-%{release}-%{revision}) %{codename}; urgency=medium
-
-  * Initial release.
-
- -- Takuya ASADA <syuu@scylladb.com>  Wed, 1 May 2024 11:02:04 +0000

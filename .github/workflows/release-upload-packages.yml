@@ -1,0 +1,42 @@
+name: Attach Packages to Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      release-tag:
+        description: release tag
+        type: string
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-packages:
+    uses: ./.github/workflows/build-cpack-packages.yml
+    with:
+      save-artifacts: true
+      build-type: Release
+    secrets: inherit
+
+  publish:
+    name: Upload artifacts to release
+    runs-on: ubuntu-22.04
+    needs: build-packages
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: packages
+      - name: Upload packages to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ inputs.release-tag || github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for file in packages/*/*; do
+            echo "Uploading $file"
+            gh release upload "$TAG_NAME" "$file" --clobber
+          done
