@@ -51,7 +51,7 @@ jobs:
         run: make -C packaging/smoke-test-app install-driver-dev
 
       - name: Build smoke-test application package
-        run: make -C packaging/smoke-test-app package
+        run: make -C packaging/smoke-test-app build-package
 
       - name: Install smoke-test application package
         run: make -C packaging/smoke-test-app install-app
@@ -88,7 +88,7 @@ jobs:
         run: make -C packaging/smoke-test-app install-driver-dev
 
       - name: Build smoke-test application package
-        run: make -C packaging/smoke-test-app package
+        run: make -C packaging/smoke-test-app build-package
 
       - name: Install smoke-test application package
         run: make -C packaging/smoke-test-app install-app
