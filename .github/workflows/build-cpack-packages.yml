@@ -81,20 +81,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install GNU make
+        run: brew install make
+
       - name: Build packages
-        run: make build-package
+        run: gmake build-package
 
       - name: Install driver dev package
-        run: make -C packaging/smoke-test-app install-driver-dev
+        run: gmake -C packaging/smoke-test-app install-driver-dev
 
       - name: Build smoke-test application package
-        run: make -C packaging/smoke-test-app build-package
+        run: gmake -C packaging/smoke-test-app build-package
 
       - name: Install smoke-test application package
-        run: make -C packaging/smoke-test-app install-app
+        run: gmake -C packaging/smoke-test-app install-app
 
       - name: Test smoke-test application
-        run: make -C packaging/smoke-test-app test-app-package
+        run: gmake -C packaging/smoke-test-app test-app-package
 
       - name: Collect artifacts
         run: |

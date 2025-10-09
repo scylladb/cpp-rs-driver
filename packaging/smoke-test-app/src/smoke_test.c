@@ -6,7 +6,7 @@
 
 typedef enum { SMOKE_OK = 0, SMOKE_ERR = 1 } smoke_status_t;
 
-static void log_future_error(const CassFuture* future, const char* context) {
+static void log_future_error(CassFuture* future, const char* context) {
   const char* message = NULL;
   size_t message_length = 0;
   cass_future_error_message(future, &message, &message_length);

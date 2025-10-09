@@ -11,12 +11,15 @@ get_filename_component(CPP_DRIVER_ROOT "${CPP_DRIVER_ROOT}/.." ABSOLUTE)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SCYLLA_CPP_DRIVER REQUIRED IMPORTED_TARGET scylla-cpp-driver)
 
+option(SCYLLA_SMOKE_BUILD_STATIC
+  "Build statically linked smoke test executable" OFF)
+
 set(_pkg_config_use_static_libs_saved OFF)
 if(DEFINED PKG_CONFIG_USE_STATIC_LIBS)
   set(_pkg_config_use_static_libs_saved "${PKG_CONFIG_USE_STATIC_LIBS}")
 endif()
 set(PKG_CONFIG_USE_STATIC_LIBS ON)
-pkg_check_modules(SCYLLA_CPP_DRIVER_STATIC REQUIRED IMPORTED_TARGET scylla-cpp-driver_static)
+pkg_check_modules(SCYLLA_CPP_DRIVER_STATIC IMPORTED_TARGET scylla-cpp-driver_static)
 if(_pkg_config_use_static_libs_saved)
   set(PKG_CONFIG_USE_STATIC_LIBS "${_pkg_config_use_static_libs_saved}")
 else()
@@ -122,33 +125,94 @@ endif()
 
 add_executable(scylla-cpp-driver-smoke-test
   src/smoke_test.c)
-target_link_libraries(scylla-cpp-driver-smoke-test PRIVATE
-  PkgConfig::SCYLLA_CPP_DRIVER)
 
-add_executable(scylla-cpp-driver-smoke-test-static
-  src/smoke_test.c)
-set_target_properties(scylla-cpp-driver-smoke-test-static PROPERTIES
-  OUTPUT_NAME "scylla-cpp-driver-smoke-test-static")
-if(NOT PKG_CONFIG_EXECUTABLE)
-  message(FATAL_ERROR "pkg-config executable not available for static linkage")
+set(_smoke_link_target "PkgConfig::SCYLLA_CPP_DRIVER")
+set(_smoke_use_static TRUE)
+set(_smoke_extra_link_libraries "")
+if(WIN32)
+  set(_smoke_use_static FALSE)
+else()
+  if(APPLE)
+    set(_smoke_shared_patterns ".dylib" ".dylib.*")
+  else()
+    set(_smoke_shared_patterns ".so" ".so.*")
+  endif()
+  foreach(_smoke_dir IN LISTS SCYLLA_CPP_DRIVER_LIBRARY_DIRS)
+    foreach(_smoke_lib IN LISTS SCYLLA_CPP_DRIVER_LIBRARIES)
+      foreach(_smoke_pattern IN LISTS _smoke_shared_patterns)
+        file(GLOB _smoke_shared_candidates
+          "${_smoke_dir}/lib${_smoke_lib}${_smoke_pattern}")
+        if(_smoke_shared_candidates)
+          set(_smoke_use_static FALSE)
+          break()
+        endif()
+      endforeach()
+      if(NOT _smoke_use_static)
+        break()
+      endif()
+    endforeach()
+    if(NOT _smoke_use_static)
+      break()
+    endif()
+  endforeach()
 endif()
-execute_process(
-  COMMAND ${PKG_CONFIG_EXECUTABLE} --libs --static scylla-cpp-driver_static
-  OUTPUT_VARIABLE _smoke_static_libs_output
-  RESULT_VARIABLE _smoke_static_libs_result
-  OUTPUT_STRIP_TRAILING_WHITESPACE)
-if(NOT _smoke_static_libs_result EQUAL 0 OR _smoke_static_libs_output STREQUAL "")
-  message(FATAL_ERROR
-    "Unable to resolve static link flags from scylla-cpp-driver_static pkg-config metadata")
+if(_smoke_use_static)
+  if(SCYLLA_CPP_DRIVER_STATIC_FOUND AND TARGET PkgConfig::SCYLLA_CPP_DRIVER_STATIC)
+    message(STATUS
+      "scylla-cpp-driver shared library not found; linking smoke test statically")
+    set(_smoke_link_target "PkgConfig::SCYLLA_CPP_DRIVER_STATIC")
+    if(NOT WIN32)
+      list(APPEND _smoke_extra_link_libraries m)
+    endif()
+  else()
+    message(FATAL_ERROR
+      "scylla-cpp-driver shared library not found and static package metadata unavailable; cannot link smoke test")
+  endif()
 endif()
-separate_arguments(_smoke_static_link_libraries UNIX_COMMAND "${_smoke_static_libs_output}")
-if(NOT WIN32)
-  list(APPEND _smoke_static_link_libraries m)
+unset(_smoke_dir)
+unset(_smoke_lib)
+unset(_smoke_pattern)
+unset(_smoke_shared_candidates)
+unset(_smoke_shared_patterns)
+unset(_smoke_use_static)
+
+target_link_libraries(scylla-cpp-driver-smoke-test PRIVATE
+  ${_smoke_link_target}
+  ${_smoke_extra_link_libraries})
+unset(_smoke_extra_link_libraries)
+unset(_smoke_link_target)
+
+if(SCYLLA_SMOKE_BUILD_STATIC)
+  if(NOT SCYLLA_CPP_DRIVER_STATIC_FOUND)
+    message(FATAL_ERROR
+      "Static scylla-cpp-driver pkg-config metadata required to build static smoke test")
+  endif()
+
+  add_executable(scylla-cpp-driver-smoke-test-static
+    src/smoke_test.c)
+  set_target_properties(scylla-cpp-driver-smoke-test-static PROPERTIES
+    OUTPUT_NAME "scylla-cpp-driver-smoke-test-static")
+  if(NOT PKG_CONFIG_EXECUTABLE)
+    message(FATAL_ERROR "pkg-config executable not available for static linkage")
+  endif()
+  execute_process(
+    COMMAND ${PKG_CONFIG_EXECUTABLE} --libs --static scylla-cpp-driver_static
+    OUTPUT_VARIABLE _smoke_static_libs_output
+    RESULT_VARIABLE _smoke_static_libs_result
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+  if(NOT _smoke_static_libs_result EQUAL 0 OR _smoke_static_libs_output STREQUAL "")
+    message(FATAL_ERROR
+      "Unable to resolve static link flags from scylla-cpp-driver_static pkg-config metadata")
+  endif()
+  separate_arguments(_smoke_static_link_libraries UNIX_COMMAND "${_smoke_static_libs_output}")
+  if(NOT WIN32)
+    list(APPEND _smoke_static_link_libraries m)
+  endif()
+  target_link_libraries(scylla-cpp-driver-smoke-test-static PRIVATE
+    ${_smoke_static_link_libraries})
+  unset(_smoke_static_libs_output)
+  unset(_smoke_static_link_libraries)
 endif()
-target_link_libraries(scylla-cpp-driver-smoke-test-static PRIVATE
-  ${_smoke_static_link_libraries})
-unset(_smoke_static_libs_output)
-unset(_smoke_static_link_libraries)
 
 set(SMOKE_APP_COMPONENT_NAME "")
 set(SMOKE_APP_COMPONENT_ARGS "")
@@ -157,17 +221,25 @@ if(APPLE)
   set(SMOKE_APP_COMPONENT_ARGS COMPONENT ${SMOKE_APP_COMPONENT_NAME})
 endif()
 
+set(_smoke_install_targets scylla-cpp-driver-smoke-test)
+if(TARGET scylla-cpp-driver-smoke-test-static)
+  list(APPEND _smoke_install_targets scylla-cpp-driver-smoke-test-static)
+endif()
+
 install(TARGETS
-  scylla-cpp-driver-smoke-test
-  scylla-cpp-driver-smoke-test-static
+  ${_smoke_install_targets}
   DESTINATION bin
   ${SMOKE_APP_COMPONENT_ARGS})
+unset(_smoke_install_targets)
 
 #------------------------
 # Packaging (CPack)
 #------------------------
 
-set(CPACK_PACKAGE_NAME "scylla-cpp-driver-smoke-app")
+if(NOT DEFINED CPACK_PACKAGE_NAME)
+  set(CPACK_PACKAGE_NAME "scylla-cpp-driver-smoke-app")
+endif()
+set(_SMOKE_APP_PACKAGE_BASENAME "${CPACK_PACKAGE_NAME}")
 set(CPACK_PACKAGE_VENDOR "ScyllaDB")
 set(CPACK_PACKAGE_CONTACT "ScyllaDB <info@scylladb.com>")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
@@ -192,7 +264,7 @@ elseif(APPLE)
     COPYONLY)
   set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_BINARY_DIR}/LICENSE.txt")
   set(CPACK_PACKAGE_FILE_NAME
-    "scylla-cpp-driver-smoke-app-${PROJECT_VERSION_STRING}-macos")
+    "${_SMOKE_APP_PACKAGE_BASENAME}-${PROJECT_VERSION_STRING}-macos")
   set(CPACK_PRODUCTBUILD_IDENTIFIER "com.scylladb.cpp-rs-driver.smoke-app")
   set(CPACK_PRODUCTBUILD_SIGNING_IDENTITY "")
   if(SMOKE_APP_COMPONENT_NAME)
@@ -209,7 +281,7 @@ else()
   set(CPACK_GENERATOR "DEB;RPM")
   set(CPACK_RESOURCE_FILE_LICENSE "${CPP_DRIVER_ROOT}/LICENSE")
   set(CPACK_PACKAGE_FILE_NAME
-    "scylla-cpp-driver-smoke-app-${PROJECT_VERSION_STRING}-${CMAKE_SYSTEM_NAME}")
+    "${_SMOKE_APP_PACKAGE_BASENAME}-${PROJECT_VERSION_STRING}-${CMAKE_SYSTEM_NAME}")
   set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
   set(CPACK_DEBIAN_PACKAGE_MAINTAINER "ScyllaDB")
   set(CPACK_DEBIAN_PACKAGE_SECTION "database")
@@ -222,3 +294,4 @@ else()
 endif()
 
 include(CPack)
+unset(_SMOKE_APP_PACKAGE_BASENAME)

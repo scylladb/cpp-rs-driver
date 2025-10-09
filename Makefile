@@ -335,7 +335,11 @@ build-driver: .package-configure
 
 build-package: build-driver
 	@cd build; for gen in $(CPACK_GENERATORS); do \
-		cpack -G $${gen} -C $(CMAKE_BUILD_TYPE); \
+		if [ "$${gen}" = "productbuild" ] && [ "$(OS_TYPE)" = "macos" ]; then \
+			cmake -DCPACK_BUILD_DIR="$$PWD" -DCPACK_BUILD_CONFIG="$(CMAKE_BUILD_TYPE)" -P ../cmake/RunMacProductbuild.cmake; \
+		else \
+			cpack -G $${gen} -C $(CMAKE_BUILD_TYPE); \
+		fi; \
 	done
 
 _update-rust-tooling:

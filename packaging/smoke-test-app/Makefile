@@ -3,6 +3,7 @@ SHELL := /bin/bash
 
 MAKEFILE_PATH := $(abspath $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 BUILD_DIR ?= ${MAKEFILE_PATH}/build
+CMAKE_FLAGS ?=
 BUILD_TYPE ?= Release
 CMAKE_GENERATOR ?=
 INSTALL_PREFIX ?=
@@ -54,8 +55,8 @@ define INSTALL_PACKAGE_SCRIPT
 		echo "No ${package_name} package found"
 		exit 1
 	fi
-	if [ "$${#packages[@]}" -eq 0 ]; then
-		echo "Found more than two files for ${package_name}: $${packages[@]}"
+	if [ "$${#packages[@]}" -gt 1 ]; then
+		echo "Found more than one file for ${package_name}: $${packages[@]}"
 		exit 1
 	fi
 	package=$${packages[0]}
@@ -78,8 +79,47 @@ define INSTALL_PACKAGE_SCRIPT
 	fi
 endef
 
+define REMOVE_PACKAGE_SCRIPT
+	set -euo pipefail
+	if [ "$${#packages[@]}" -eq 0 ]; then
+		echo "No ${package_name} package found"
+		exit 1
+	fi
+	if [ "$${#packages[@]}" -gt 1 ]; then
+		echo "Found more than one file for ${package_name}: $${packages[@]}"
+		exit 1
+	fi
+	package=$${packages[0]}
+	if [[ "$$package" == *".deb" ]]; then
+		# For Debian/Ubuntu systems
+		pkg_name=$$(dpkg-deb -f "$$package" Package)
+		sudo dpkg -r "$$pkg_name"
+	elif [[ "$$package" == *".pkg" ]]; then
+		# macOS packages don't have standard uninstallers
+		echo "Uninstalling macOS .pkg is not standardized; manual cleanup may be required"
+	elif [[ "$$package" == *".rpm" ]]; then
+		# For RHEL/Fedora/SUSE systems
+		pkg_name=$$(rpm -qp --queryformat '%{NAME}' "$$package" 2>/dev/null || true)
+		if [ -z "$$pkg_name" ]; then
+			echo "Could not determine RPM package name for $$package"
+			exit 1
+		fi
+		if command -v dnf >/dev/null 2>&1; then
+			sudo dnf -y remove "$$pkg_name"
+		elif command -v yum >/dev/null 2>&1; then
+			sudo yum -y remove "$$pkg_name"
+		elif command -v zypper >/dev/null 2>&1; then
+			sudo zypper --non-interactive remove "$$pkg_name"
+		else
+			sudo rpm -e "$$pkg_name"
+		fi
+	else
+		echo "$$package has unknown package type"
+	fi
+endef
+
 build-package:
-	cmake -S . -B $(BUILD_DIR) $(CMAKE_GENERATOR_FLAG) -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) $(CMAKE_INSTALL_PREFIX_FLAG)
+	cmake -S . -B $(BUILD_DIR) $(CMAKE_GENERATOR_FLAG) -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) $(CMAKE_FLAGS) $(CMAKE_INSTALL_PREFIX_FLAG)
 	cmake --build $(BUILD_DIR) --config $(BUILD_TYPE)
 	for generator in $(CPACK_GENERATORS); do \
 		(cd $(BUILD_DIR) && cpack -G $$generator -C $(BUILD_TYPE));\
@@ -88,61 +128,57 @@ build-package:
 install-app-pkg:
 	@shopt -s nullglob
 	packages=($(BUILD_DIR)/scylla-cpp-driver-smoke-app-*.pkg)
-	package_nane="some-test-app PKG"
+	package_name="some-test-app PKG"
 	${INSTALL_PACKAGE_SCRIPT}
 
 install-app-deb:
 	@shopt -s nullglob
 	packages=($(BUILD_DIR)/scylla-cpp-driver-smoke-app*.deb)
-	package_nane="some-test-app DEB"
+	package_name="some-test-app DEB"
 	${INSTALL_PACKAGE_SCRIPT}
 
 install-app-rpm:
 	@shopt -s nullglob
 	packages=($(BUILD_DIR)/scylla-cpp-driver-smoke-app*.rpm)
-	package_nane="some-test-app RPM"
+	package_name="some-test-app RPM"
 	${INSTALL_PACKAGE_SCRIPT}
 
 install-driver-dev-deb:
 	@shopt -s nullglob
-	packages=(${MAKEFILE_PATH}/../../build/*-dev*.deb)
-	package_nane="scylla-rs-driver dev DEB"
+	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver-dev_*.deb)
+	package_name="scylla-rs-driver dev DEB"
 	${INSTALL_PACKAGE_SCRIPT}
 
 install-driver-deb:
 	@shopt -s nullglob;
-	packages=();
-	for pkg in ${MAKEFILE_PATH}/../../build/*.deb; do
-		if [[ "$$pkg" == *-dev*.deb ]]; then
-			continue
-		fi
-		packages+=("$$pkg")
-	done
-	package_nane="scylla-rs-driver DEB"
+	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver_*.deb)
+	package_name="scylla-rs-driver dev DEB"
 	${INSTALL_PACKAGE_SCRIPT}
 
 install-driver-dev-rpm:
+	@$(MAKE) install-driver-rpm
 	@shopt -s nullglob
-	packages=(${MAKEFILE_PATH}/../../build/*-cpp_driver-dev.rpm)
-	package_nane="scylla-rs-driver dev RPM"
+	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver-devel_*.rpm)
+	package_name="scylla-rs-driver dev RPM"
 	${INSTALL_PACKAGE_SCRIPT}
 
 install-driver-rpm:
 	@shopt -s nullglob
-	packages=(${MAKEFILE_PATH}/../../build/*-cpp_driver.rpm)
-	package_nane="scylla-rs-driver RPM"
+	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver_*.rpm)
+	package_name="scylla-rs-driver RPM"
 	${INSTALL_PACKAGE_SCRIPT}
 
 install-driver-dev-pkg:
+	@$(MAKE) install-driver-pkg
 	@shopt -s nullglob
 	packages=(${MAKEFILE_PATH}/../../build/*-scylla_cpp_driver-dev.pkg)
-	package_nane="scylla-rs-driver dev PKG"
+	package_name="scylla-rs-driver dev PKG"
 	${INSTALL_PACKAGE_SCRIPT}
 
 install-driver-pkg:
 	@shopt -s nullglob
 	packages=(${MAKEFILE_PATH}/../../build/*-scylla_cpp_driver.pkg)
-	package_nane="scylla-rs-driver PKG"
+	package_name="scylla-rs-driver PKG"
 	${INSTALL_PACKAGE_SCRIPT}
 
 ifeq ($(OS_TYPE),macos)
@@ -176,18 +212,97 @@ install-driver-dev:
 install-app:
 	$(MAKE) install-app-rpm
 endif
-#ifeq ($(OS_TYPE),macos)
-#.install-package: .install-package-macos-pkg
-#else ifeq ($(OS_TYPE),windows)
-#.install-package:
-#else
-#.install-package:
-#endif
+
+remove-app-pkg:
+	@shopt -s nullglob
+	packages=($(BUILD_DIR)/scylla-cpp-driver-smoke-app-*.pkg)
+	package_name="some-test-app PKG"
+	${REMOVE_PACKAGE_SCRIPT}
+
+remove-app-deb:
+	@shopt -s nullglob
+	packages=($(BUILD_DIR)/scylla-cpp-driver-smoke-app*.deb)
+	package_name="some-test-app DEB"
+	${REMOVE_PACKAGE_SCRIPT}
+
+remove-app-rpm:
+	@shopt -s nullglob
+	packages=($(BUILD_DIR)/scylla-cpp-driver-smoke-app*.rpm)
+	package_name="some-test-app RPM"
+	${REMOVE_PACKAGE_SCRIPT}
+
+remove-driver-dev-deb:
+	@shopt -s nullglob
+	packages=(${MAKEFILE_PATH}/../../build/*-dev*.deb)
+	package_name="scylla-rs-driver dev DEB"
+	${REMOVE_PACKAGE_SCRIPT}
+
+remove-driver-deb:
+	@shopt -s nullglob
+	packages=(${MAKEFILE_PATH}/../../build/*scylla_cpp_driver_*.deb)
+	package_name="scylla-rs-driver DEB"
+	${REMOVE_PACKAGE_SCRIPT}
+
+remove-driver-dev-rpm:
+	@shopt -s nullglob
+	packages=(${MAKEFILE_PATH}/../../build/*-cpp_driver-dev.rpm)
+	package_name="scylla-rs-driver dev RPM"
+	${REMOVE_PACKAGE_SCRIPT}
+
+remove-driver-rpm:
+	@shopt -s nullglob
+	packages=(${MAKEFILE_PATH}/../../build/*-cpp_driver.rpm)
+	package_name="scylla-rs-driver RPM"
+	${REMOVE_PACKAGE_SCRIPT}
+
+remove-driver-dev-pkg:
+	@shopt -s nullglob
+	packages=(${MAKEFILE_PATH}/../../build/*-scylla_cpp_driver-dev.pkg)
+	package_name="scylla-rs-driver dev PKG"
+	${REMOVE_PACKAGE_SCRIPT}
+
+remove-driver-pkg:
+	@shopt -s nullglob
+	packages=(${MAKEFILE_PATH}/../../build/*-scylla_cpp_driver.pkg)
+	package_name="scylla-rs-driver PKG"
+	${REMOVE_PACKAGE_SCRIPT}
+
+ifeq ($(OS_TYPE),macos)
+remove-driver: remove-driver-pkg
+remove-driver-dev: remove-driver-dev-pkg
+remove-app: remove-app-pkg
+
+else ifeq ($(OS_TYPE),windows)
+remove-driver:
+	echo "NOT IMPLEMENTED"
+	exit 1
+remove-driver-dev:
+	echo "NOT IMPLEMENTED"
+	exit 1
+remove-app:
+	echo "NOT IMPLEMENTED"
+	exit 1
+
+else ifeq ($(shell command -v dpkg >/dev/null 2>&1 && echo yes),yes)
+remove-driver:
+	$(MAKE) remove-driver-deb
+remove-driver-dev:
+	$(MAKE) remove-driver-dev-deb
+remove-app:
+	$(MAKE) remove-app-deb
+else
+remove-driver:
+	$(MAKE) remove-driver-rpm
+remove-driver-dev:
+	$(MAKE) remove-driver-dev-rpm
+remove-app:
+	$(MAKE) remove-app-rpm
+endif
 
 test-app-package: .prepare-for-test
 	@cleanup() {\
-		sudo docker compose -f tests/examples_cluster/docker-compose.yml down --remove-orphans;\
+		sudo docker compose -f ${MAKEFILE_PATH}/docker-compose.yml down --remove-orphans;\
 	};\
 	trap cleanup EXIT;\
-	sudo docker compose -f tests/examples_cluster/docker-compose.yml up -d --wait;\
+	sudo docker compose -f ${MAKEFILE_PATH}/docker-compose.yml up -d --wait;\
 	/usr/bin/scylla-cpp-driver-smoke-test 172.44.0.2
