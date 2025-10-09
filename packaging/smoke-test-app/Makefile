@@ -171,13 +171,13 @@ install-driver-rpm:
 install-driver-dev-pkg:
 	@$(MAKE) install-driver-pkg
 	@shopt -s nullglob
-	packages=(${MAKEFILE_PATH}/../../build/*-scylla_cpp_driver-dev.pkg)
+	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver-dev_*_macos.pkg)
 	package_name="scylla-rs-driver dev PKG"
 	${INSTALL_PACKAGE_SCRIPT}
 
 install-driver-pkg:
 	@shopt -s nullglob
-	packages=(${MAKEFILE_PATH}/../../build/*-scylla_cpp_driver.pkg)
+	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver_*_macos.pkg)
 	package_name="scylla-rs-driver PKG"
 	${INSTALL_PACKAGE_SCRIPT}
 
