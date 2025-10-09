@@ -50,6 +50,9 @@ jobs:
       - name: Install driver dev package
         run: make -C packaging/smoke-test-app install-driver-dev
 
+      - name: Install driver package
+        run: gmake -C packaging/smoke-test-app install-driver
+
       - name: Build smoke-test application package
         run: make -C packaging/smoke-test-app build-package
 
@@ -89,6 +92,9 @@ jobs:
 
       - name: Install driver dev package
         run: gmake -C packaging/smoke-test-app install-driver-dev
+
+      - name: Install driver package
+        run: gmake -C packaging/smoke-test-app install-driver
 
       - name: Build smoke-test application package
         run: gmake -C packaging/smoke-test-app build-package
