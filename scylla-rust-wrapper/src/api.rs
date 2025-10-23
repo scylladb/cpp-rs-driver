@@ -916,12 +916,10 @@ pub mod log {
     #[rustfmt::skip]
     pub use crate::logging::{
         CassLogCallback,
-        cass_log_cleanup,
         cass_log_get_callback_and_data,
         cass_log_level_string,
         cass_log_set_callback,
         cass_log_set_level,
-        cass_log_set_queue_size,
     };
 }
 

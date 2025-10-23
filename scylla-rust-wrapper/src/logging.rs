@@ -3,7 +3,6 @@ use crate::argconv::{
     CConst, CassBorrowedSharedPtr, FFI, FromRef, RefFFI, arr_to_cstr, ptr_to_cstr, str_to_arr,
 };
 use crate::cass_log_types::{CassLogLevel, CassLogMessage};
-use crate::types::size_t;
 use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::fmt::Write;
@@ -215,14 +214,4 @@ pub unsafe extern "C" fn cass_log_get_callback_and_data(
         *callback_out = logger.cb;
         *data_out = logger.data;
     }
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn cass_log_cleanup() {
-    // Deprecated
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn cass_log_set_queue_size(_queue_size: size_t) {
-    // Deprecated
 }

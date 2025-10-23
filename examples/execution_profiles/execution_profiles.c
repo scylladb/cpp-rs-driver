@@ -115,7 +115,6 @@ CassError insert_into_examples(CassSession* session, const char* profile_name, c
     }
   }
   cass_statement_set_keyspace(statement, "execution_profiles");
-  cass_statement_add_key_index(statement, 0);
   cass_statement_bind_string(statement, 0, key);
   cass_statement_bind_bool(statement, 1, value);
   future = cass_session_execute(session, statement);
@@ -205,7 +204,7 @@ int main(int argc, char* argv[]) {
 
   /* Create a keyspace and table for the execution profile example  */
   execute_query(session, "CREATE KEYSPACE IF NOT EXISTS examples WITH replication = { \
-                  'class': 'SimpleStrategy', 'replication_factor': '3' \
+                  'class': 'NetworkTopologyStrategy', 'replication_factor': '3' \
                 }");
   execute_query(session, "CREATE TABLE IF NOT EXISTS examples.execution_profiles ( \
                   key text PRIMARY KEY, \
