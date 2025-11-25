@@ -1,5 +1,4 @@
 use bytes::BytesMut;
-use futures::Future;
 use libc::c_char;
 use scylla_cpp_driver::api::error::{CassError, cass_error_desc};
 use scylla_cpp_driver::api::future::{
@@ -16,7 +15,7 @@ use std::sync::Arc;
 
 use scylla_proxy::{
     Condition, Node, Proxy, ProxyError, Reaction as _, RequestFrame, RequestOpcode,
-    RequestReaction, RequestRule, ResponseFrame, RunningProxy, ShardAwareness,
+    RequestReaction, RequestRule, ResponseFrame, RunningProxy,
 };
 
 pub(crate) fn setup_tracing() {
@@ -26,13 +25,37 @@ pub(crate) fn setup_tracing() {
         .try_init();
 }
 
-pub(crate) async fn test_with_3_node_dry_mode_cluster<F, Fut>(
-    shard_awareness: ShardAwareness,
+unsafe fn write_str_to_c(s: &str, c_str: *mut *const c_char, c_strlen: *mut size_t) {
+    unsafe {
+        *c_str = s.as_ptr() as *const c_char;
+        *c_strlen = s.len() as u64;
+    }
+}
+
+pub(crate) fn str_to_c_str_n(s: &str) -> (*const c_char, size_t) {
+    let mut c_str = std::ptr::null();
+    let mut c_strlen = size_t::default();
+
+    // SAFETY: The pointers that are passed to `write_str_to_c` are compile-checked references.
+    unsafe { write_str_to_c(s, &mut c_str, &mut c_strlen) };
+
+    (c_str, c_strlen)
+}
+
+macro_rules! make_c_str {
+    ($str:literal) => {
+        concat!($str, "\0").as_ptr() as *const c_char
+    };
+}
+pub(crate) use make_c_str;
+
+pub(crate) async fn test_with_3_node_dry_mode_cluster<I, F>(
+    initial_request_rules: impl Fn() -> I,
     test: F,
 ) -> Result<(), ProxyError>
 where
-    F: FnOnce([String; 3], RunningProxy) -> Fut,
-    Fut: Future<Output = RunningProxy>,
+    I: IntoIterator<Item = RequestRule>,
+    F: FnOnce([String; 3], RunningProxy) -> RunningProxy + Send + 'static,
 {
     let proxy1_uri = format!("{}:9042", scylla_proxy::get_exclusive_local_address());
     let proxy2_uri = format!("{}:9042", scylla_proxy::get_exclusive_local_address());
@@ -45,17 +68,21 @@ where
     let proxy = Proxy::new([proxy1_addr, proxy2_addr, proxy3_addr].map(|proxy_addr| {
         Node::builder()
             .proxy_address(proxy_addr)
-            .shard_awareness(shard_awareness)
+            .request_rules(Vec::from_iter(initial_request_rules()))
             .build_dry_mode()
     }));
 
     let running_proxy = proxy.run().await.unwrap();
 
-    let running_proxy = test([proxy1_uri, proxy2_uri, proxy3_uri], running_proxy).await;
+    let running_proxy =
+        tokio::task::spawn_blocking(|| test([proxy1_uri, proxy2_uri, proxy3_uri], running_proxy))
+            .await
+            .unwrap();
 
     running_proxy.finish().await
 }
 
+#[track_caller]
 pub(crate) fn assert_cass_error_eq(errcode1: CassError, errcode2: CassError) {
     unsafe {
         assert_eq!(
@@ -126,6 +153,33 @@ pub(crate) fn handshake_rules() -> impl IntoIterator<Item = RequestRule> {
             })),
         ),
     ]
+}
+
+// As these are very generic, they should be put last in the rules Vec.
+pub(crate) fn generic_drop_queries_rules() -> impl IntoIterator<Item = RequestRule> {
+    [RequestRule(
+        Condition::RequestOpcode(RequestOpcode::Query),
+        // We won't respond to any queries (including metadata fetch),
+        // but the driver will manage to continue with dummy metadata.
+        RequestReaction::forge().server_error(),
+    )]
+}
+
+/// A set of rules that are needed to finish session initialization.
+// They are used in tests that require a session to be connected.
+// All connections are successfully negotiated.
+// All requests are replied with a server error.
+pub(crate) fn mock_init_rules() -> impl IntoIterator<Item = RequestRule> {
+    handshake_rules()
+        .into_iter()
+        .chain(std::iter::once(RequestRule(
+            Condition::RequestOpcode(RequestOpcode::Query)
+                .or(Condition::RequestOpcode(RequestOpcode::Prepare))
+                .or(Condition::RequestOpcode(RequestOpcode::Batch)),
+            // We won't respond to any queries (including metadata fetch),
+            // but the driver will manage to continue with dummy metadata.
+            RequestReaction::forge().server_error(),
+        )))
 }
 
 pub(crate) fn drop_metadata_queries_rules() -> impl IntoIterator<Item = RequestRule> {

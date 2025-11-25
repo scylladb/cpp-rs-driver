@@ -365,7 +365,7 @@ impl LoadBalancingPolicy for FilteringLoadBalancingPolicy {
     }
 }
 
-/// A host filter used by cpp-rust-driver. It's constructed based on the
+/// A host filter used by cpp-rs-driver. It's constructed based on the
 /// filtering configuration provided by the user.
 pub(crate) struct CassHostFilter {
     pub(crate) filtering: FilteringInfo,

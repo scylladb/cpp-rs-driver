@@ -2,15 +2,16 @@ use crate::argconv::{
     ArcFFI, BoxFFI, CMut, CassBorrowedExclusivePtr, CassBorrowedSharedPtr, CassOwnedExclusivePtr,
     FFI, FromBox,
 };
+pub use crate::cass_batch_types::CassBatchType;
 use crate::cass_error::CassError;
-pub use crate::cass_types::CassBatchType;
-use crate::cass_types::{CassConsistency, make_batch_type};
 use crate::config_value::{MaybeUnsetConfig, RequestTimeout};
+use crate::cql_types::CassConsistency;
+use crate::cql_types::data_type::make_batch_type;
+use crate::cql_types::value::CassCqlValue;
 use crate::exec_profile::PerStatementExecProfile;
 use crate::retry_policy::CassRetryPolicy;
-use crate::statement::{BoundStatement, CassStatement};
+use crate::statements::statement::{BoundStatement, CassStatement};
 use crate::types::*;
-use crate::value::CassCqlValue;
 use scylla::statement::batch::Batch;
 use scylla::statement::{Consistency, SerialConsistency};
 use scylla::value::MaybeUnset;
@@ -67,6 +68,9 @@ pub unsafe extern "C" fn cass_batch_set_consistency(
     let Ok(maybe_set_consistency) = MaybeUnsetConfig::<_, Consistency>::from_c_value(consistency)
     else {
         // Invalid consistency value provided.
+        tracing::error!(
+            "Provided invalid consistency value to cass_batch_set_consistency: {consistency:?}"
+        );
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
@@ -106,6 +110,9 @@ pub unsafe extern "C" fn cass_batch_set_serial_consistency(
     let Ok(maybe_set_serial_consistency) =
         MaybeUnsetConfig::<_, Option<SerialConsistency>>::from_c_value(serial_consistency)
     else {
+        tracing::error!(
+            "Provided invalid serial consistency value to cass_batch_set_serial_consistency: {serial_consistency:?}"
+        );
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 

@@ -1,7 +1,8 @@
 use crate::argconv::*;
 use crate::cass_error::CassError;
-use crate::cass_types::CassConsistency;
 use crate::config_value::MaybeUnsetConfig;
+use crate::cql_types::CassConsistency;
+use crate::cql_types::uuid::CassUuid;
 use crate::exec_profile::{CassExecProfile, ExecProfileName, exec_profile_builder_modify};
 use crate::load_balancing::{
     CassHostFilter, DcRestriction, LoadBalancingConfig, LoadBalancingKind,
@@ -11,7 +12,6 @@ use crate::runtime::{RUNTIMES, Runtime};
 use crate::ssl::CassSsl;
 use crate::timestamp_generator::CassTimestampGen;
 use crate::types::*;
-use crate::uuid::CassUuid;
 use openssl::ssl::SslContextBuilder;
 use openssl_sys::SSL_CTX_up_ref;
 use scylla::client::execution_profile::ExecutionProfileBuilder;
@@ -40,8 +40,9 @@ use crate::cass_compression_types::CassCompressionType;
 // According to `cassandra.h` the defaults for
 // - consistency for statements is LOCAL_ONE,
 pub(crate) const DEFAULT_CONSISTENCY: Consistency = Consistency::LocalOne;
-// - serial consistency for statements is ANY, which corresponds to None in Rust Driver.
-const DEFAULT_SERIAL_CONSISTENCY: Option<SerialConsistency> = None;
+// - serial consistency for statements is LOCAL_SERIAL. This is different from CPP Driver's ANY - see
+//   https://github.com/scylladb/cpp-rs-driver/issues/335 for context.
+const DEFAULT_SERIAL_CONSISTENCY: Option<SerialConsistency> = Some(SerialConsistency::LocalSerial);
 // - request client timeout is 12000 millis,
 const DEFAULT_REQUEST_TIMEOUT: Duration = Duration::from_millis(12000);
 // - fetching schema metadata is true
@@ -49,7 +50,7 @@ const DEFAULT_DO_FETCH_SCHEMA_METADATA: bool = true;
 // - schema agreement timeout is 10000 millis,
 const DEFAULT_MAX_SCHEMA_WAIT_TIME: Duration = Duration::from_millis(10000);
 // - schema agreement interval is 200 millis.
-// This default is taken from rust-driver, since this option is an extension to cpp-rust-driver.
+// This default is taken from rust-driver, since this option is an extension to CPP RS Driver.
 const DEFAULT_SCHEMA_AGREEMENT_INTERVAL: Duration = Duration::from_millis(200);
 // - setting TCP_NODELAY is true
 const DEFAULT_SET_TCP_NO_DELAY: bool = true;
@@ -79,7 +80,7 @@ const DEFAULT_LOCAL_IP_ADDRESS: Option<IpAddr> = None;
 const DEFAULT_SHARD_AWARE_LOCAL_PORT_RANGE: ShardAwarePortRange =
     ShardAwarePortRange::EPHEMERAL_PORT_RANGE;
 
-const DRIVER_NAME: &str = "ScyllaDB Cpp-Rust Driver";
+const DRIVER_NAME: &str = "ScyllaDB CPP RS Driver";
 const DRIVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub struct CassCluster {
@@ -308,7 +309,7 @@ pub unsafe extern "C" fn cass_cluster_new() -> CassOwnedExclusivePtr<CassCluster
      * ```
      */
     let default_session_builder = {
-        // Set DRIVER_NAME and DRIVER_VERSION of cpp-rust driver.
+        // Set DRIVER_NAME and DRIVER_VERSION of CPP RS Driver.
         let custom_identity = SelfIdentity::new()
             .with_custom_driver_name(DRIVER_NAME)
             .with_custom_driver_version(DRIVER_VERSION);
@@ -1081,7 +1082,12 @@ pub(crate) unsafe fn set_load_balance_rack_aware_n(
             (local_dc_str.to_owned(), local_rack_str.to_owned())
         }
         // One of them either is a null pointer, is an empty string or is not a proper utf-8.
-        _ => return CassError::CASS_ERROR_LIB_BAD_PARAMS,
+        _ => {
+            tracing::error!(
+                "Provided local_dc or local_rack that is null, empty or non-UTF-8 to cass_*_set_load_balance_rack_aware(_n)!"
+            );
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
     };
 
     load_balancing_config.load_balancing_kind = Some(LoadBalancingKind::RackAware {
@@ -1123,6 +1129,9 @@ pub unsafe extern "C" fn cass_cluster_set_protocol_version(
         // Rust Driver supports only protocol version 4
         CassError::CASS_OK
     } else {
+        tracing::error!(
+            "Provided unsupported protocol version to cass_cluster_set_protocol_version! The only supported version is 4."
+        );
         CassError::CASS_ERROR_LIB_BAD_PARAMS
     }
 }
@@ -1150,6 +1159,9 @@ pub unsafe extern "C" fn cass_cluster_set_constant_speculative_execution_policy(
     };
 
     if constant_delay_ms < 0 || max_speculative_executions < 0 {
+        tracing::error!(
+            "Provided negative parameters to cass_cluster_set_constant_speculative_execution_policy!"
+        );
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     }
 
@@ -1463,12 +1475,16 @@ pub unsafe extern "C" fn cass_cluster_set_consistency(
     let Ok(maybe_set_consistency) = MaybeUnsetConfig::<_, Consistency>::from_c_value(consistency)
     else {
         // Invalid consistency value provided.
+        tracing::error!("Provided invalid consistency value to cass_cluster_set_consistency!");
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
     match maybe_set_consistency {
         MaybeUnsetConfig::Unset(_) => {
             // `CASS_CONSISTENCY_UNKNOWN` is not supported in the cluster settings.
+            tracing::error!(
+                "CASS_CONSISTENCY_UNKNOWN is not supported in cass_cluster_set_consistency!"
+            );
             return CassError::CASS_ERROR_LIB_BAD_PARAMS;
         }
         MaybeUnsetConfig::Set(consistency) => {
@@ -1496,12 +1512,18 @@ pub unsafe extern "C" fn cass_cluster_set_serial_consistency(
         MaybeUnsetConfig::<_, Option<SerialConsistency>>::from_c_value(serial_consistency)
     else {
         // Invalid serial consistency value provided.
+        tracing::error!(
+            "Provided invalid serial consistency value to cass_cluster_set_serial_consistency!"
+        );
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
     match maybe_set_serial_consistency {
         MaybeUnsetConfig::Unset(_) => {
             // `CASS_CONSISTENCY_UNKNOWN` is not supported in the cluster settings.
+            tracing::error!(
+                "CASS_CONSISTENCY_UNKNOWN is not supported in cass_cluster_set_serial_consistency!"
+            );
             return CassError::CASS_ERROR_LIB_BAD_PARAMS;
         }
         MaybeUnsetConfig::Set(serial_consistency) => {
@@ -1532,7 +1554,12 @@ pub unsafe extern "C" fn cass_cluster_set_execution_profile_n(
     profile: CassBorrowedExclusivePtr<CassExecProfile, CMut>,
 ) -> CassError {
     let Some(cluster) = BoxFFI::as_mut_ref(cluster) else {
-        tracing::error!("Provided null cluster pointer to cass_cluster_set_execution_profile_n!");
+        tracing::error!("Provided null cluster pointer to cass_cluster_set_execution_profile(_n)!");
+        return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+    };
+
+    let Some(profile) = BoxFFI::as_ref(profile) else {
+        tracing::error!("Provided null profile pointer to cass_cluster_set_execution_profile(_n)!");
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
@@ -1542,15 +1569,13 @@ pub unsafe extern "C" fn cass_cluster_set_execution_profile_n(
         name
     } else {
         // Got NULL or empty string, which is invalid name for a profile.
-        return CassError::CASS_ERROR_LIB_BAD_PARAMS;
-    };
-    let profile = if let Some(profile) = BoxFFI::as_ref(profile) {
-        profile.clone()
-    } else {
+        tracing::error!(
+            "Provided null or empty profile name to cass_cluster_set_execution_profile(_n)!"
+        );
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
-    cluster.execution_profile_map.insert(name, profile);
+    cluster.execution_profile_map.insert(name, profile.clone());
 
     CassError::CASS_OK
 }
@@ -1592,7 +1617,7 @@ pub unsafe extern "C" fn cass_cluster_set_metadata_request_serverside_timeout(
 
 #[cfg(test)]
 mod tests {
-    use crate::testing::{assert_cass_error_eq, setup_tracing};
+    use crate::testing::utils::{assert_cass_error_eq, setup_tracing};
 
     use super::*;
     use crate::{

@@ -138,9 +138,11 @@ SCYLLA_EXAMPLES_TO_RUN := \
 	concurrent_executions \
 	date_time \
 	duration \
+	execution_profiles \
 	maps \
 	named_parameters \
 	paging \
+	perf \
 	prepared \
 	simple \
 	ssl \
@@ -150,12 +152,9 @@ SCYLLA_EXAMPLES_TO_RUN := \
 	uuids \
 
 	# auth <- unimplemented `cass_cluster_set_authenticator_callbacks()`
-	# execution_profiles <- unimplemented `cass_statement_set_keyspace()`
 	# host_listener <- unimplemented `cass_cluster_set_host_listener_callback()`
 	# logging <- unimplemented `cass_cluster_set_host_listener_callback()`
-	# perf <- unimplemented `cass_cluster_set_queue_size_io()`
 	# schema_meta <- unimplemented multiple schema-related functions
-	# cloud <- out of interest for us, not related to ScyllaDB
 endif
 
 ifndef CCM_COMMIT_ID
@@ -163,7 +162,7 @@ ifndef CCM_COMMIT_ID
 endif
 
 ifndef SCYLLA_VERSION
-	SCYLLA_VERSION := release:6.1.1
+	SCYLLA_VERSION := release:2025.3
 endif
 
 ifndef CASSANDRA_VERSION
@@ -262,7 +261,7 @@ build-examples:
 
 _update-rust-tooling:
 	@echo "Run rustup update"
-	@rustup update
+	@rustup update stable
 
 check-cargo: install-cargo-if-missing _update-rust-tooling
 	@echo "Running \"cargo check\" in ./scylla-rust-wrapper"

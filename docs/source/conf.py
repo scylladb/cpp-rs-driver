@@ -12,14 +12,12 @@ sys.path.insert(0, os.path.abspath(".."))
 # -- Global variables
 
 # Builds documentation for the following tags and branches.
-TAGS = [
-    "v0.5.1",
-]
+TAGS = []
 BRANCHES = [
     "master",
 ]
 # Sets the latest version.
-LATEST_VERSION = "v0.5.1"
+LATEST_VERSION = "master"
 # Set which versions are not released yet.
 UNSTABLE_VERSIONS = ["master"]
 # Set which versions are deprecated
@@ -51,7 +49,7 @@ source_suffix = [".rst", ".md"]
 master_doc = "contents"
 
 # General information about the project.
-project = "ScyllaDB CPP-Rust Driver"
+project = "ScyllaDB CPP RS Driver"
 copyright = str(date.today().year) + ", ScyllaDB. All rights reserved."
 author = "ScyllaDB Project Contributors"
 
@@ -151,8 +149,8 @@ html_theme_options = {
     "conf_py_path": "docs/source/",
     "hide_edit_this_page_button": "false",
     "hide_feedback_buttons": "false",
-    "github_issues_repository": "scylladb/cpp-rust-driver",
-    "github_repository": "scylladb/cpp-rust-driver",
+    "github_issues_repository": "scylladb/cpp-rs-driver",
+    "github_repository": "scylladb/cpp-rs-driver",
     "site_description": "API-compatible rewrite of scylladb/cpp-driver as a wrapper over ScyllaDB Rust driver.",
     "hide_version_dropdown": [],
     "zendesk_tag": "gq6ltsh3nfex3cnwfy4aj9",
@@ -170,7 +168,7 @@ html_sidebars = {"**": ["side-nav.html"]}
 htmlhelp_basename = "ScyllaDocumentationdoc"
 
 # URL which points to the root of the HTML documentation.
-html_baseurl = 'https://cpp-rust-driver.docs.scylladb.com'
+html_baseurl = 'https://cpp-rs-driver.docs.scylladb.com'
 
 # Dictionary of values to pass into the template engine’s context for all pages
 html_context = {"html_baseurl": html_baseurl}

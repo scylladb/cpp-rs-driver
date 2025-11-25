@@ -4,9 +4,9 @@ use std::{os::raw::c_char, sync::Arc};
 use crate::{
     argconv::*,
     cass_error::CassError,
-    cass_types::{CassDataType, get_column_type},
+    cql_types::data_type::{CassDataType, get_column_type},
     query_result::CassResultMetadata,
-    statement::{BoundPreparedStatement, CassStatement},
+    statements::statement::{BoundPreparedStatement, CassStatement},
     types::size_t,
 };
 use scylla::statement::prepared::PreparedStatement;
@@ -24,7 +24,7 @@ pub struct CassPrepared {
 
 impl CassPrepared {
     pub(crate) fn new_from_prepared_statement(mut statement: PreparedStatement) -> Self {
-        // We already cache the metadata on cpp-rust-driver side (see CassPrepared::result_metadata field),
+        // We already cache the metadata on cpp-rs-driver side (see CassPrepared::result_metadata field),
         // thus we can enable the optimization on rust-driver side as well. This will prevent the server
         // from sending redundant bytes representing a result metadata during EXECUTE.
         //
@@ -118,17 +118,15 @@ pub unsafe extern "C" fn cass_prepared_parameter_name(
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
-    match prepared
+    let Some(col_spec) = prepared
         .statement
         .get_variable_col_specs()
         .get_by_index(index as usize)
-    {
-        Some(col_spec) => {
-            unsafe { write_str_to_c(col_spec.name(), name, name_length) };
-            CassError::CASS_OK
-        }
-        None => CassError::CASS_ERROR_LIB_INDEX_OUT_OF_BOUNDS,
-    }
+    else {
+        return CassError::CASS_ERROR_LIB_INDEX_OUT_OF_BOUNDS;
+    };
+    unsafe { write_str_to_c(col_spec.name(), name, name_length) };
+    CassError::CASS_OK
 }
 
 #[unsafe(no_mangle)]

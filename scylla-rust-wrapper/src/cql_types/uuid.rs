@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-pub(crate) use crate::cass_uuid_types::CassUuid;
+pub use crate::cass_uuid_types::CassUuid;
 
 pub struct CassUuidGen {
     pub(crate) clock_seq_and_node: cass_uint64_t,
@@ -251,17 +251,14 @@ pub unsafe extern "C" fn cass_uuid_from_string_n(
     value_length: size_t,
     output: *mut CassUuid,
 ) -> CassError {
-    let value_str = unsafe { ptr_to_cstr_n(value, value_length) };
-
-    match value_str {
-        Some(value_str) => {
-            Uuid::parse_str(value_str).map_or(CassError::CASS_ERROR_LIB_BAD_PARAMS, |parsed_uuid| {
-                unsafe { std::ptr::write(output, parsed_uuid.into()) };
-                CassError::CASS_OK
-            })
-        }
-        None => CassError::CASS_ERROR_LIB_BAD_PARAMS,
-    }
+    let Some(value_str) = (unsafe { ptr_to_cstr_n(value, value_length) }) else {
+        tracing::error!("Provided null or invalid string pointer to cass_uuid_from_string(_n)!");
+        return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+    };
+    Uuid::parse_str(value_str).map_or(CassError::CASS_ERROR_LIB_BAD_PARAMS, |parsed_uuid| {
+        unsafe { std::ptr::write(output, parsed_uuid.into()) };
+        CassError::CASS_OK
+    })
 }
 
 #[unsafe(no_mangle)]

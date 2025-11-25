@@ -90,6 +90,6 @@ void iterate_tuple(const CassRow* row) {
 }
 ```
 
-[`CassTuple`]: https://cpp-rust-driver.docs.scylladb.com/stable/api/struct.CassTuple
-[`CassUserType`]: https://cpp-rust-driver.docs.scylladb.com/stable/api/struct.CassUserType
-[`cass_tuple_set_*()`]: https://cpp-rust-driver.docs.scylladb.com/stable/api/struct.CassTuple#cass-tuple-set-null
+[`CassTuple`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassTuple
+[`CassUserType`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassUserType
+[`cass_tuple_set_*()`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassTuple#cass-tuple-set-null

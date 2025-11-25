@@ -1,6 +1,6 @@
-Source: scylla-cpp-rust-driver
+Source: scylla-cpp-rs-driver
 Maintainer: Takuya ASADA <syuu@scylladb.com>
-Homepage: https://github.com/scylladb/cpp-rust-driver
+Homepage: https://github.com/scylladb/cpp-rs-driver
 Section: libs
 Priority: optional
 Standards-Version: 4.6.0
@@ -18,7 +18,7 @@ Architecture: any
 Depends: ${misc:Depends},
          ${shlibs:Depends},
 Conflicts: scylla-cpp-driver
-Description: ScyllaDB Cpp-Rust Driver
+Description: ScyllaDB CPP RS Driver
  API-compatible rewrite of https://github.com/scylladb/cpp-driver as a wrapper for Rust driver.
 
 Package: libscylla-cpp-driver-dev
@@ -27,5 +27,5 @@ Architecture: any
 Depends: libscylla-cpp-driver0 (= ${binary:Version}),
          ${misc:Depends},
 Conflicts: scylla-cpp-driver-dev
-Description: Development libraries for ScyllaDB Cpp-Rust Driver
+Description: Development libraries for ScyllaDB CPP RS Driver
  API-compatible rewrite of https://github.com/scylladb/cpp-driver as a wrapper for Rust driver.

@@ -265,4 +265,4 @@ will fall back to the "basic" mode.
 The advanced mode is also supported by the driver by default.
 
 
-[`allow_remote_dcs_for_local_cl`]: https://cpp-rust-driver.docs.scylladb.com/stable/api/struct.CassCluster#1a46b9816129aaa5ab61a1363489dccfd0
+[`allow_remote_dcs_for_local_cl`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassCluster#1a46b9816129aaa5ab61a1363489dccfd0

@@ -10,7 +10,7 @@ instead.
 ## Compatibility
 
 * Compilers:
-  - rustc 1.82+ (as part of the Rust toolchain, available at [rustup.rs]);
+  - rustc (as part of the Rust toolchain, available at [rustup.rs]). The officially supported version is the most recent stable. Older versions may work, but we don't guarantee that.
   - any reasonable C/C++ compiler, such as GCC or Clang (for tests & examples).
 
 ## Dependencies
@@ -169,7 +169,7 @@ cmake -DCASS_BUILD_INTEGRATION_TESTS=On ..
 cmake -DCASS_BUILD_UNIT_TESTS=On ..
 ```
 
-[download server]: https://github.com/scylladb/cpp-rust-driver/releases
+[download server]: https://github.com/scylladb/cpp-rs-driver/releases
 [Homebrew]: https://brew.sh
 [CMake]: http://www.cmake.org/download
 [libuv]: http://libuv.org

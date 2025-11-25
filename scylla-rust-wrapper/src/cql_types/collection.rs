@@ -1,9 +1,9 @@
+use crate::argconv::*;
 use crate::cass_collection_types::CassCollectionType;
 use crate::cass_error::CassError;
-use crate::cass_types::{CassDataType, CassDataTypeInner, MapDataType};
+use crate::cql_types::data_type::{CassDataType, CassDataTypeInner, MapDataType};
+use crate::cql_types::value::{self, CassCqlValue};
 use crate::types::*;
-use crate::value::CassCqlValue;
-use crate::{argconv::*, value};
 use std::convert::TryFrom;
 use std::sync::Arc;
 use std::sync::LazyLock;
@@ -88,6 +88,9 @@ impl CassCollection {
                     if let Some(subtype) = subtype
                         && !value::is_type_compatible(value, subtype)
                     {
+                        tracing::error!(
+                            "Tried to append to a collection, but the value type is incompatible with the collection's data type."
+                        );
                         return CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE;
                     }
                 }
@@ -99,14 +102,23 @@ impl CassCollection {
                     match typ {
                         MapDataType::Key(k_typ) => {
                             if index % 2 == 0 && !value::is_type_compatible(value, k_typ) {
+                                tracing::error!(
+                                    "Tried to append to a collection, but the value type is incompatible with the collection's data type."
+                                );
                                 return CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE;
                             }
                         }
                         MapDataType::KeyAndValue(k_typ, v_typ) => {
                             if index % 2 == 0 && !value::is_type_compatible(value, k_typ) {
+                                tracing::error!(
+                                    "Tried to append to a collection, but the value type is incompatible with the collection's data type."
+                                );
                                 return CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE;
                             }
                             if index % 2 != 0 && !value::is_type_compatible(value, v_typ) {
+                                tracing::error!(
+                                    "Tried to append to a collection, but the value type is incompatible with the collection's data type."
+                                );
                                 return CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE;
                             }
                         }
@@ -114,7 +126,10 @@ impl CassCollection {
                         MapDataType::Untyped => (),
                     }
                 }
-                _ => return CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE,
+                _ => {
+                    tracing::error!("Tried to append to a non-collection!");
+                    return CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE;
+                }
             }
         }
 
@@ -266,14 +281,17 @@ mod tests {
     use crate::{
         argconv::ArcFFI,
         cass_error::CassError,
-        cass_types::{
-            CassDataType, CassDataTypeInner, CassValueType, MapDataType,
-            cass_data_type_add_sub_type, cass_data_type_free, cass_data_type_new,
+        cql_types::{
+            CassValueType,
+            collection::{
+                cass_collection_append_double, cass_collection_append_float, cass_collection_free,
+            },
+            data_type::{
+                CassDataType, CassDataTypeInner, MapDataType, cass_data_type_add_sub_type,
+                cass_data_type_free, cass_data_type_new,
+            },
         },
-        collection::{
-            cass_collection_append_double, cass_collection_append_float, cass_collection_free,
-        },
-        testing::assert_cass_error_eq,
+        testing::utils::assert_cass_error_eq,
     };
 
     use super::{

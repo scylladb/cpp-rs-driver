@@ -44,7 +44,7 @@ public:
       profiles_["request_timeout"] = ExecutionProfile::build().with_request_timeout(1);
       profiles_["consistency"] =
           ExecutionProfile::build().with_consistency(CASS_CONSISTENCY_SERIAL);
-      // Setting bad serial-consistency type for exec profile is forbidden in cpp-rust-driver
+      // Setting bad serial-consistency type for exec profile is forbidden in cpp-rs-driver
       // profiles_["serial_consistency"] =
       //     ExecutionProfile::build().with_serial_consistency(CASS_CONSISTENCY_ONE);
       profiles_["round_robin"] =
@@ -342,7 +342,7 @@ CASSANDRA_INTEGRATION_TEST_F(ExecutionProfileTest, SerialConsistency) {
   // Original test case expected us to set consistency ONE in place of serial consistency.
   // The statement would then be executed, resulting in server error.
   // This is something that we could technically do, but rust-driver disallows it on a type level.
-  // In result, we do not allow this in cpp-rust-driver as well.
+  // In result, we do not allow this in cpp-rs-driver as well.
   // We can at least check that setting the bad consistency level for serial consistency
   // fails on client side.
   ExecutionProfile builder = ExecutionProfile::build();

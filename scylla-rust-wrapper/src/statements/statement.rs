@@ -1,14 +1,14 @@
+use crate::argconv::*;
 use crate::cass_error::CassError;
-use crate::cass_types::CassConsistency;
 use crate::config_value::{MaybeUnsetConfig, RequestTimeout};
+use crate::cql_types::CassConsistency;
+use crate::cql_types::inet::CassInet;
+use crate::cql_types::value::{self, CassCqlValue};
 use crate::exec_profile::PerStatementExecProfile;
-use crate::inet::CassInet;
-use crate::prepared::CassPrepared;
 use crate::query_result::{CassNode, CassResult};
 use crate::retry_policy::CassRetryPolicy;
+use crate::statements::prepared::CassPrepared;
 use crate::types::*;
-use crate::value::CassCqlValue;
-use crate::{argconv::*, value};
 use scylla::frame::types::Consistency;
 use scylla::policies::load_balancing::{NodeIdentifier, SingleTargetLoadBalancingPolicy};
 use scylla::response::{PagingState, PagingStateResponse};
@@ -335,6 +335,9 @@ pub unsafe extern "C" fn cass_statement_set_consistency(
     let Ok(maybe_set_consistency) = MaybeUnsetConfig::<_, Consistency>::from_c_value(consistency)
     else {
         // Invalid consistency value provided.
+        tracing::error!(
+            "Provided invalid consistency value to cass_statement_set_consistency: {consistency:?}"
+        );
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
@@ -545,12 +548,9 @@ pub unsafe extern "C" fn cass_statement_set_host_inet(
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     }
     // SAFETY: Assuming that user provided valid pointer.
-    let ip_addr: IpAddr = match unsafe { *host }.try_into() {
-        Ok(ip_addr) => ip_addr,
-        Err(_) => {
-            tracing::error!("Provided invalid CassInet value to cass_statement_set_host_inet!");
-            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
-        }
+    let Ok(ip_addr) = unsafe { *host }.try_into() else {
+        tracing::error!("Provided invalid CassInet value to cass_statement_set_host_inet!");
+        return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
     let Ok(port): Result<u16, _> = port.try_into() else {
         tracing::error!("Provided invalid port value to cass_statement_set_host_n: {port}");
@@ -652,6 +652,9 @@ pub unsafe extern "C" fn cass_statement_set_serial_consistency(
     let Ok(maybe_set_serial_consistency) =
         MaybeUnsetConfig::<_, Option<SerialConsistency>>::from_c_value(serial_consistency)
     else {
+        tracing::error!(
+            "Provided invalid serial consistency value to cass_statement_set_serial_consistency: {serial_consistency:?}"
+        );
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
@@ -872,11 +875,11 @@ mod tests {
 
     use crate::argconv::{BoxFFI, RefFFI};
     use crate::cass_error::CassError;
-    use crate::inet::CassInet;
-    use crate::statement::{
+    use crate::cql_types::inet::CassInet;
+    use crate::statements::statement::{
         cass_statement_set_host, cass_statement_set_host_inet, cass_statement_set_node,
     };
-    use crate::testing::assert_cass_error_eq;
+    use crate::testing::utils::assert_cass_error_eq;
 
     use super::{cass_statement_free, cass_statement_new};
 

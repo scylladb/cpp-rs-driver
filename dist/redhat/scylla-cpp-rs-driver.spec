@@ -1,11 +1,11 @@
-Name:           scylla-cpp-rust-driver
+Name:           scylla-cpp-rs-driver
 Version:        %{driver_version}
 Release:        %{driver_release}%{?dist}
-Summary:        ScyllaDB Cpp-Rust Driver
+Summary:        ScyllaDB CPP RS Driver
 Group:          Development/Tools
 
 License:        LGPLv2.1
-URL:            https://github.com/scylladb/cpp-rust-driver
+URL:            https://github.com/scylladb/cpp-rs-driver
 Source0:        %{name}-%{driver_version}-%{driver_release}.tar
 BuildRequires:  openssl-devel
 BuildRequires:  clang
@@ -66,4 +66,4 @@ rm -rf %{buildroot}
 
 %changelog
 * Thu Mar 28 2024 Takuya ASADA <syuu@scylladb.com>
-- initial version of scylla-cpp-rust-driver.spec
+- initial version of scylla-cpp-rs-driver.spec

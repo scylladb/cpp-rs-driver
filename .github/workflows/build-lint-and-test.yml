@@ -9,7 +9,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   # Should include `INTEGRATION_TEST_BIN` from the `Makefile`
-  # TODO: Remove `build/libscylla-cpp-driver.*` after https://github.com/scylladb/cpp-rust-driver/issues/164 is fixed.
+  # TODO: Remove `build/libscylla-cpp-driver.*` after https://github.com/scylladb/cpp-rs-driver/issues/164 is fixed.
   INTEGRATION_TEST_BIN: |
     build/cassandra-integration-tests
     build/libscylla-cpp-driver.*

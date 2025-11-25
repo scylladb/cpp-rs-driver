@@ -104,7 +104,7 @@ if is_ubuntu "${TARGET}" && [[ ! -f /usr/share/keyrings/ubuntu-archive-keyring.g
 fi
 
 ./SCYLLA-VERSION-GEN
-DRIVER_NAME=scylla-cpp-rust-driver
+DRIVER_NAME=scylla-cpp-rs-driver
 DRIVER_VERSION="$(sed 's/-/~/' build/SCYLLA-VERSION-FILE)"
 DRIVER_RELEASE="$(cat build/SCYLLA-RELEASE-FILE)"
 ARCH="$(dpkg --print-architecture)"

@@ -1,4 +1,4 @@
-scylla-cpp-rust-driver (%{version}-%{release}-%{revision}) %{codename}; urgency=medium
+scylla-cpp-rs-driver (%{version}-%{release}-%{revision}) %{codename}; urgency=medium
 
   * Initial release.
 

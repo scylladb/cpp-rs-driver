@@ -1,5 +1,7 @@
 use crate::argconv::*;
 use crate::cass_error::CassError;
+use crate::cql_types::CassValueType;
+use crate::statements::batch::CassBatchType;
 use crate::types::*;
 use scylla::cluster::metadata::{CollectionType, NativeType};
 use scylla::frame::response::result::ColumnType;
@@ -7,10 +9,6 @@ use scylla::statement::batch::BatchType;
 use std::cell::UnsafeCell;
 use std::os::raw::c_char;
 use std::sync::Arc;
-
-pub use crate::cass_batch_types::CassBatchType;
-pub use crate::cass_consistency_types::CassConsistency;
-pub use crate::cass_data_types::CassValueType;
 
 #[derive(Clone, Debug)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
@@ -215,7 +213,7 @@ impl CassDataTypeInner {
                 _ => false,
             },
             CassDataTypeInner::Custom(_) => {
-                unimplemented!("Cpp-rust-driver does not support custom types!")
+                unimplemented!("cpp-rs-driver does not support custom types!")
             }
         }
     }

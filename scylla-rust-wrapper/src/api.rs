@@ -387,7 +387,7 @@ pub mod future {
 pub mod statement {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
-    pub use crate::statement::{
+    pub use crate::statements::statement::{
         CassStatement,
         cass_statement_bind_bool,
         cass_statement_bind_bool_by_name,
@@ -483,7 +483,7 @@ pub mod statement {
 pub mod prepared {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
-    pub use crate::prepared::{
+    pub use crate::statements::prepared::{
         CassPrepared,
         cass_prepared_bind,
         cass_prepared_free,
@@ -497,7 +497,7 @@ pub mod prepared {
 pub mod batch {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
-    pub use crate::batch::{
+    pub use crate::statements::batch::{
         CassBatch,
         CassBatchType,
         cass_batch_add_statement,
@@ -526,7 +526,7 @@ pub mod batch {
 pub mod data_type {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
-    pub use crate::cass_types::{
+    pub use crate::cql_types::data_type::{
         CassDataType,
         cass_data_sub_type_count,
         cass_data_type_add_sub_type,
@@ -562,7 +562,7 @@ pub mod data_type {
 pub mod collection {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
-    pub use crate::collection::{
+    pub use crate::cql_types::collection::{
         CassCollection,
         cass_collection_append_bool,
         cass_collection_append_bytes,
@@ -594,7 +594,7 @@ pub mod collection {
 pub mod tuple {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
-    pub use crate::tuple::{
+    pub use crate::cql_types::tuple::{
         CassTuple,
         cass_tuple_data_type,
         cass_tuple_free,
@@ -627,7 +627,7 @@ pub mod tuple {
 pub mod user_type {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
-    pub use crate::user_type::{
+    pub use crate::cql_types::user_type::{
         CassUserType,
         cass_user_type_data_type,
         cass_user_type_free,
@@ -832,7 +832,7 @@ pub mod value {
 pub mod uuid_gen {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
-    pub use crate::uuid::{
+    pub use crate::cql_types::uuid::{
         CassUuidGen,
         cass_uuid_gen_free,
         cass_uuid_gen_from_time,
@@ -846,7 +846,8 @@ pub mod uuid_gen {
 pub mod uuid {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
-    pub use crate::uuid::{
+    pub use crate::cql_types::uuid::{
+        CassUuid,
         cass_uuid_from_string,
         cass_uuid_from_string_n,
         cass_uuid_max_from_time,
@@ -895,16 +896,16 @@ pub mod custom_payload {
 pub mod consistency {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
-    pub use crate::misc::{
+    pub use crate::cql_types::{
         CassConsistency,
-        cass_consistency_string
+        cass_consistency_string,
     };
 }
 
 pub mod write_type {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
-    pub use crate::misc::{
+    pub use crate::cql_types::{
         CassWriteType,
         cass_write_type_string
     };
@@ -915,19 +916,17 @@ pub mod log {
     #[rustfmt::skip]
     pub use crate::logging::{
         CassLogCallback,
-        cass_log_cleanup,
         cass_log_get_callback_and_data,
         cass_log_level_string,
         cass_log_set_callback,
         cass_log_set_level,
-        cass_log_set_queue_size,
     };
 }
 
 pub mod inet {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
-    pub use crate::inet::{
+    pub use crate::cql_types::inet::{
         CassInet,
         cass_inet_from_string,
         cass_inet_from_string_n,
@@ -940,7 +939,7 @@ pub mod inet {
 pub mod date_time {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
-    pub use crate::date_time::{
+    pub use crate::cql_types::date_time::{
         cass_date_from_epoch,
         cass_date_time_to_epoch,
         cass_time_from_epoch
@@ -955,7 +954,7 @@ pub mod alloc {
 pub mod integration_testing {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
-    pub use crate::integration_testing::{
+    pub use crate::testing::integration::{
         IgnoringRetryPolicy,
         testing_batch_set_sleeping_history_listener,
         testing_cluster_get_connect_timeout,
@@ -974,7 +973,7 @@ pub mod integration_testing {
     /// and at the same time the functions are not yet implemented in the wrapper.
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
-    pub use crate::integration_testing::stubs::{
+    pub use crate::testing::integration::stubs::{
         CassAggregateMeta,
         CassAuthenticator,
         CassCustomPayload,
