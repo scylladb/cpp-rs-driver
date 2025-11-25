@@ -118,35 +118,50 @@ endif()
 # Determine if the header should be installed
 if(CASS_INSTALL_HEADER)
   file(GLOB CASS_API_HEADER_FILES ${CASS_INCLUDE_DIR}/*.h)
-  install(FILES ${CASS_API_HEADER_FILES} DESTINATION ${INSTALL_HEADER_DIR})
+  # Headers go to dev package
+  install(FILES ${CASS_API_HEADER_FILES}
+    DESTINATION ${INSTALL_HEADER_DIR}
+    COMPONENT ${SCYLLA_DRIVER_DEV_COMPONENT_NAME})
 endif()
 
 # Install the dynamic/shared library
 if(CASS_BUILD_SHARED)
-    install(FILES $<TARGET_FILE:scylla-cpp-driver>
+  # Versioned shared library goes to runtime package
+  install(FILES $<TARGET_FILE:scylla-cpp-driver>
     DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    COMPONENT ${SCYLLA_DRIVER_RUNTIME_COMPONENT_NAME}
     PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ)
+  # Major version symlink goes to runtime package
   install(FILES ${CMAKE_BINARY_DIR}/${INSTALL_NAME_SHARED_SYMLINK_VERSION}
-    DESTINATION ${CMAKE_INSTALL_LIBDIR})
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    COMPONENT ${SCYLLA_DRIVER_RUNTIME_COMPONENT_NAME})
+  # Unversioned development symlink goes to dev package
   install(FILES ${CMAKE_BINARY_DIR}/${INSTALL_NAME_SHARED_SYMLINK_NO_VERSION}
-    DESTINATION ${CMAKE_INSTALL_LIBDIR})
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    COMPONENT ${SCYLLA_DRIVER_DEV_COMPONENT_NAME})
+  # pkg-config file goes to dev package
   if(CASS_INSTALL_PKG_CONFIG)
     if(PKG_CONFIG_FOUND)
       configure_file("${CMAKE_CURRENT_SOURCE_DIR}/scylla-cpp-driver.pc.in" "scylla-cpp-driver.pc" @ONLY)
       install(FILES "${CMAKE_CURRENT_BINARY_DIR}/scylla-cpp-driver.pc"
-        DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig"
+        COMPONENT ${SCYLLA_DRIVER_DEV_COMPONENT_NAME})
     endif()
   endif()
 endif()
 
+# Static library goes to dev package
 if(CASS_BUILD_STATIC)
-    install(FILES $<TARGET_FILE:scylla-cpp-driver_static>
-    DESTINATION ${CMAKE_INSTALL_LIBDIR})
+  install(FILES $<TARGET_FILE:scylla-cpp-driver_static>
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    COMPONENT ${SCYLLA_DRIVER_DEV_COMPONENT_NAME})
+  # Static library pkg-config file goes to dev package
   if(CASS_INSTALL_PKG_CONFIG)
     if(PKG_CONFIG_FOUND)
         configure_file("${CMAKE_CURRENT_SOURCE_DIR}/scylla-cpp-driver_static.pc.in" "scylla-cpp-driver_static.pc" @ONLY)
       install(FILES "${CMAKE_CURRENT_BINARY_DIR}/scylla-cpp-driver_static.pc"
-        DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig"
+        COMPONENT ${SCYLLA_DRIVER_DEV_COMPONENT_NAME})
     endif()
   endif()
 endif()

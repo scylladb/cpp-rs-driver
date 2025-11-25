@@ -424,48 +424,47 @@ Now, use `--gtest_filter` to run certain integration tests:
 
 ##### Note: Tests that pass with ScyllaDB and Cassandra clusters can be found in Makefile: `SCYLLA_TEST_FILTER` and `CASSANDRA_TEST_FILTER` env variables.
 
-# Build rpm package
+# Packaging with CPack
 ___
 
-To build rpm package, run the following command:
+The project uses CPack to produce installable artifacts for Linux, macOS, and
+Windows. Start by configuring and building the project:
+
 ```shell
-./dist/redhat/build_rpm.sh --target rocky-8-x86_64
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release
 ```
-It will construct chrooted build environment of target distribution using mock,
-and build rpm in the environment.
-Target parameter should be mock .cfg file name.
-Currently tested on rocky-8-x86_64, rocky-9-x86_64, fedora-38-x86_64, fedora-39-x86_64, fedora-40-x86_64, fedora-rawhide-x86_64.
-Build environment should be Fedora or RHEL variants + EPEL, since
-other distribution does not provide mock package.
-Built result will placed under build/redhat/{rpms,srpms}.
 
-# Build deb package
-___
+From the `build` directory you can invoke `cpack` with the generator that
+matches your target platform:
 
-To build deb package, run the following command:
-```shell
-./dist/debian/build_deb.sh --target mantic
-```
-It will construct chrooted build environment of target distribution using
-pbuilder, and build deb in the environment.
-Target parameter should be debian/ubuntu codename.
-On Ubuntu targets, currently tested on bionic (18.04), focal (20.04), jammy (22.04), mantic (23.10), noble (24.04).
-On Debian targets, currently tested on buster (10), bullseye (11), bookworm (12), trixie (13), sid (unstable).
-Build environment should be Fedora, Ubuntu or Debian, since these distribution
-provides pbuilder package.
-Built result will placed under build/debian/debs.
+* **Linux (Debian/Ubuntu/Fedora/Rocky):**
+  ```shell
+  cpack -G DEB -C Release   # produces .deb in build/
+  cpack -G RPM -C Release   # produces .rpm in build/
+  ```
+  Debian packages set shlibdeps automatically; RPM packages target the
+  `Applications/Databases` group and use release number `1` by default.
 
-# Build & install HomeBrew package (macOS)
+* **macOS (pkg / dmg):**
+  ```shell
+  cpack -G productbuild -C Release  # generates .pkg
+  cpack -G DragNDrop -C Release     # generates .dmg
+  ```
+  Both outputs bundle the compiled libraries alongside headers and pkg-config
+  manifests.
 
----
+* **Windows (MSI):**
+  ```powershell
+  cpack -G WIX -C Release  # requires WiX Toolset 3.11+
+  ```
+  The MSI installs into `Program Files\ScyllaDB\Scylla CPP Driver` and reuses a
+  stable upgrade GUID for seamless upgrades.
 
-To build HomeBrew pacakge, run the following command:
-```shell
-cd dist/homebrew
-brew install --HEAD ./scylla-cpp-rs-driver.rb
-```
-It will run build & install the driver in HomeBrew environment.
-Tested on macOS 14.5.
+GitHub Actions can exercise the same flow via the reusable workflow defined in
+`.github/workflows/build-cpack-packages.yml`. Releases published through
+`.github/workflows/release-upload-packages.yml` automatically upload the
+generated artifacts.
 
 # Getting Help
 ___
