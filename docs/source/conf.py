@@ -106,6 +106,9 @@ breathe_projects = {
 breathe_default_project = 'API'
 breathe_default_members = ('members', 'undoc-members')
 
+# Hide parent class names in sidebar
+toc_object_entries_show_parents = 'hide'
+
 # Autogenerate API reference
 def _generate_structs(outdir, structs, project):
     """Write structs docs in the designated outdir folder"""
