@@ -41,7 +41,7 @@ impl CassPrepared {
             .collect();
 
         let result_metadata = Arc::new(CassResultMetadata::from_column_specs(
-            statement.get_result_set_col_specs(),
+            statement.get_current_result_set_col_specs().get(),
         ));
 
         Self {
