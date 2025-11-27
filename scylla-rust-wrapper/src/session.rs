@@ -8,7 +8,7 @@ use crate::exec_profile::{CassExecProfile, ExecProfileName, PerStatementExecProf
 use crate::future::{CassFuture, CassFutureResult, CassResultValue};
 use crate::metadata::create_table_metadata;
 use crate::metadata::{CassKeyspaceMeta, CassMaterializedViewMeta, CassSchemaMeta};
-use crate::query_result::{CassResult, CassResultKind, CassResultMetadata};
+use crate::query_result::{CassResult, CassResultKind};
 use crate::runtime::Runtime;
 use crate::statements::batch::CassBatch;
 use crate::statements::prepared::CassPrepared;
@@ -18,11 +18,11 @@ use scylla::client::execution_profile::ExecutionProfileHandle;
 use scylla::client::session::Session;
 use scylla::client::session_builder::SessionBuilder;
 use scylla::cluster::metadata::ColumnType;
-use scylla::errors::ExecutionError;
 use scylla::observability::metrics::MetricsError;
 use scylla::policies::host_filter::HostFilter;
 use scylla::response::PagingStateResponse;
 use scylla::response::query_result::QueryResult;
+use scylla::response::query_result::QueryRowsResult;
 use scylla::statement::unprepared::Statement;
 use std::collections::HashMap;
 use std::future::Future;
@@ -427,55 +427,27 @@ pub unsafe extern "C" fn cass_session_execute(
                 .set_execution_profile_handle(handle),
         }
 
-        // Creating a type alias here to fix clippy lints.
-        // I want this type to be explicit, so future developers can understand
-        // what's going on here (and why we include some weird Option of data types).
-        type QueryRes = Result<
-            (
-                QueryResult,
-                PagingStateResponse,
-                // We unfortunately have to retrieve the metadata here.
-                // Since `query.query` is consumed, we cannot match the statement
-                // after execution, to retrieve the cached metadata in case
-                // of prepared statements.
-                Option<Arc<CassResultMetadata>>,
-            ),
-            ExecutionError,
-        >;
-        let query_res: QueryRes = match statement {
+        let query_res: Result<(QueryResult, PagingStateResponse, _), _> = match statement {
             BoundStatement::Simple(query) => {
-                // We don't store result metadata for Queries - return None.
-                let maybe_result_metadata = None;
-
                 let bound_values = SimpleQueryRowSerializer {
                     bound_values: query.bound_values,
                     name_to_bound_index: query.name_to_bound_index,
                 };
 
-                if paging_enabled {
+                (if paging_enabled {
                     session
                         .query_single_page(query.query, bound_values, paging_state)
                         .await
-                        .map(|(qr, psr)| (qr, psr, maybe_result_metadata))
                 } else {
                     session
                         .query_unpaged(query.query, bound_values)
                         .await
-                        .map(|result| {
-                            (
-                                result,
-                                PagingStateResponse::NoMorePages,
-                                maybe_result_metadata,
-                            )
-                        })
-                }
+                        .map(|result| (result, PagingStateResponse::NoMorePages))
+                })
+                .map(|(qr, psr)| (qr, psr, None))
             }
             BoundStatement::Prepared(prepared) => {
-                // Clone result metadata, so we don't need to construct it from scratch in
-                // `CassResultMetadata::from_column_specs` - it requires a lot of allocations for complex types.
-                let maybe_result_metadata = Some(Arc::clone(&prepared.statement.result_metadata));
-
-                if paging_enabled {
+                let query_result = if paging_enabled {
                     session
                         .execute_single_page(
                             &prepared.statement.statement,
@@ -483,28 +455,34 @@ pub unsafe extern "C" fn cass_session_execute(
                             paging_state,
                         )
                         .await
-                        .map(|(qr, psr)| (qr, psr, maybe_result_metadata))
                 } else {
                     session
                         .execute_unpaged(&prepared.statement.statement, prepared.bound_values)
                         .await
-                        .map(|result| {
-                            (
-                                result,
-                                PagingStateResponse::NoMorePages,
-                                maybe_result_metadata,
-                            )
-                        })
-                }
+                        .map(|result| (result, PagingStateResponse::NoMorePages))
+                };
+
+                query_result.map(|(result, paging_state)| {
+                    (
+                        result,
+                        paging_state,
+                        Some(move |rows_result_ref: &QueryRowsResult| {
+                            let column_specs = rows_result_ref.column_specs();
+                            prepared
+                                .statement
+                                .try_update_and_get_result_metadata(column_specs)
+                        }),
+                    )
+                })
             }
         };
 
         match query_res {
-            Ok((result, paging_state_response, maybe_result_metadata)) => {
+            Ok((result, paging_state_response, get_or_make_result_metadata)) => {
                 match CassResult::from_result_payload(
                     result,
                     paging_state_response,
-                    maybe_result_metadata,
+                    get_or_make_result_metadata,
                 ) {
                     Ok(result) => Ok(CassResultValue::QueryResult(Arc::new(result))),
                     Err(e) => Ok(CassResultValue::QueryError(e)),
