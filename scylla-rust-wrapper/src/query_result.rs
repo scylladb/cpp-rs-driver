@@ -230,7 +230,6 @@ impl<'result> CassRow<'result> {
 mod row_with_self_borrowed_result_data {
     use std::sync::Arc;
 
-    use scylla::errors::DeserializationError;
     use yoke::{Yoke, Yokeable};
 
     use crate::cass_error::CassErrorResult;
@@ -264,12 +263,12 @@ mod row_with_self_borrowed_result_data {
             raw_rows_and_metadata: Arc<CassRowsResultSharedData>,
         ) -> Result<Option<Self>, Arc<CassErrorResult>> {
             enum AttachError {
-                CassErrorResult(CassErrorResult),
+                CassErrorResult(Arc<CassErrorResult>),
                 NoRows,
             }
             impl From<CassErrorResult> for AttachError {
                 fn from(err: CassErrorResult) -> Self {
-                    AttachError::CassErrorResult(err)
+                    AttachError::CassErrorResult(Arc::new(err))
                 }
             }
 
@@ -289,8 +288,8 @@ mod row_with_self_borrowed_result_data {
                         .and_then(|raw_row| CassRow::from_raw_row_and_metadata(raw_row, metadata));
 
                     let row = row_result
-                        .map_err(DeserializationError::into)
-                        .map_err(AttachError::CassErrorResult)?;
+                        .map_err(CassErrorResult::from)
+                        .map_err(AttachError::from)?;
 
                     Ok(CassRowWrapper(row))
                 },
@@ -299,7 +298,7 @@ mod row_with_self_borrowed_result_data {
             match yoke_result {
                 Ok(yoke) => Ok(Some(Self(yoke))),
                 Err(AttachError::NoRows) => Ok(None),
-                Err(AttachError::CassErrorResult(err)) => Err(Arc::new(err)),
+                Err(AttachError::CassErrorResult(err)) => Err(err),
             }
         }
 
