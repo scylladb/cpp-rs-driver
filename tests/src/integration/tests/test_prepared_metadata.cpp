@@ -101,3 +101,49 @@ CASSANDRA_INTEGRATION_TEST_F(PreparedMetadataTests, AlterProperlyUpdatesColumnCo
   // The column count will properly update after the alter
   prepared_check_column_count_after_alter(session, 3u);
 }
+
+/**
+ * Verify that the column count of a bound statement's result metadata is
+ * properly updated for new Scylla versions that support result metadata id extension
+ * that is backported from CQLv5.
+ *
+ */
+CASSANDRA_INTEGRATION_TEST_F(PreparedMetadataTests, AlterProperlyUpdatesColumnCountWithScyllaCqlV4) {
+  CHECK_FAILURE;
+  CCM::CassVersion cass_version = this->server_version_;
+  if (!Options::is_scylla() || cass_version < "2025.3.0") {
+      SKIP_TEST_VERSION(cass_version.to_string(), "2025.3.0")
+  }
+
+  Session session = default_cluster().connect(keyspace_name_);
+
+  // The column count will properly update after the alter
+  prepared_check_column_count_after_alter(session, 3u);
+}
+
+/**
+ * Verify that driver does not recreate its internal CassResultMetadata
+ * when there were no schema changes.
+ *
+ */
+CASSANDRA_INTEGRATION_TEST_F(PreparedMetadataTests, CassResultMetadataNotUpdatedForNoReason) {
+  CHECK_FAILURE;
+  CCM::CassVersion cass_version = this->server_version_;
+
+  Session session = default_cluster().connect(keyspace_name_);
+
+  Statement bound_statement =
+      session.prepare(format_string("SELECT * FROM %s WHERE key = 1", table_name_.c_str()))
+          .bind();
+
+  Result result1 = session.execute(bound_statement);
+  const CassResult *cass_result1 = result1.get();
+  const CassDataType *type1 = cass_result_column_data_type(cass_result1, 0);
+
+  Result result2 = session.execute(bound_statement);
+  const CassResult *cass_result2 = result2.get();
+  const CassDataType *type2 = cass_result_column_data_type(cass_result2, 0);
+
+  ASSERT_EQ(type1, type2);
+  ASSERT_EQ(cass_data_type_type(type1), CASS_VALUE_TYPE_INT);
+}
