@@ -34,6 +34,7 @@ use scylla_cpp_driver::api::statement::{
     cass_statement_set_execution_profile, cass_statement_set_serial_consistency,
 };
 use scylla_cpp_driver::argconv::{CConst, CMut, CassBorrowedExclusivePtr, CassBorrowedSharedPtr};
+use scylla_cql::frame::protocol_features::ProtocolFeatures;
 use scylla_proxy::{
     Condition, ProxyError, Reaction, RequestFrame, RequestOpcode, RequestReaction, RequestRule,
     TargetShard, WorkerError,
@@ -178,7 +179,9 @@ fn check_consistencies(
     mut request_rx: UnboundedReceiver<(RequestFrame, Option<TargetShard>)>,
 ) -> UnboundedReceiver<(RequestFrame, Option<TargetShard>)> {
     let (request_frame, _shard) = request_rx.blocking_recv().unwrap();
-    let deserialized_request = request_frame.deserialize().unwrap();
+    let deserialized_request = request_frame
+        .deserialize(&ProtocolFeatures::default())
+        .unwrap();
     assert_eq!(deserialized_request.get_consistency().unwrap(), consistency);
     assert_eq!(
         deserialized_request.get_serial_consistency().unwrap(),

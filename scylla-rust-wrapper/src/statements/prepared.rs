@@ -1,4 +1,7 @@
-use scylla::value::MaybeUnset::Unset;
+use arc_swap::ArcSwap;
+use scylla::response::query_result::ColumnSpecs;
+use scylla::{statement::prepared::ColumnSpecsGuard, value::MaybeUnset::Unset};
+use std::fmt::Debug;
 use std::{os::raw::c_char, sync::Arc};
 
 use crate::{
@@ -11,14 +14,106 @@ use crate::{
 };
 use scylla::statement::prepared::PreparedStatement;
 
+struct CassResultMetadataCacheInner {
+    guard: ColumnSpecsGuard,
+    cass_result_metadata: Arc<CassResultMetadata>,
+}
+
+//TODO: Move to derive(Debug) when https://github.com/scylladb/scylla-rust-driver/issues/1492 is done
+impl Debug for CassResultMetadataCacheInner {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CassResultMetadataCacheInner")
+            .field("guard", &self.guard.get())
+            .field("cass_result_metadata", &self.cass_result_metadata)
+            .finish()
+    }
+}
+
+/// Driver needs to create its own CassResultMetadata, it can't just use
+/// result metadata from the Rust Driver.
+/// Rust Driver result metadata is mutable, so we need to be able to recreate CassResultMetadata
+/// when necessary.
+/// This struct allows that.
+#[derive(Debug)]
+struct CassResultMetadataCache {
+    inner: ArcSwap<CassResultMetadataCacheInner>,
+}
+
+impl CassResultMetadataCache {
+    fn new(guard: ColumnSpecsGuard) -> Self {
+        let new_cass_result_metadata = Arc::new(CassResultMetadata::from_column_specs(guard.get()));
+        Self {
+            inner: ArcSwap::new(Arc::new(CassResultMetadataCacheInner {
+                guard,
+                cass_result_metadata: new_cass_result_metadata,
+            })),
+        }
+    }
+
+    /// Takes `ColumnSpecsGuard`, which is fetched from `PreparedStatement`,
+    /// and updates the cache to its metadata (if different than current metadata in cache).
+    /// Please note, that even if you:
+    /// - Perform a request
+    /// - After it finishes, call this method with metadata fetched from the statement
+    /// - Immediately after call `get_metadata_unless_stale`
+    ///
+    /// You DON'T have a guarantee that `get_metadata_unless_stale` returns `Some`.
+    /// This is because `PreparedStatement::get_current_result_set_col_specs` fetches
+    /// current metadata at a point in time, which may have been concurrently changed by execution
+    /// of another request.
+    pub(crate) fn update_if_necessary(&self, new_guard: ColumnSpecsGuard) {
+        let inner_guard = self.inner.load();
+        let old_column_specs_slice = inner_guard.guard.get().as_slice();
+        let new_column_specs_slice = new_guard.get().as_slice();
+        // Why only performing pointer comparison?
+        // The only situation I can think of when pointers are not equal,
+        // but the column specs are, is if there was new metadata received
+        // from the server, and few requests updated it concurrently.
+        // I don't think it matters - during schema changes we may do a few
+        // more allocations, but it is only a temporary situation and should
+        // quickly stabilize.
+        // Also the current solution gives us a nice property that we always
+        // store ColumnSpecsGuard, and CassResultMetadata that was created
+        // from exactly this guard. This allows us to only perform pointer
+        // comparison in `get_metadata_unless_stale`, which is important
+        // because it is on a hot path.
+        if !std::ptr::eq(old_column_specs_slice, new_column_specs_slice) {
+            let new_cass_result_metadata =
+                Arc::new(CassResultMetadata::from_column_specs(new_guard.get()));
+            // No need for rcu, because it doesn't save us from expensive creation of
+            // CassResultMetadata, and doesn't give us any benefits. For us,
+            // all the metadatas are just opaque, we can't tell if one is "newer".
+            self.inner.store(Arc::new(CassResultMetadataCacheInner {
+                guard: new_guard,
+                cass_result_metadata: new_cass_result_metadata,
+            }));
+        }
+    }
+
+    pub(crate) fn get_metadata_unless_stale(
+        &self,
+        result_column_specs: ColumnSpecs<'_, '_>,
+    ) -> Option<Arc<CassResultMetadata>> {
+        let inner_guard = self.inner.load();
+        let self_column_specs_slice = inner_guard.guard.get().as_slice();
+        let result_column_specs_slice = result_column_specs.as_slice();
+        // Pointer comparison is enough, because we always make sure to
+        // store the exact same guard that the CassResultMetadata was created from.
+        if std::ptr::eq(self_column_specs_slice, result_column_specs_slice) {
+            Some(inner_guard.cass_result_metadata.clone())
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct CassPrepared {
     // Data types of columns from PreparedMetadata.
     pub(crate) variable_col_data_types: Vec<Arc<CassDataType>>,
 
-    // Cached result metadata. Arc'ed since we want to share it
-    // with result metadata after execution.
-    pub(crate) result_metadata: Arc<CassResultMetadata>,
+    // Cached result metadata.
+    result_metadata_cache: Arc<CassResultMetadataCache>,
     pub(crate) statement: PreparedStatement,
 }
 
@@ -40,13 +135,13 @@ impl CassPrepared {
             .map(|col_spec| Arc::new(get_column_type(col_spec.typ())))
             .collect();
 
-        let result_metadata = Arc::new(CassResultMetadata::from_column_specs(
-            statement.get_result_set_col_specs(),
+        let result_metadata_cache = Arc::new(CassResultMetadataCache::new(
+            statement.get_current_result_set_col_specs(),
         ));
 
         Self {
             variable_col_data_types,
-            result_metadata,
+            result_metadata_cache,
             statement,
         }
     }
@@ -68,6 +163,16 @@ impl CassPrepared {
                 "Cannot find a data type of parameter with given name: {name}. This is a driver bug!",
             ),
         }
+    }
+
+    pub(crate) fn try_update_and_get_result_metadata(
+        &self,
+        result_column_specs: ColumnSpecs<'_, '_>,
+    ) -> Option<Arc<CassResultMetadata>> {
+        self.result_metadata_cache
+            .update_if_necessary(self.statement.get_current_result_set_col_specs());
+        self.result_metadata_cache
+            .get_metadata_unless_stale(result_column_specs)
     }
 }
 

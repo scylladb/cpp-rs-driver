@@ -68,6 +68,12 @@ public:
 CASSANDRA_INTEGRATION_TEST_F(PreparedMetadataTests, AlterDoesntUpdateColumnCount) {
   CHECK_FAILURE;
 
+  // Scylla has support for result metadata id extension in protocol v4.
+  CCM::CassVersion cass_version = this->server_version_;
+  if (Options::is_scylla() && cass_version >= "2025.3.0") {
+      SKIP_TEST_VERSION(cass_version.to_string(), "before 2025.3.0")
+  }
+
   // Ensure beta protocol is not set
   Session session = default_cluster()
                         .with_beta_protocol(false)
