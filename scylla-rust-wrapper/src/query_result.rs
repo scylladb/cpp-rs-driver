@@ -18,7 +18,7 @@ use scylla::deserialize::row::{
 use scylla::deserialize::value::DeserializeValue;
 use scylla::errors::{DeserializationError, IntoRowsResultError, TypeCheckError};
 use scylla::frame::response::result::{ColumnSpec, DeserializedMetadataAndRawRows};
-use scylla::response::query_result::{ColumnSpecs, QueryResult};
+use scylla::response::query_result::{ColumnSpecs, QueryResult, QueryRowsResult};
 use scylla::response::{Coordinator, PagingStateResponse};
 use scylla::value::{
     Counter, CqlDate, CqlDecimalBorrowed, CqlDuration, CqlTime, CqlTimestamp, CqlTimeuuid,
@@ -75,18 +75,19 @@ impl CassResult {
     pub(crate) fn from_result_payload(
         result: QueryResult,
         paging_state_response: PagingStateResponse,
-        maybe_result_metadata: Option<Arc<CassResultMetadata>>,
+        try_get_or_make_result_metadata: Option<
+            impl FnOnce(&QueryRowsResult) -> Option<Arc<CassResultMetadata>>,
+        >,
     ) -> Result<Self, Arc<CassErrorResult>> {
         match result.into_rows_result() {
             Ok(rows_result) => {
-                // maybe_result_metadata is:
-                // - Some(_) for prepared statements
-                // - None for unprepared statements
-                let metadata = maybe_result_metadata.unwrap_or_else(|| {
-                    Arc::new(CassResultMetadata::from_column_specs(
-                        rows_result.column_specs(),
-                    ))
-                });
+                let metadata = try_get_or_make_result_metadata
+                    .and_then(|f| f(&rows_result))
+                    .unwrap_or_else(|| {
+                        Arc::new(CassResultMetadata::from_column_specs(
+                            rows_result.column_specs(),
+                        ))
+                    });
 
                 let (raw_rows, tracing_id, _, coordinator) = rows_result.into_inner();
                 let shared_data = Arc::new(CassRowsResultSharedData { raw_rows, metadata });
@@ -226,7 +227,6 @@ impl<'result> CassRow<'result> {
 mod row_with_self_borrowed_result_data {
     use std::sync::Arc;
 
-    use scylla::errors::DeserializationError;
     use yoke::{Yoke, Yokeable};
 
     use crate::cass_error::CassErrorResult;
@@ -260,12 +260,12 @@ mod row_with_self_borrowed_result_data {
             raw_rows_and_metadata: Arc<CassRowsResultSharedData>,
         ) -> Result<Option<Self>, Arc<CassErrorResult>> {
             enum AttachError {
-                CassErrorResult(CassErrorResult),
+                CassErrorResult(Arc<CassErrorResult>),
                 NoRows,
             }
             impl From<CassErrorResult> for AttachError {
                 fn from(err: CassErrorResult) -> Self {
-                    AttachError::CassErrorResult(err)
+                    AttachError::CassErrorResult(Arc::new(err))
                 }
             }
 
@@ -285,8 +285,8 @@ mod row_with_self_borrowed_result_data {
                         .and_then(|raw_row| CassRow::from_raw_row_and_metadata(raw_row, metadata));
 
                     let row = row_result
-                        .map_err(DeserializationError::into)
-                        .map_err(AttachError::CassErrorResult)?;
+                        .map_err(CassErrorResult::from)
+                        .map_err(AttachError::from)?;
 
                     Ok(CassRowWrapper(row))
                 },
@@ -295,7 +295,7 @@ mod row_with_self_borrowed_result_data {
             match yoke_result {
                 Ok(yoke) => Ok(Some(Self(yoke))),
                 Err(AttachError::NoRows) => Ok(None),
-                Err(AttachError::CassErrorResult(err)) => Err(Arc::new(err)),
+                Err(AttachError::CassErrorResult(err)) => Err(err),
             }
         }
 
