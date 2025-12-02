@@ -2485,8 +2485,6 @@ cass_cluster_set_use_schema(CassCluster* cluster,
 /**
  * Enable/Disable the randomization of the contact points list.
  *
- * <b>Warning:</b> This function is not yet implemented.
- *
  * <b>Default:</b> cass_true (enabled).
  *
  * <b>Important:</b> This setting should only be disabled for debugging or

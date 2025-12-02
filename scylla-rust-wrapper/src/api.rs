@@ -130,7 +130,7 @@ pub mod cluster {
         // cass_cluster_set_tracing_retry_wait_time, UNIMPLEMENTED
         cass_cluster_set_use_beta_protocol_version,
         // cass_cluster_set_use_hostname_resolution, UNIMPLEMENTED
-        // cass_cluster_set_use_randomized_contact_points, UNIMPLEMENTED, stub present
+        cass_cluster_set_use_randomized_contact_points,
         cass_cluster_set_use_schema,
         cass_cluster_set_whitelist_dc_filtering,
         cass_cluster_set_whitelist_dc_filtering_n,
@@ -987,7 +987,6 @@ pub mod integration_testing {
         cass_cluster_set_queue_size_io,
         cass_cluster_set_cloud_secure_connection_bundle_n,
         cass_cluster_set_exponential_reconnect,
-        cass_cluster_set_use_randomized_contact_points,
         cass_custom_payload_new,
         cass_function_meta_name,
         cass_future_custom_payload_item,
