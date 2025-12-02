@@ -45,6 +45,8 @@ pub(crate) const DEFAULT_CONSISTENCY: Consistency = Consistency::LocalOne;
 const DEFAULT_SERIAL_CONSISTENCY: Option<SerialConsistency> = Some(SerialConsistency::LocalSerial);
 // - request client timeout is 12000 millis,
 const DEFAULT_REQUEST_TIMEOUT: Duration = Duration::from_millis(12000);
+// - dns resolve timeout is 2000 millis. Note that this is different from Rust Driver default (5000).
+const DEFAULT_DNS_RESOLVE_TIMEOUT: Duration = Duration::from_millis(2000);
 // - fetching schema metadata is true
 const DEFAULT_DO_FETCH_SCHEMA_METADATA: bool = true;
 // - schema agreement timeout is 10000 millis,
@@ -330,6 +332,7 @@ pub unsafe extern "C" fn cass_cluster_new() -> CassOwnedExclusivePtr<CassCluster
             .local_ip_address(DEFAULT_LOCAL_IP_ADDRESS)
             .shard_aware_local_port_range(DEFAULT_SHARD_AWARE_LOCAL_PORT_RANGE)
             .timestamp_generator(Arc::new(MonotonicTimestampGenerator::new()))
+            .hostname_resolution_timeout(Some(DEFAULT_DNS_RESOLVE_TIMEOUT))
     };
 
     BoxFFI::into_ptr(Box::new(CassCluster {
@@ -741,6 +744,21 @@ pub unsafe extern "C" fn cass_cluster_set_request_timeout(
         // 0 -> no timeout
         builder.request_timeout((timeout_ms > 0).then(|| Duration::from_millis(timeout_ms.into())))
     })
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cass_cluster_set_resolve_timeout(
+    cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
+    timeout_ms: c_uint,
+) {
+    let Some(cluster) = BoxFFI::as_mut_ref(cluster_raw) else {
+        tracing::error!("Provided null cluster pointer to cass_cluster_set_resolve_timeout!");
+        return;
+    };
+
+    // This matches cpp-driver behavior, as it also disables the timeout if value is 0.
+    cluster.session_builder.config.hostname_resolution_timeout =
+        (timeout_ms > 0).then(|| Duration::from_millis(timeout_ms.into()))
 }
 
 #[unsafe(no_mangle)]

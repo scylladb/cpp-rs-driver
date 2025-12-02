@@ -115,7 +115,7 @@ pub mod cluster {
         // cass_cluster_set_queue_size_io, UNIMPLEMENTED
         // cass_cluster_set_reconnect_wait_time, UNIMPLEMENTED
         cass_cluster_set_request_timeout,
-        // cass_cluster_set_resolve_timeout, UNIMPLEMENTED
+        cass_cluster_set_resolve_timeout,
         cass_cluster_set_retry_policy,
         cass_cluster_set_schema_agreement_interval,
         cass_cluster_set_serial_consistency,

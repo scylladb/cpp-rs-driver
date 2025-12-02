@@ -270,7 +270,6 @@ The driver inherits almost all the features of C/C++ and Rust drivers, such as:
 - cass_cluster_set_queue_size_event
 - cass_cluster_set_queue_size_io
 - cass_cluster_set_reconnect_wait_time
-- cass_cluster_set_resolve_timeout
 - cass_cluster_set_tracing_consistency
 - cass_cluster_set_tracing_max_wait_time
 - cass_cluster_set_tracing_retry_wait_time
