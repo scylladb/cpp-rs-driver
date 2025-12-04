@@ -1925,8 +1925,6 @@ cass_cluster_set_request_timeout(CassCluster* cluster,
 /**
  * Sets the timeout for waiting for DNS name resolution.
  *
- * <b>Warning:</b> This function is not yet implemented.
- *
  * <b>Default:</b> 2000 milliseconds
  *
  * @public @memberof CassCluster
