@@ -401,16 +401,6 @@ pub(crate) mod stubs {
     pub struct CassCustomPayload;
 
     #[unsafe(no_mangle)]
-    pub unsafe extern "C" fn cass_cluster_set_use_randomized_contact_points(
-        _cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
-        _enabled: cass_bool_t,
-    ) -> CassError {
-        // FIXME: should set `use_randomized_contact_points` flag in cluster config
-
-        CassError::CASS_OK
-    }
-
-    #[unsafe(no_mangle)]
     pub unsafe extern "C" fn cass_cluster_set_cloud_secure_connection_bundle(
         cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
         path: *const c_char,

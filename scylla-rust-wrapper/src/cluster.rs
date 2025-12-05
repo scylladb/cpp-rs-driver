@@ -14,6 +14,8 @@ use crate::timestamp_generator::CassTimestampGen;
 use crate::types::*;
 use openssl::ssl::SslContextBuilder;
 use openssl_sys::SSL_CTX_up_ref;
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use scylla::client::execution_profile::ExecutionProfileBuilder;
 use scylla::client::session_builder::SessionBuilder;
 use scylla::client::{PoolSize, SelfIdentity, WriteCoalescingDelay};
@@ -106,6 +108,7 @@ pub struct CassCluster {
     auth_password: Option<String>,
 
     client_id: Option<uuid::Uuid>,
+    shuffle_contact_points: bool,
 }
 
 impl CassCluster {
@@ -181,13 +184,21 @@ impl CassCluster {
     // We want to make sure that the returned future does not depend
     // on the provided &CassCluster, hence the `static here.
     pub(crate) fn build_session_builder(&self) -> impl Future<Output = SessionBuilder> + 'static {
+        let mut execution_profile_builder = self.default_execution_profile_builder.clone();
+        let load_balancing_config = self.load_balancing_config.clone();
+        let mut session_builder = self.session_builder.clone();
         let known_nodes = self
             .contact_points
             .iter()
             .map(|cp| format!("{}:{}", cp, self.port));
-        let mut execution_profile_builder = self.default_execution_profile_builder.clone();
-        let load_balancing_config = self.load_balancing_config.clone();
-        let mut session_builder = self.session_builder.clone().known_nodes(known_nodes);
+        if self.shuffle_contact_points {
+            let mut collected_contact_points = known_nodes.collect::<Vec<_>>();
+            collected_contact_points.shuffle(&mut thread_rng());
+            session_builder = session_builder.known_nodes(collected_contact_points);
+        } else {
+            session_builder = session_builder.known_nodes(known_nodes);
+        }
+
         if let (Some(username), Some(password)) = (&self.auth_username, &self.auth_password) {
             session_builder = session_builder.user(username, password)
         }
@@ -350,6 +361,7 @@ pub unsafe extern "C" fn cass_cluster_new() -> CassOwnedExclusivePtr<CassCluster
         execution_profile_map: Default::default(),
         load_balancing_config: Default::default(),
         client_id: None,
+        shuffle_contact_points: true,
     }))
 }
 
@@ -537,6 +549,21 @@ pub unsafe extern "C" fn cass_cluster_set_use_schema(
     };
 
     cluster.session_builder.config.fetch_schema_metadata = enabled != 0;
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cass_cluster_set_use_randomized_contact_points(
+    cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
+    enabled: cass_bool_t,
+) -> CassError {
+    let Some(cluster) = BoxFFI::as_mut_ref(cluster_raw) else {
+        tracing::error!("Provided null cluster pointer to cass_cluster_set_use_schema!");
+        return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+    };
+
+    cluster.shuffle_contact_points = enabled == cass_true;
+
+    CassError::CASS_OK
 }
 
 #[unsafe(no_mangle)]
