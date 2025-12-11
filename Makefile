@@ -175,7 +175,7 @@ endif
 # This constant is used to store the full set of RUSTFLAGS that should be used
 # for running integration tests, as well as running lints on conditionally compiled
 # code related to integration testing.
-FULL_RUSTFLAGS := --cfg cpp_rust_unstable --cfg cpp_integration_testing
+FULL_RUSTFLAGS := --cfg scylla_unstable --cfg cpp_integration_testing
 
 CURRENT_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 BUILD_DIR := "${CURRENT_DIR}build"

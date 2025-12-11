@@ -63,7 +63,7 @@ pub struct CassResult {
     pub(crate) paging_state_response: PagingStateResponse,
     pub(crate) kind: CassResultKind,
     // None only for tests - currently no way to mock coordinator in rust-driver.
-    // Should be able to do so under "cpp_rust_unstable".
+    // Should be able to do so under "scylla_unstable".
     pub(crate) coordinator: Option<Coordinator>,
 }
 
