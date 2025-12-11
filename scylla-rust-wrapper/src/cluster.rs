@@ -1,9 +1,11 @@
 use crate::argconv::*;
 use crate::cass_error::CassError;
+use crate::cass_host_listener_types::CassHostListenerCallback;
 use crate::config_value::MaybeUnsetConfig;
 use crate::cql_types::CassConsistency;
 use crate::cql_types::uuid::CassUuid;
 use crate::exec_profile::{CassExecProfile, ExecProfileName, exec_profile_builder_modify};
+use crate::host_listener::CCallbackBasedHostListener;
 use crate::load_balancing::{
     CassHostFilter, DcRestriction, LoadBalancingConfig, LoadBalancingKind,
 };
@@ -21,6 +23,7 @@ use scylla::client::session_builder::SessionBuilder;
 use scylla::client::{PoolSize, SelfIdentity, WriteCoalescingDelay};
 use scylla::frame::Compression;
 use scylla::policies::host_filter::HostFilter;
+use scylla::policies::host_listener::HostListener;
 use scylla::policies::load_balancing::LatencyAwarenessBuilder;
 use scylla::policies::retry::{DefaultRetryPolicy, RetryPolicy};
 use scylla::policies::speculative_execution::SimpleSpeculativeExecutionPolicy;
@@ -32,7 +35,7 @@ use std::convert::TryInto;
 use std::future::Future;
 use std::net::IpAddr;
 use std::num::{NonZero, NonZeroUsize};
-use std::os::raw::{c_char, c_int, c_uint};
+use std::os::raw::{c_char, c_int, c_uint, c_void};
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -1658,6 +1661,25 @@ pub unsafe extern "C" fn cass_cluster_set_metadata_request_serverside_timeout(
         .session_builder
         .config
         .metadata_request_serverside_timeout = metadata_request_timeout;
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cass_cluster_set_host_listener_callback(
+    cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
+    callback: CassHostListenerCallback,
+    data: *mut c_void,
+) -> CassError {
+    let Some(cluster) = BoxFFI::as_mut_ref(cluster_raw) else {
+        tracing::error!(
+            "Provided null cluster pointer to cass_cluster_set_host_listener_callback!"
+        );
+        return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+    };
+
+    cluster.session_builder.config.host_listener = callback
+        .map(|cb| Arc::new(CCallbackBasedHostListener::new(cb, data)) as Arc<dyn HostListener>);
+
+    CassError::CASS_OK
 }
 
 #[cfg(test)]

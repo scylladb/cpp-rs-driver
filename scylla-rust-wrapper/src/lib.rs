@@ -16,6 +16,7 @@ pub(crate) mod config_value;
 pub(crate) mod cql_types;
 pub(crate) mod exec_profile;
 pub(crate) mod future;
+pub(crate) mod host_listener;
 pub(crate) mod iterator;
 mod load_balancing;
 mod logging;

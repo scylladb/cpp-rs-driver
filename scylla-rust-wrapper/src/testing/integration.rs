@@ -391,7 +391,6 @@ pub(crate) mod stubs {
         CassAuthenticatorCallbacks, CassAuthenticatorDataCleanupCallback,
     };
     use crate::cass_error_types::CassError;
-    use crate::cass_host_listener_types::CassHostListenerCallback;
     use crate::cass_version_types::CassVersion;
     use crate::iterator::CassIterator;
     use crate::metadata::{CassColumnMeta, CassKeyspaceMeta, CassSchemaMeta, CassTableMeta};
@@ -512,15 +511,6 @@ pub(crate) mod stubs {
     pub extern "C" fn cass_statement_set_keyspace(
         _statement: CassBorrowedExclusivePtr<CassStatement, CMut>,
         _keyspace: *const c_char,
-    ) -> CassError {
-        CassError::CASS_OK
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn cass_cluster_set_host_listener_callback(
-        _cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
-        _callback: CassHostListenerCallback,
-        _data: *mut c_void,
     ) -> CassError {
         CassError::CASS_OK
     }

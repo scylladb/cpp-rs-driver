@@ -82,7 +82,7 @@ pub mod cluster {
         cass_cluster_set_execution_profile,
         cass_cluster_set_execution_profile_n,
         // cass_cluster_set_exponential_reconnect, UNIMPLEMENTED, stub present
-        // cass_cluster_set_host_listener_callback, UNIMPLEMENTED
+        cass_cluster_set_host_listener_callback,
         cass_cluster_set_latency_aware_routing,
         cass_cluster_set_latency_aware_routing_settings,
         cass_cluster_set_load_balance_round_robin,
@@ -983,7 +983,6 @@ pub mod integration_testing {
         cass_authenticator_response,
         cass_cluster_set_authenticator_callbacks,
         cass_cluster_set_cloud_secure_connection_bundle,
-        cass_cluster_set_host_listener_callback,
         cass_cluster_set_queue_size_io,
         cass_cluster_set_cloud_secure_connection_bundle_n,
         cass_cluster_set_exponential_reconnect,

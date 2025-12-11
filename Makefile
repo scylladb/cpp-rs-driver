@@ -152,7 +152,7 @@ SCYLLA_EXAMPLES_TO_RUN := \
 	uuids \
 
 	# auth <- unimplemented `cass_cluster_set_authenticator_callbacks()`
-	# host_listener <- unimplemented `cass_cluster_set_host_listener_callback()`
+	# host_listener <- never terminates by design; loops forever listening to events.
 	# logging <- unimplemented `cass_cluster_set_host_listener_callback()`
 	# schema_meta <- unimplemented multiple schema-related functions
 endif
