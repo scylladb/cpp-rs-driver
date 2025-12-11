@@ -11,9 +11,11 @@ license = "MIT OR Apache-2.0"
 rust-version = "1.85"
 
 [dependencies]
-scylla = { git = "https://github.com/scylladb/scylla-rust-driver.git", rev = "7e41ad40adc9946c55e2585576cd8a74dc05ce60", features = [
+scylla = { git = "https://github.com/scylladb/scylla-rust-driver.git", rev = "530dbfa7c9df0d7d863e2a11691ed95f7ad429ae", features = [
     "openssl-010",
     "metrics",
+    "unstable-cpp-rs",
+    "unstable-host-listener",
 ] }
 tokio = { version = "1.27.0", features = ["full"] }
 uuid = "1.1.2"
@@ -36,8 +38,8 @@ bindgen = "0.65"
 chrono = "0.4.20"
 
 [dev-dependencies]
-scylla-proxy = { git = "https://github.com/scylladb/scylla-rust-driver.git", rev = "7e41ad40adc9946c55e2585576cd8a74dc05ce60" }
-scylla-cql = { git = "https://github.com/scylladb/scylla-rust-driver.git", rev = "7e41ad40adc9946c55e2585576cd8a74dc05ce60" }
+scylla-proxy = { git = "https://github.com/scylladb/scylla-rust-driver.git", rev = "530dbfa7c9df0d7d863e2a11691ed95f7ad429ae" }
+scylla-cql = { git = "https://github.com/scylladb/scylla-rust-driver.git", rev = "530dbfa7c9df0d7d863e2a11691ed95f7ad429ae" }
 bytes = "1.10.0"
 itertools = "0.10.3"
 assert_matches = "1.5.0"

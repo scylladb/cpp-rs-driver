@@ -1,3 +1,3 @@
 [build]
-# To enable CPP RS Driver only features from Rust driver.
-rustflags = ["--cfg", "cpp_rust_unstable"]
+# To enable unstable features from Rust driver.
+rustflags = ["--cfg", "scylla_unstable"]

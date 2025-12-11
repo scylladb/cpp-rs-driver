@@ -152,7 +152,7 @@ SCYLLA_EXAMPLES_TO_RUN := \
 	uuids \
 
 	# auth <- unimplemented `cass_cluster_set_authenticator_callbacks()`
-	# host_listener <- unimplemented `cass_cluster_set_host_listener_callback()`
+	# host_listener <- never terminates by design; loops forever listening to events.
 	# logging <- unimplemented `cass_cluster_set_host_listener_callback()`
 	# schema_meta <- unimplemented multiple schema-related functions
 endif
@@ -175,7 +175,7 @@ endif
 # This constant is used to store the full set of RUSTFLAGS that should be used
 # for running integration tests, as well as running lints on conditionally compiled
 # code related to integration testing.
-FULL_RUSTFLAGS := --cfg cpp_rust_unstable --cfg cpp_integration_testing
+FULL_RUSTFLAGS := --cfg scylla_unstable --cfg cpp_integration_testing
 
 CURRENT_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 BUILD_DIR := "${CURRENT_DIR}build"

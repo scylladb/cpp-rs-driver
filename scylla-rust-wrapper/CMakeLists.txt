@@ -22,9 +22,9 @@ macro(create_copy source_file dest_name)
 endmacro()
 
 if(DEFINED CMAKE_Rust_FLAGS)
-  set(CMAKE_Rust_FLAGS "${CMAKE_Rust_FLAGS} --cfg cpp_rust_unstable")
+  set(CMAKE_Rust_FLAGS "${CMAKE_Rust_FLAGS} --cfg scylla_unstable")
 else()
-  set(CMAKE_Rust_FLAGS "--cfg cpp_rust_unstable")
+  set(CMAKE_Rust_FLAGS "--cfg scylla_unstable")
 endif()
 
 if(CASS_BUILD_INTEGRATION_TESTS OR CASS_BUILD_EXAMPLES)
