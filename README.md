@@ -252,7 +252,6 @@ The driver inherits almost all the features of C/C++ and Rust drivers, such as:
 - cass_cluster_set_cloud_secure_connection_bundle_n
 - cass_cluster_set_cloud_secure_connection_bundle_no_ssl_lib_init
 - cass_cluster_set_cloud_secure_connection_bundle_no_ssl_lib_init_n
-- cass_cluster_set_constant_reconnect
 - cass_cluster_set_host_listener_callback
 - cass_cluster_set_max_concurrent_creation
 - cass_cluster_set_max_concurrent_requests_threshold

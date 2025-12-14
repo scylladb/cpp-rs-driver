@@ -25,7 +25,7 @@ use scylla::frame::Compression;
 use scylla::policies::host_filter::HostFilter;
 use scylla::policies::host_listener::HostListener;
 use scylla::policies::load_balancing::LatencyAwarenessBuilder;
-use scylla::policies::reconnect::ExponentialReconnectPolicy;
+use scylla::policies::reconnect::{ConstantReconnectPolicy, ExponentialReconnectPolicy};
 use scylla::policies::retry::{DefaultRetryPolicy, RetryPolicy};
 use scylla::policies::speculative_execution::SimpleSpeculativeExecutionPolicy;
 use scylla::policies::timestamp_generator::{MonotonicTimestampGenerator, TimestampGenerator};
@@ -1627,6 +1627,22 @@ pub unsafe extern "C" fn cass_cluster_set_execution_profile_n(
     cluster.execution_profile_map.insert(name, profile.clone());
 
     CassError::CASS_OK
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cass_cluster_set_constant_reconnect(
+    cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
+    wait_time_ms: cass_uint64_t,
+) {
+    // This function can't return an error. I don't see anything better to do here than just return.
+    let Some(cluster) = BoxFFI::as_mut_ref(cluster_raw) else {
+        tracing::error!("Provided null cluster pointer to cass_cluster_set_constant_reconnect!");
+        return;
+    };
+
+    cluster.session_builder.config.reconnect_policy = Arc::new(ConstantReconnectPolicy::new(
+        Duration::from_millis(wait_time_ms),
+    ))
 }
 
 #[unsafe(no_mangle)]

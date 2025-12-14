@@ -71,7 +71,7 @@ pub mod cluster {
         cass_cluster_set_connection_heartbeat_interval,
         cass_cluster_set_connection_idle_timeout,
         cass_cluster_set_consistency,
-        // cass_cluster_set_constant_reconnect, UNIMPLEMENTED
+        cass_cluster_set_constant_reconnect,
         cass_cluster_set_contact_points,
         cass_cluster_set_contact_points_n,
         cass_cluster_set_constant_speculative_execution_policy,
