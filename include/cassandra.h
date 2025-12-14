@@ -1834,8 +1834,6 @@ cass_cluster_set_constant_reconnect(CassCluster* cluster,
  * longer between each reconnection attempt; however will maintain a constant
  * delay once the maximum delay is reached.
  *
- * <b>Warning:</b> This function is not yet implemented.
- *
  * <b>Default:</b>
  * <ul>
  *   <li>2000 milliseconds base delay</li>
