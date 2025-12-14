@@ -1630,6 +1630,14 @@ pub unsafe extern "C" fn cass_cluster_set_execution_profile_n(
 }
 
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn cass_cluster_set_reconnect_wait_time(
+    cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
+    wait_time_ms: c_uint,
+) {
+    unsafe { cass_cluster_set_constant_reconnect(cluster_raw, wait_time_ms.into()) }
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_cluster_set_constant_reconnect(
     cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
     wait_time_ms: cass_uint64_t,
