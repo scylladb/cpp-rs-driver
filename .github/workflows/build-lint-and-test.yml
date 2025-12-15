@@ -126,11 +126,8 @@ jobs:
           path: ${{ env.INTEGRATION_TEST_BIN }}
           key: ${{ env.INTEGRATION_TEST_BIN_CACHE_KEY }}
 
-      - name: Install valgrind
-        run: make install-valgrind-if-missing
-
-      - name: Install binary dependencies
-        run: make install-bin-dependencies
+      - name: Prepare environment
+        run: make update-rust-tooling prepare-integration-test
 
       - name: Run integration tests on Scylla ${{ steps.scylla-version.outputs.value }}
         id: run-integration-tests
@@ -217,11 +214,8 @@ jobs:
           path: ${{ env.INTEGRATION_TEST_BIN }}
           key: ${{ env.INTEGRATION_TEST_BIN_CACHE_KEY }}
 
-      - name: Install valgrind
-        run: make install-valgrind-if-missing
-
-      - name: Install binary dependencies
-        run: make install-bin-dependencies
+      - name: Prepare environment
+        run: make update-rust-tooling prepare-integration-test
 
       - name: Run integration tests on Cassandra ${{ steps.cassandra-version.outputs.value }}
         id: run-integration-tests
