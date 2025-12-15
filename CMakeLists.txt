@@ -51,6 +51,13 @@ option(CASS_USE_LIBUV "Use libuv" OFF)
 
 set(CASS_CPP_STANDARD "11" CACHE STRING "C++ standard (11, 14, 17, etc.)")
 
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
+  message(FATAL_ERROR
+          "In-source builds are not allowed.\n"
+          "Use: cmake -S . -B build"
+  )
+endif()
+
 if(CASS_BUILD_SHARED)
   set(BUILD_SHARED_LIBS ON)
 endif()
