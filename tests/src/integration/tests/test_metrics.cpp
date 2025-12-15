@@ -47,16 +47,18 @@ CASSANDRA_INTEGRATION_TEST_F(MetricsTests, StatsConnections) {
                         .with_constant_reconnect(10)
                         .connect(); // low reconnect for faster node restart
 
+  // All expected values are greater by 1 than in cpp-driver.
+  // This is caused by Rust Driver including Control Connection in the metrics.
   CassMetrics metrics = session.metrics();
-  EXPECT_EQ(2u, metrics.stats.total_connections);
+  EXPECT_EQ(3u, metrics.stats.total_connections);
 
   stop_node(1);
   metrics = session.metrics();
-  EXPECT_EQ(1u, metrics.stats.total_connections);
+  EXPECT_EQ(2u, metrics.stats.total_connections);
 
   start_node(1);
   metrics = session.metrics();
-  EXPECT_EQ(2u, metrics.stats.total_connections);
+  EXPECT_EQ(3u, metrics.stats.total_connections);
 }
 
 /**

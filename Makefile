@@ -50,7 +50,6 @@ SCYLLA_TEST_FILTER := $(subst ${SPACE},${EMPTY},ClusterTests.*\
 :ControlConnectionTests.Integration_Cassandra_TerminatedUsingMultipleIoThreadsWithError\
 :ServerSideFailureTests.Integration_Cassandra_ErrorFunctionFailure\
 :ServerSideFailureTests.Integration_Cassandra_ErrorFunctionAlreadyExists\
-:MetricsTests.Integration_Cassandra_StatsConnections\
 :MetricsTests.Integration_Cassandra_SpeculativeExecutionRequests\
 :*NoCompactEnabledConnection\
 :PreparedMetadataTests.Integration_Cassandra_AlterProperlyUpdatesColumnCount)
@@ -111,7 +110,6 @@ CASSANDRA_TEST_FILTER := $(subst ${SPACE},${EMPTY},ClusterTests.*\
 :ServerSideFailureTests.Integration_Cassandra_ErrorFunctionFailure\
 :ServerSideFailureTests.Integration_Cassandra_ErrorFunctionAlreadyExists\
 :SslTests.Integration_Cassandra_ReconnectAfterClusterCrashAndRestart\
-:MetricsTests.Integration_Cassandra_StatsConnections\
 :MetricsTests.Integration_Cassandra_SpeculativeExecutionRequests\
 :*NoCompactEnabledConnection\
 :PreparedMetadataTests.Integration_Cassandra_AlterProperlyUpdatesColumnCount)
