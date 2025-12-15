@@ -71,7 +71,7 @@ pub mod cluster {
         cass_cluster_set_connection_heartbeat_interval,
         cass_cluster_set_connection_idle_timeout,
         cass_cluster_set_consistency,
-        // cass_cluster_set_constant_reconnect, UNIMPLEMENTED
+        cass_cluster_set_constant_reconnect,
         cass_cluster_set_contact_points,
         cass_cluster_set_contact_points_n,
         cass_cluster_set_constant_speculative_execution_policy,
@@ -81,7 +81,7 @@ pub mod cluster {
         cass_cluster_set_credentials_n,
         cass_cluster_set_execution_profile,
         cass_cluster_set_execution_profile_n,
-        // cass_cluster_set_exponential_reconnect, UNIMPLEMENTED, stub present
+        cass_cluster_set_exponential_reconnect,
         cass_cluster_set_host_listener_callback,
         cass_cluster_set_latency_aware_routing,
         cass_cluster_set_latency_aware_routing_settings,
@@ -113,7 +113,7 @@ pub mod cluster {
         cass_cluster_set_protocol_version,
         cass_cluster_set_queue_size_event, // No-op both in CPP and in the wrapper.
         // cass_cluster_set_queue_size_io, UNIMPLEMENTED
-        // cass_cluster_set_reconnect_wait_time, UNIMPLEMENTED
+        cass_cluster_set_reconnect_wait_time,
         cass_cluster_set_request_timeout,
         cass_cluster_set_resolve_timeout,
         cass_cluster_set_retry_policy,
@@ -985,7 +985,6 @@ pub mod integration_testing {
         cass_cluster_set_cloud_secure_connection_bundle,
         cass_cluster_set_queue_size_io,
         cass_cluster_set_cloud_secure_connection_bundle_n,
-        cass_cluster_set_exponential_reconnect,
         cass_custom_payload_new,
         cass_function_meta_name,
         cass_future_custom_payload_item,

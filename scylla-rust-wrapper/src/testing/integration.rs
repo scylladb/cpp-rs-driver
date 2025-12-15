@@ -426,35 +426,6 @@ pub(crate) mod stubs {
     }
 
     #[unsafe(no_mangle)]
-    pub unsafe extern "C" fn cass_cluster_set_exponential_reconnect(
-        _cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
-        base_delay_ms: cass_uint64_t,
-        max_delay_ms: cass_uint64_t,
-    ) -> CassError {
-        if base_delay_ms <= 1 {
-            // Base delay must be greater than 1
-            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
-        }
-
-        if max_delay_ms <= 1 {
-            // Max delay must be greater than 1
-            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
-        }
-
-        if max_delay_ms < base_delay_ms {
-            // Max delay cannot be less than base delay
-            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
-        }
-
-        // FIXME: should set exponential reconnect with base_delay_ms and max_delay_ms
-        /*
-        cluster->config().set_exponential_reconnect(base_delay_ms, max_delay_ms);
-        */
-
-        CassError::CASS_OK
-    }
-
-    #[unsafe(no_mangle)]
     pub extern "C" fn cass_custom_payload_new() -> *const CassCustomPayload {
         // FIXME: should create a new custom payload that must be freed
         std::ptr::null()

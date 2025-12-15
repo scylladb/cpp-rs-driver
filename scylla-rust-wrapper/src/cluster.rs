@@ -25,6 +25,7 @@ use scylla::frame::Compression;
 use scylla::policies::host_filter::HostFilter;
 use scylla::policies::host_listener::HostListener;
 use scylla::policies::load_balancing::LatencyAwarenessBuilder;
+use scylla::policies::reconnect::{ConstantReconnectPolicy, ExponentialReconnectPolicy};
 use scylla::policies::retry::{DefaultRetryPolicy, RetryPolicy};
 use scylla::policies::speculative_execution::SimpleSpeculativeExecutionPolicy;
 use scylla::policies::timestamp_generator::{MonotonicTimestampGenerator, TimestampGenerator};
@@ -1624,6 +1625,65 @@ pub unsafe extern "C" fn cass_cluster_set_execution_profile_n(
     };
 
     cluster.execution_profile_map.insert(name, profile.clone());
+
+    CassError::CASS_OK
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cass_cluster_set_reconnect_wait_time(
+    cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
+    wait_time_ms: c_uint,
+) {
+    unsafe { cass_cluster_set_constant_reconnect(cluster_raw, wait_time_ms.into()) }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cass_cluster_set_constant_reconnect(
+    cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
+    wait_time_ms: cass_uint64_t,
+) {
+    // This function can't return an error. I don't see anything better to do here than just return.
+    let Some(cluster) = BoxFFI::as_mut_ref(cluster_raw) else {
+        tracing::error!("Provided null cluster pointer to cass_cluster_set_constant_reconnect!");
+        return;
+    };
+
+    cluster.session_builder.config.reconnect_policy = Arc::new(ConstantReconnectPolicy::new(
+        Duration::from_millis(wait_time_ms),
+    ))
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cass_cluster_set_exponential_reconnect(
+    cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
+    base_delay_ms: cass_uint64_t,
+    max_delay_ms: cass_uint64_t,
+) -> CassError {
+    let Some(cluster) = BoxFFI::as_mut_ref(cluster_raw) else {
+        tracing::error!("Provided null cluster pointer to cass_cluster_set_exponential_reconnect!");
+        return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+    };
+
+    if base_delay_ms <= 1 {
+        tracing::error!("Base delay must be greater than 1");
+        return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+    }
+
+    if max_delay_ms <= 1 {
+        tracing::error!("Max delay must be greater than 1");
+        return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+    }
+
+    if max_delay_ms < base_delay_ms {
+        tracing::error!("Max delay cannot be less than base delay");
+        return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+    }
+
+    cluster.session_builder.config.reconnect_policy =
+        Arc::new(ExponentialReconnectPolicy::new().with_backoff_limits(
+            Duration::from_millis(base_delay_ms),
+            Duration::from_millis(max_delay_ms),
+        ));
 
     CassError::CASS_OK
 }

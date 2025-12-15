@@ -1819,8 +1819,6 @@ cass_cluster_set_reconnect_wait_time(CassCluster* cluster,
  *
  * @public @memberof CassCluster
  *
- * <b>Warning:</b> This function is not yet implemented.
- *
  * @param[in] cluster
  * @param[in] delay_ms Time in milliseconds to delay attempting a reconnection;
  * 0 to perform a reconnection immediately.
@@ -1833,8 +1831,6 @@ cass_cluster_set_constant_reconnect(CassCluster* cluster,
  * Configures the cluster to use a reconnection policy that waits exponentially
  * longer between each reconnection attempt; however will maintain a constant
  * delay once the maximum delay is reached.
- *
- * <b>Warning:</b> This function is not yet implemented.
  *
  * <b>Default:</b>
  * <ul>
