@@ -42,6 +42,8 @@
 # Set ``OPENSSL_USE_STATIC_LIBS`` to ``TRUE`` to look for static libraries.
 # Set ``OPENSSL_MSVC_STATIC_RT`` set ``TRUE`` to choose the MT version of the lib.
 
+include(FindPackageHandleStandardArgs)
+
 if (UNIX)
   if(CMAKE_VERSION VERSION_LESS "2.8.0")
     find_package(PkgConfig)
