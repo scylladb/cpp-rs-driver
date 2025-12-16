@@ -1,6 +1,6 @@
 [package]
 name = "scylla-rust-wrapper"
-version = "0.5.1"
+version = "0.6.0"
 edition = "2024"
 description = "Wrapper for Scylla's Rust driver, exports functions to be used by C"
 repository = "https://github.com/scylladb/scylla-rust-driver"
