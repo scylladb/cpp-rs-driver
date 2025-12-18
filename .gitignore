@@ -11,6 +11,10 @@ log/
 docs/source/api
 doxygen/xml
 
+# Leftovers from manually running `cmake`
+CMakeCache.txt
+CMakeFiles/
+
 # Codex / MCP
 .codex/
 .codex-cache/
