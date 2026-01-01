@@ -304,14 +304,10 @@ build-examples:
 	fi
 
 .package-build-prepare-windows-openssl:
-	if (-not (choco list --local-only --exact openssl.light | Select-String '^openssl.light$$')) {
-	    choco install openssl.light --no-progress -y
-	}
+	@pwsh -NoProfile -Command "if (-not (choco list --local-only --exact openssl.light | Select-String '^openssl.light$$')) { choco install openssl.light --no-progress -y }"
 
 .package-build-prepare-windows-pkgconfiglite:
-	if (-not (choco list --local-only --exact pkgconfiglite | Select-String '^pkgconfiglite$$')) {
-		choco install pkgconfiglite --no-progress -y
-	}
+	@pwsh -NoProfile -Command "if (-not (choco list --local-only --exact pkgconfiglite | Select-String '^pkgconfiglite$$')) { choco install pkgconfiglite --no-progress -y }"
 
 .package-build-prepare-windows: .package-build-prepare-windows-openssl .package-build-prepare-windows-pkgconfiglite
 

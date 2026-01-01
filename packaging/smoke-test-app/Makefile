@@ -287,8 +287,17 @@ endif
 
 test-app-package: .prepare-for-test
 	@cleanup() {\
-		sudo docker compose -f ${MAKEFILE_PATH}/docker-compose.yml down --remove-orphans;\
+		sudo $$dc -f ${MAKEFILE_PATH}/docker-compose.yml down --remove-orphans;\
 	};\
 	trap cleanup EXIT;\
-	sudo docker compose -f ${MAKEFILE_PATH}/docker-compose.yml up -d --wait;\
+	dc="";\
+	if docker compose version >/dev/null 2>&1; then\
+		dc="docker compose";\
+	elif command -v docker-compose >/dev/null 2>&1; then\
+		dc="docker-compose";\
+	else\
+		echo "docker compose is not available";\
+		exit 1;\
+	fi;\
+	sudo $$dc -f ${MAKEFILE_PATH}/docker-compose.yml up -d --wait;\
 	/usr/bin/scylla-cpp-driver-smoke-test 172.44.0.2
