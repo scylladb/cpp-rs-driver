@@ -257,11 +257,11 @@ build-examples:
 		cmake -DCASS_BUILD_INTEGRATION_TESTS=off -DCASS_BUILD_EXAMPLES=on -DCMAKE_BUILD_TYPE=Release .. && (make -j 4 || make);\
 	}
 
-_update-rust-tooling:
+update-rust-tooling:
 	@echo "Run rustup update"
 	@rustup update stable
 
-check-cargo: install-cargo-if-missing _update-rust-tooling
+check-cargo: install-cargo-if-missing
 	@echo "Running \"cargo check\" in ./scylla-rust-wrapper"
 	@cd ${CURRENT_DIR}/scylla-rust-wrapper; cargo check --all-targets
 
@@ -269,19 +269,19 @@ fix-cargo:
 	@echo "Running \"cargo fix --verbose --all\" in ./scylla-rust-wrapper"
 	@cd ${CURRENT_DIR}/scylla-rust-wrapper; cargo fix --verbose --all
 
-check-cargo-clippy: install-cargo-if-missing _update-rust-tooling
+check-cargo-clippy: install-cargo-if-missing
 	@echo "Running \"cargo clippy --verbose --all-targets -- -D warnings -Aclippy::uninlined_format_args\" in ./scylla-rust-wrapper"
 	@cd ${CURRENT_DIR}/scylla-rust-wrapper; RUSTFLAGS="${FULL_RUSTFLAGS}" cargo clippy --verbose --all-targets -- -D warnings -Aclippy::uninlined_format_args
 
-fix-cargo-clippy: install-cargo-if-missing _update-rust-tooling
+fix-cargo-clippy: install-cargo-if-missing
 	@echo "Running \"cargo clippy --verbose --all-targets --fix -- -D warnings -Aclippy::uninlined_format_args\" in ./scylla-rust-wrapper"
 	@cd ${CURRENT_DIR}/scylla-rust-wrapper; cargo clippy --verbose --all-targets --fix -- -D warnings -Aclippy::uninlined_format_args
 
-check-cargo-fmt: install-cargo-if-missing _update-rust-tooling
+check-cargo-fmt: install-cargo-if-missing
 	@echo "Running \"cargo fmt --verbose --all -- --check\" in ./scylla-rust-wrapper"
 	@cd ${CURRENT_DIR}/scylla-rust-wrapper; cargo fmt --verbose --all -- --check
 
-fix-cargo-fmt: install-cargo-if-missing _update-rust-tooling
+fix-cargo-fmt: install-cargo-if-missing
 	@echo "Running \"cargo fmt --verbose --all\" in ./scylla-rust-wrapper"
 	@cd ${CURRENT_DIR}/scylla-rust-wrapper; cargo fmt --verbose --all
 
@@ -297,9 +297,15 @@ check: check-clang-format check-cargo check-cargo-clippy check-cargo-fmt
 
 fix: fix-clang-format fix-cargo fix-cargo-clippy fix-cargo-fmt
 
-prepare-integration-test: update-apt-cache-if-needed install-valgrind-if-missing install-cargo-if-missing _update-rust-tooling
-	@sudo sh -c "echo 2097152 >> /proc/sys/fs/aio-max-nr"
+.prepare-environment-update-aio-max-nr:
+	@if (( $$(< /proc/sys/fs/aio-max-nr) < 2097152 )); then \
+		echo 2097152 | sudo tee /proc/sys/fs/aio-max-nr >/dev/null; \
+	fi
+
+.prepare-environment-install-libc:
 	@dpkg -l libc6-dbg >/dev/null 2>&1 || sudo apt-get install -y libc6-dbg
+
+prepare-integration-test: .prepare-environment-install-libc update-apt-cache-if-needed install-valgrind-if-missing install-cargo-if-missing
 
 download-ccm-scylla-image: install-ccm-if-missing
 	@echo "Downloading scylla ${SCYLLA_VERSION} CCM image"
@@ -315,7 +321,7 @@ download-ccm-cassandra-image: install-ccm-if-missing
 	@ccm create ccm_1 -i 127.0.1. -n 3:0 -v "${CASSANDRA_VERSION}" --config-dir=/tmp/download-cassandra.ccm
 	@rm -rf /tmp/download-cassandra.ccm
 
-run-test-integration-scylla: prepare-integration-test download-ccm-scylla-image
+run-test-integration-scylla: .prepare-environment-update-aio-max-nr
 ifdef DONT_REBUILD_INTEGRATION_BIN
 run-test-integration-scylla: build-integration-test-bin-if-missing
 else
@@ -326,7 +332,7 @@ endif
 	@echo "Running timeout sensitive tests on scylla ${SCYLLA_VERSION}"
 	build/cassandra-integration-tests --scylla --version=${SCYLLA_VERSION} --category=CASSANDRA --verbose=ccm --gtest_filter="${SCYLLA_NO_VALGRIND_TEST_FILTER}"
 
-run-test-integration-cassandra: prepare-integration-test download-ccm-cassandra-image install-java8-if-missing
+run-test-integration-cassandra: install-java8-if-missing
 ifdef DONT_REBUILD_INTEGRATION_BIN
 run-test-integration-cassandra: build-integration-test-bin-if-missing
 else
@@ -337,7 +343,7 @@ endif
 	@echo "Running timeout sensitive tests on cassandra ${CASSANDRA_VERSION}"
 	build/cassandra-integration-tests --version=${CASSANDRA_VERSION} --category=CASSANDRA --verbose=ccm --gtest_filter="${CASSANDRA_NO_VALGRIND_TEST_FILTER}"
 
-run-test-unit: install-cargo-if-missing _update-rust-tooling
+run-test-unit: install-cargo-if-missing
 	@cd ${CURRENT_DIR}/scylla-rust-wrapper; RUSTFLAGS="${FULL_RUSTFLAGS}" cargo test
 
 # Currently not used.
