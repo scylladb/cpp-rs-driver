@@ -63,7 +63,7 @@ define INSTALL_PACKAGE_SCRIPT
 	if [[ "$$package" == *".deb" ]]; then
 		sudo dpkg -i "$$package";
 	elif [[ "$$package" == *".pkg" ]]; then
-		sudo installer -pkg "$$pkg" -target $(INSTALL_TARGET)
+		sudo installer -pkg "$$package" -target $(INSTALL_TARGET)
 	elif [[ "$$package" == *".rpm" ]]; then
 		if command -v dnf >/dev/null 2>&1; then
 			sudo dnf -y install "$$package"
