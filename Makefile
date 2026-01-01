@@ -327,6 +327,10 @@ else
 endif
 
 build-driver: .package-configure
+ifeq ($(OS_TYPE),windows)
+	$env:OPENSSL_DIR = 'C:\Program Files\OpenSSL-Win64'
+	if (-not (Test-Path $env:OPENSSL_DIR)) { $env:OPENSSL_DIR = 'C:\Program Files\OpenSSL-Win32' }
+endif
 	cmake --build build --config $(CMAKE_BUILD_TYPE)
 
 build-package: build-driver

@@ -30,9 +30,11 @@ endif
 
 .prepare-docker-macos:
 	@if ! docker --version 2>&1 1>/dev/null; then \
-		brew install colima docker;\
+		brew install colima docker docker-compose;\
 		colima start;\
 		docker context use colima;\
+	elif ! docker compose version >/dev/null 2>&1 && ! command -v docker-compose >/dev/null 2>&1; then \
+		brew install docker-compose;\
   	fi
 
 ifeq ($(OS_TYPE),macos)
@@ -286,11 +288,7 @@ remove-app: remove-app-rpm
 endif
 
 test-app-package: .prepare-for-test
-	@cleanup() {\
-		sudo $$dc -f ${MAKEFILE_PATH}/docker-compose.yml down --remove-orphans;\
-	};\
-	trap cleanup EXIT;\
-	dc="";\
+	@dc="";\
 	if docker compose version >/dev/null 2>&1; then\
 		dc="docker compose";\
 	elif command -v docker-compose >/dev/null 2>&1; then\
@@ -299,5 +297,11 @@ test-app-package: .prepare-for-test
 		echo "docker compose is not available";\
 		exit 1;\
 	fi;\
+	cleanup() {\
+		if [ -n "$$dc" ]; then\
+			sudo $$dc -f ${MAKEFILE_PATH}/docker-compose.yml down --remove-orphans;\
+		fi;\
+	};\
+	trap cleanup EXIT;\
 	sudo $$dc -f ${MAKEFILE_PATH}/docker-compose.yml up -d --wait;\
 	/usr/bin/scylla-cpp-driver-smoke-test 172.44.0.2
