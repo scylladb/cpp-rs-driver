@@ -328,7 +328,7 @@ endif
 
 build-driver: .package-configure
 ifeq ($(OS_TYPE),windows)
-	@pwsh -NoProfile -Command "$$env:OPENSSL_DIR = 'C:\\Program Files\\OpenSSL'; if (-not (Test-Path $$env:OPENSSL_DIR)) { $$env:OPENSSL_DIR = 'C:\\Program Files\\OpenSSL-Win64' }; if (-not (Test-Path $$env:OPENSSL_DIR)) { $$env:OPENSSL_DIR = 'C:\\Program Files\\OpenSSL-Win32' }; $$env:OPENSSL_INCLUDE_DIR = \"$$env:OPENSSL_DIR\\include\"; $$env:OPENSSL_LIB_DIR = \"$$env:OPENSSL_DIR\\lib\"; if (Test-Path \"$$env:OPENSSL_DIR\\lib\\VC\") { $$env:OPENSSL_LIB_DIR = \"$$env:OPENSSL_DIR\\lib\\VC\" }; if (Test-Path \"$$env:OPENSSL_DIR\\lib\\VC\\x64\") { $$env:OPENSSL_LIB_DIR = \"$$env:OPENSSL_DIR\\lib\\VC\\x64\" }; cmake --build build --config $(CMAKE_BUILD_TYPE)"
+	@pwsh -NoProfile -Command "$$opensslVersion = ((Select-String -Path 'build\\CMakeCache.txt' -Pattern '^OPENSSL_VERSION:STRING=' | Select-Object -First 1).Line -split '=', 2)[1]; $$opensslTarget = \"openssl-$${opensslVersion}-library\"; cmake --build build --config $(CMAKE_BUILD_TYPE) --target $$opensslTarget; $$env:OPENSSL_DIR = (Resolve-Path 'build\\libs\\openssl').Path; $$env:OPENSSL_INCLUDE_DIR = \"$$env:OPENSSL_DIR\\include\"; $$env:OPENSSL_LIB_DIR = \"$$env:OPENSSL_DIR\\lib\"; cmake --build build --config $(CMAKE_BUILD_TYPE)"
 else
 	cmake --build build --config $(CMAKE_BUILD_TYPE)
 endif
