@@ -328,7 +328,7 @@ endif
 
 build-driver: .package-configure
 ifeq ($(OS_TYPE),windows)
-	@pwsh -NoProfile -Command "$$env:OPENSSL_DIR = 'C:\\Program Files\\OpenSSL-Win64'; if (-not (Test-Path $$env:OPENSSL_DIR)) { $$env:OPENSSL_DIR = 'C:\\Program Files\\OpenSSL-Win32' }; cmake --build build --config $(CMAKE_BUILD_TYPE)"
+	@pwsh -NoProfile -Command "$$env:OPENSSL_DIR = 'C:\\Program Files\\OpenSSL'; if (-not (Test-Path $$env:OPENSSL_DIR)) { $$env:OPENSSL_DIR = 'C:\\Program Files\\OpenSSL-Win64' }; if (-not (Test-Path $$env:OPENSSL_DIR)) { $$env:OPENSSL_DIR = 'C:\\Program Files\\OpenSSL-Win32' }; cmake --build build --config $(CMAKE_BUILD_TYPE)"
 else
 	cmake --build build --config $(CMAKE_BUILD_TYPE)
 endif
