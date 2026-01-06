@@ -291,6 +291,9 @@ set(CPACK_VERBATIM_VARIABLES ON)
 # Normalize package output names so generated artifacts share a consistent
 # `scylla_cpp_driver_<version>_<platform>.{deb,rpm,pkg,msi}` pattern.
 set(CPACK_MONOLITHIC_INSTALL OFF)
+if(WIN32)
+  set(CPACK_MONOLITHIC_INSTALL ON)
+endif()
 
 set(SCYLLA_DRIVER_ARTIFACT_BASE_NAME ${SCYLLA_DRIVER_COMPONENT_NAME})
 set(_scylla_driver_system_processor "${CMAKE_SYSTEM_PROCESSOR}")

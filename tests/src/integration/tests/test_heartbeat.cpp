@@ -88,17 +88,19 @@ CASSANDRA_INTEGRATION_TEST_F(HeartbeatTests, HeartbeatFailed) {
       default_cluster().with_connection_heartbeat_interval(1).with_connection_idle_timeout(5);
   connect(cluster);
 
-  cass_uint64_t initial_connections = session_.metrics().stats.total_connections;
   std::string paused_node_ip = ccm_->get_ip_prefix() + "2";
+  Statement statement(SELECT_ALL_SYSTEM_LOCAL_CQL);
+  statement.set_host(paused_node_ip, 9042);
+  session_.execute(statement);
+
+  cass_uint64_t initial_connections = session_.metrics().stats.total_connections;
   pause_node(2);
   start_timer();
 
   CassMetrics metrics = session_.metrics();
   while (metrics.stats.total_connections >= initial_connections &&
          elapsed_time() < 60000) {
-    Statement statement(SELECT_ALL_SYSTEM_LOCAL_CQL);
-    statement.set_host(paused_node_ip, 9042);
-    session_.execute_async(statement); // Ignore errors from paused node
+    msleep(100);
     metrics = session_.metrics();
   }
   EXPECT_LT(metrics.stats.total_connections, initial_connections);
