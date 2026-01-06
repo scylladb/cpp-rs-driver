@@ -334,6 +334,9 @@ else
 endif
 
 build-package: build-driver
+ifeq ($(OS_TYPE),windows)
+	@pwsh -NoProfile -Command "Push-Location build; foreach ($$gen in '$(CPACK_GENERATORS)'.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries)) { cpack -G $$gen -C $(CMAKE_BUILD_TYPE) }; Pop-Location"
+else
 	@cd build; for gen in $(CPACK_GENERATORS); do \
 		if [ "$${gen}" = "productbuild" ] && [ "$(OS_TYPE)" = "macos" ]; then \
 			cmake -DCPACK_BUILD_DIR="$$PWD" -DCPACK_BUILD_CONFIG="$(CMAKE_BUILD_TYPE)" -P ../cmake/RunMacProductbuild.cmake; \
@@ -341,6 +344,7 @@ build-package: build-driver
 			cpack -G $${gen} -C $(CMAKE_BUILD_TYPE); \
 		fi; \
 	done
+endif
 
 update-rust-tooling:
 	@echo "Run rustup update"
