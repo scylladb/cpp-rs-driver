@@ -304,4 +304,9 @@ test-app-package: .prepare-for-test
 	};\
 	trap cleanup EXIT;\
 	sudo $$dc -f ${MAKEFILE_PATH}/docker-compose.yml up -d --wait;\
-	/usr/bin/scylla-cpp-driver-smoke-test 172.44.0.2
+	smoke_bin="$$(command -v scylla-cpp-driver-smoke-test)";\
+	if [ -z "$$smoke_bin" ]; then\
+		echo "scylla-cpp-driver-smoke-test not found in PATH";\
+		exit 1;\
+	fi;\
+	"$$smoke_bin" 172.44.0.2
