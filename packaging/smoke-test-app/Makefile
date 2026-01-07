@@ -330,4 +330,4 @@ test-app-package: .prepare-for-test
 		echo "scylla-cpp-driver-smoke-test not found in PATH";\
 		exit 1;\
 	fi;\
-	"$$smoke_bin" 172.44.0.2
+	"$$smoke_bin" 127.0.0.1

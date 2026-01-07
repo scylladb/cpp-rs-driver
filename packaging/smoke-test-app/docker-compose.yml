@@ -9,6 +9,8 @@ networks:
 services:
   scylla:
     image: scylladb/scylla
+    ports:
+      - "127.0.0.1:9042:9042"
     networks:
       public:
         ipv4_address: 172.44.0.2
