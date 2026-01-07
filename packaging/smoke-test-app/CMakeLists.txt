@@ -182,6 +182,18 @@ target_link_libraries(scylla-cpp-driver-smoke-test PRIVATE
 unset(_smoke_extra_link_libraries)
 unset(_smoke_link_target)
 
+if(APPLE)
+  set(_smoke_rpaths ${SCYLLA_CPP_DRIVER_LIBRARY_DIRS})
+  list(APPEND _smoke_rpaths "/usr/local/lib" "/opt/homebrew/lib")
+  list(REMOVE_DUPLICATES _smoke_rpaths)
+  if(_smoke_rpaths)
+    set_target_properties(scylla-cpp-driver-smoke-test PROPERTIES
+      BUILD_WITH_INSTALL_RPATH ON
+      INSTALL_RPATH "${_smoke_rpaths}")
+  endif()
+  unset(_smoke_rpaths)
+endif()
+
 if(SCYLLA_SMOKE_BUILD_STATIC)
   if(NOT SCYLLA_CPP_DRIVER_STATIC_FOUND)
     message(FATAL_ERROR
