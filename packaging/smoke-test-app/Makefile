@@ -309,7 +309,7 @@ test-app-package: .prepare-for-test
 	smoke_bin="$$(command -v scylla-cpp-driver-smoke-test || true)";\
 	if [ -z "$$smoke_bin" ] && [ "$(OS_TYPE)" = "macos" ] && command -v pkgutil >/dev/null 2>&1; then\
 		pkg_id="com.scylladb.cpp-rs-driver.smoke-app";\
-		pkg_ids="$$pkg_id $$(pkgutil --pkgs 2>/dev/null | awk '/^com\\.scylladb\\.cpp-rs-driver\\.smoke-app/ {print}')";\
+		pkg_ids="$$pkg_id $$(pkgutil --pkgs 2>/dev/null | awk '/scylla/ && /smoke/ {print}')";\
 		for candidate in $$pkg_ids; do\
 			pkg_path="$$(pkgutil --files "$$candidate" 2>/dev/null | awk '/scylla-cpp-driver-smoke-test$$/ {print "/"$$0; exit}')";\
 			if [ -n "$$pkg_path" ] && [ -x "$$pkg_path" ]; then\
@@ -319,7 +319,7 @@ test-app-package: .prepare-for-test
 		done;\
 	fi;\
 	if [ -z "$$smoke_bin" ] && [ "$(OS_TYPE)" = "macos" ]; then\
-		for candidate in /usr/local/bin/scylla-cpp-driver-smoke-test /opt/homebrew/bin/scylla-cpp-driver-smoke-test; do\
+		for candidate in /usr/local/bin/scylla-cpp-driver-smoke-test /opt/homebrew/bin/scylla-cpp-driver-smoke-test /usr/bin/scylla-cpp-driver-smoke-test /usr/local/sbin/scylla-cpp-driver-smoke-test /opt/homebrew/sbin/scylla-cpp-driver-smoke-test; do\
 			if [ -x "$$candidate" ]; then\
 				smoke_bin="$$candidate";\
 				break;\
