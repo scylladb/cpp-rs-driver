@@ -189,7 +189,7 @@ CASSANDRA_INTEGRATION_TEST_F(DcAwarePolicyTest, AllowRemoteDcsForLocalCl) {
   initialize();
 
   Statement statement_with_nonlocal_consistency = select_statement("1");
-  statement_with_nonlocal_consistency.set_consistency(CASS_CONSISTENCY_TWO);
+  statement_with_nonlocal_consistency.set_consistency(CASS_CONSISTENCY_ONE);
 
   Statement statement_with_local_consistency = select_statement("1");
   statement_with_local_consistency.set_consistency(CASS_CONSISTENCY_LOCAL_ONE);

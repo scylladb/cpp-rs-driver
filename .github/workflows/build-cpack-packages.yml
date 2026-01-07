@@ -1,0 +1,256 @@
+name: Build CPack Packages
+
+on:
+  workflow_call:
+    inputs:
+      build-type:
+        description: CMake build type used for packaging
+        type: string
+        default: Release
+      extra-cmake-flags:
+        description: Additional flags passed to CMake configure step
+        type: string
+        default: ""
+      save-artifacts:
+        description: Save built packages as artifacts
+        type: boolean
+        default: false
+    secrets: {}
+  workflow_dispatch:
+    inputs:
+      build-type:
+        description: CMake build type used for packaging
+        type: string
+        default: Release
+      extra-cmake-flags:
+        description: Additional flags passed to CMake configure step
+        type: string
+        default: ""
+      save-artifacts:
+        description: Save built packages as artifacts
+        type: boolean
+        default: false
+    secrets: {}
+
+env:
+  CARGO_TERM_COLOR: always
+  CMAKE_BUILD_TYPE: ${{ inputs.build-type }}
+  CMAKE_FLAGS: ${{ inputs.extra-cmake-flags }}
+
+jobs:
+  linux:
+    name: Linux packages
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build packages
+        run: make build-package
+
+      - name: Install driver dev package
+        run: make -C packaging/smoke-test-app install-driver-dev
+
+      - name: Install driver package
+        run: gmake -C packaging/smoke-test-app install-driver
+
+      - name: Build smoke-test application package
+        run: make -C packaging/smoke-test-app build-package
+
+      - name: Install smoke-test application package
+        run: make -C packaging/smoke-test-app install-app
+
+      - name: Test smoke-test application
+        run: make -C packaging/smoke-test-app test-app-package
+
+      - name: Collect artifacts
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          mkdir -p artifacts/linux
+          for file in build/*.deb build/*.rpm; do
+            cp "$file" artifacts/linux/
+          done
+
+      - uses: actions/upload-artifact@v4
+        if: inputs.save-artifacts
+        with:
+          name: linux-packages
+          path: artifacts/linux
+          retention-days: 7
+
+  macos:
+    name: macOS packages
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install GNU make
+        run: brew install make
+
+      - name: Build packages
+        run: gmake build-package
+
+      - name: Install driver dev package
+        run: gmake -C packaging/smoke-test-app install-driver-dev
+
+      - name: Install driver package
+        run: gmake -C packaging/smoke-test-app install-driver
+
+      - name: Build smoke-test application package
+        run: gmake -C packaging/smoke-test-app build-package
+
+      - name: Install smoke-test application package
+        run: gmake -C packaging/smoke-test-app install-app
+
+      - name: Test smoke-test application
+        run: gmake -C packaging/smoke-test-app test-app-package
+
+      - name: Collect artifacts
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          mkdir -p artifacts/macos
+          for file in build/*.pkg build/*.dmg \
+                      packaging/smoke-test-app/build/*.pkg \
+                      packaging/smoke-test-app/build/*.dmg; do
+            cp "$file" artifacts/macos/
+          done
+
+      - uses: actions/upload-artifact@v4
+        if: inputs.save-artifacts
+        with:
+          name: macos-packages
+          path: artifacts/macos
+          retention-days: 7
+
+  windows:
+    name: Windows packages
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Docker
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dockerService = Get-Service -Name docker -ErrorAction SilentlyContinue
+          if (-not $dockerService) {
+            Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+            Install-Module -Name DockerMsftProvider -Repository PSGallery -Force
+            Install-Package -Name docker -ProviderName DockerMsftProvider -Force
+          }
+          try {
+            Start-Service docker -ErrorAction Stop
+          } catch {
+            Write-Warning "Docker service failed to start: $($_.Exception.Message)"
+          }
+
+      - name: Add WiX to PATH
+        shell: pwsh
+        run: |
+          $wixPath = "C:\\Program Files (x86)\\WiX Toolset v3.11\\bin"
+          if (Test-Path $wixPath) { Add-Content -Path $env:GITHUB_PATH -Value $wixPath }
+
+      - name: Build packages
+        run: make build-package
+
+      - name: Install driver packages (MSI)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $packages = Get-ChildItem build -Filter *.msi
+          if (-not $packages) {
+            throw "No driver MSI packages produced"
+          }
+          Write-Host "Installing $($packages.Count) MSI package(s):"
+          foreach ($pkg in $packages) {
+            Write-Host "  - $($pkg.Name)"
+          }
+          # Install all packages (Windows WIX creates a single MSI with components)
+          foreach ($pkg in $packages) {
+            $process = Start-Process msiexec.exe -ArgumentList "/i `"$($pkg.FullName)`" /qn /norestart" -Wait -PassThru
+            if ($process.ExitCode -ne 0) {
+              throw "Failed to install driver package $($pkg.Name): exit code $($process.ExitCode)"
+            }
+          }
+
+      - name: Verify dev package installation
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installPath = "C:\Program Files\ScyllaDB\Scylla CPP Driver"
+          # Verify headers are installed
+          $headerPath = Join-Path $installPath "include\cassandra.h"
+          if (-not (Test-Path $headerPath)) {
+            throw "ERROR: cassandra.h header not found at $headerPath - dev package may not be installed"
+          }
+          # Verify pkg-config file is installed
+          $pkgConfigPath = Join-Path $installPath "lib\pkgconfig\scylla-cpp-driver.pc"
+          if (-not (Test-Path $pkgConfigPath)) {
+            throw "ERROR: scylla-cpp-driver.pc not found at $pkgConfigPath - dev package may not be installed"
+          }
+          Write-Host "Dev package verification successful"
+
+      - name: Build smoke-test application package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:PKG_CONFIG_PATH = "C:/Program Files/ScyllaDB/Scylla CPP Driver/lib/pkgconfig"
+          cmake -S packaging/smoke-test-app -B packaging/smoke-test-app/build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=${{ inputs.build-type }}
+          cmake --build packaging/smoke-test-app/build --config ${{ inputs.build-type }}
+          Push-Location packaging/smoke-test-app/build
+          cpack -G WIX -C ${{ inputs.build-type }}
+          Pop-Location
+
+      - name: Install smoke-test application package (MSI)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $packages = Get-ChildItem packaging/smoke-test-app/build -Filter *.msi
+          if (-not $packages) {
+            throw "No smoke-test MSI packages produced"
+          }
+          foreach ($pkg in $packages) {
+            $process = Start-Process msiexec.exe -ArgumentList "/i `"$($pkg.FullName)`" /qn /norestart" -Wait -PassThru
+            if ($process.ExitCode -ne 0) {
+              throw "Failed to install smoke-test package $($pkg.Name): exit code $($process.ExitCode)"
+            }
+          }
+
+      - name: Run smoke-test application against local Scylla
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $composeFile = "tests/examples_cluster/docker-compose.yml"
+          function Cleanup {
+            docker compose -f $composeFile down --remove-orphans | Out-Null
+          }
+          try {
+            $dockerService = Get-Service -Name docker -ErrorAction SilentlyContinue
+            if ($dockerService -and $dockerService.Status -ne 'Running') {
+              Start-Service docker
+            }
+            docker compose -f $composeFile up -d --wait
+            $smokePath = "C:\Program Files\ScyllaDB\Scylla CPP Driver Smoke Test\bin\scylla-cpp-driver-smoke-test.exe"
+            if (-not (Test-Path $smokePath)) {
+              throw "Smoke-test binary not found at $smokePath"
+            }
+            & $smokePath 172.43.0.2
+          } finally {
+            Cleanup
+          }
+
+      - name: Collect artifacts
+        if: inputs.save-artifacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path artifacts\windows -Force | Out-Null
+          Get-ChildItem build -Filter *.msi | Copy-Item -Destination artifacts\windows
+          Get-ChildItem packaging/smoke-test-app/build -Filter *.msi | Copy-Item -Destination artifacts\windows
+
+      - uses: actions/upload-artifact@v4
+        if: inputs.save-artifacts
+        with:
+          name: windows-packages
+          path: artifacts/windows
+          retention-days: 7

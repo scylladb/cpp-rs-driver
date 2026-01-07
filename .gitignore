@@ -1,6 +1,9 @@
 .vscode/
 .zed
 build/
+build-macos/
+**/build/
+**/build-macos/
 scylla-rust-wrapper/target/
 .idea/
 cmake-build-debug/
