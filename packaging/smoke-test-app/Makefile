@@ -31,7 +31,9 @@ endif
 .prepare-docker-macos:
 	@if ! docker --version 2>&1 1>/dev/null; then \
 		brew install colima docker docker-compose;\
-		colima start;\
+		if ! colima status >/dev/null 2>&1; then\
+			colima start --cpu 4 --memory 6 --disk 20;\
+		fi;\
 		docker context use colima;\
 	elif ! docker compose version >/dev/null 2>&1 && ! command -v docker-compose >/dev/null 2>&1; then \
 		brew install docker-compose;\
@@ -312,6 +314,14 @@ test-app-package: .prepare-for-test
 			pkg_path="$$(pkgutil --files "$$candidate" 2>/dev/null | awk '/scylla-cpp-driver-smoke-test$$/ {print "/"$$0; exit}')";\
 			if [ -n "$$pkg_path" ] && [ -x "$$pkg_path" ]; then\
 				smoke_bin="$$pkg_path";\
+				break;\
+			fi;\
+		done;\
+	fi;\
+	if [ -z "$$smoke_bin" ] && [ "$(OS_TYPE)" = "macos" ]; then\
+		for candidate in /usr/local/bin/scylla-cpp-driver-smoke-test /opt/homebrew/bin/scylla-cpp-driver-smoke-test; do\
+			if [ -x "$$candidate" ]; then\
+				smoke_bin="$$candidate";\
 				break;\
 			fi;\
 		done;\
