@@ -36,13 +36,21 @@ if(APPLE)
   set(INSTALL_NAME_SHARED_SYMLINK_VERSION "libscylla-cpp-driver.${PROJECT_VERSION_MAJOR}.dylib")
   set(INSTALL_NAME_SHARED_SYMLINK_NO_VERSION "libscylla-cpp-driver.dylib")
   set(CMAKE_Rust_FLAGS_SONAME "-Clink-arg=-Wl,-install_name,${CMAKE_INSTALL_LIBDIR}/libscylla-cpp-driver.${PROJECT_VERSION_MAJOR}.dylib -Clink-arg=-Wl,-current_version,${PROJECT_VERSION_STRING} -Clink-arg=-Wl,-compatibility_version,${PROJECT_VERSION_MAJOR}")
+elseif(WIN32)
+  set(INSTALL_NAME_SHARED "scylla-cpp-driver.dll")
+  set(INSTALL_NAME_SHARED_IMPLIB "scylla-cpp-driver.lib")
+  set(CMAKE_Rust_FLAGS_SONAME "")
 else()
   set(INSTALL_NAME_SHARED "libscylla-cpp-driver.so.${PROJECT_VERSION_STRING}")
   set(INSTALL_NAME_SHARED_SYMLINK_VERSION "libscylla-cpp-driver.so.${PROJECT_VERSION_MAJOR}")
   set(INSTALL_NAME_SHARED_SYMLINK_NO_VERSION "libscylla-cpp-driver.so")
   set(CMAKE_Rust_FLAGS_SONAME "-Clink-arg=-Wl,-soname=libscylla-cpp-driver.so.${PROJECT_VERSION_MAJOR}")
 endif()
-set(INSTALL_NAME_STATIC "libscylla-cpp-driver_static.a")
+if(WIN32)
+  set(INSTALL_NAME_STATIC "scylla-cpp-driver_static.lib")
+else()
+  set(INSTALL_NAME_STATIC "libscylla-cpp-driver_static.a")
+endif()
 if(DEFINED CMAKE_Rust_FLAGS)
   set(CMAKE_Rust_FLAGS "${CMAKE_Rust_FLAGS} ${CMAKE_Rust_FLAGS_SONAME}")
 else()
@@ -54,6 +62,13 @@ if(CASS_BUILD_SHARED)
   add_library(scylla-cpp-driver SHARED IMPORTED GLOBAL)
   add_dependencies(scylla-cpp-driver scylla-cpp-driver_target)
   set_target_properties(scylla-cpp-driver PROPERTIES IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/${INSTALL_NAME_SHARED})
+  if(WIN32)
+    get_target_property(SCYLLA_CPP_DRIVER_IMPLIB scylla_cpp_driver_shared IMPORTED_IMPLIB)
+    if(SCYLLA_CPP_DRIVER_IMPLIB)
+      create_copy(${SCYLLA_CPP_DRIVER_IMPLIB} ${INSTALL_NAME_SHARED_IMPLIB})
+      set_target_properties(scylla-cpp-driver PROPERTIES IMPORTED_IMPLIB ${CMAKE_BINARY_DIR}/${INSTALL_NAME_SHARED_IMPLIB})
+    endif()
+  endif()
   if(NOT WIN32)
     create_symlink(${INSTALL_NAME_SHARED} ${INSTALL_NAME_SHARED_SYMLINK_VERSION})
     create_symlink(${INSTALL_NAME_SHARED} ${INSTALL_NAME_SHARED_SYMLINK_NO_VERSION})
@@ -129,11 +144,21 @@ endif()
 # Install the dynamic/shared library
 if(CASS_BUILD_SHARED)
   # Versioned shared library goes to runtime package
-  install(FILES $<TARGET_FILE:scylla-cpp-driver>
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    COMPONENT ${SCYLLA_DRIVER_RUNTIME_COMPONENT_NAME}
-    PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ)
-  if(NOT WIN32)
+  if(WIN32)
+    install(FILES ${CMAKE_BINARY_DIR}/${INSTALL_NAME_SHARED}
+      DESTINATION ${INSTALL_DLL_EXE_DIR}
+      COMPONENT ${SCYLLA_DRIVER_RUNTIME_COMPONENT_NAME}
+      PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ)
+    if(INSTALL_NAME_SHARED_IMPLIB)
+      install(FILES ${CMAKE_BINARY_DIR}/${INSTALL_NAME_SHARED_IMPLIB}
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        COMPONENT ${SCYLLA_DRIVER_DEV_COMPONENT_NAME})
+    endif()
+  else()
+    install(FILES $<TARGET_FILE:scylla-cpp-driver>
+      DESTINATION ${CMAKE_INSTALL_LIBDIR}
+      COMPONENT ${SCYLLA_DRIVER_RUNTIME_COMPONENT_NAME}
+      PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ)
     # Major version symlink goes to runtime package
     install(FILES ${CMAKE_BINARY_DIR}/${INSTALL_NAME_SHARED_SYMLINK_VERSION}
       DESTINATION ${CMAKE_INSTALL_LIBDIR}

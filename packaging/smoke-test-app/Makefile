@@ -307,10 +307,14 @@ test-app-package: .prepare-for-test
 	smoke_bin="$$(command -v scylla-cpp-driver-smoke-test || true)";\
 	if [ -z "$$smoke_bin" ] && [ "$(OS_TYPE)" = "macos" ] && command -v pkgutil >/dev/null 2>&1; then\
 		pkg_id="com.scylladb.cpp-rs-driver.smoke-app";\
-		pkg_path="$$(pkgutil --files "$$pkg_id" 2>/dev/null | awk '/scylla-cpp-driver-smoke-test$$/ {print "/"$$0; exit}')";\
-		if [ -n "$$pkg_path" ] && [ -x "$$pkg_path" ]; then\
-			smoke_bin="$$pkg_path";\
-		fi;\
+		pkg_ids="$$pkg_id $$(pkgutil --pkgs 2>/dev/null | awk '/^com\\.scylladb\\.cpp-rs-driver\\.smoke-app/ {print}')";\
+		for candidate in $$pkg_ids; do\
+			pkg_path="$$(pkgutil --files "$$candidate" 2>/dev/null | awk '/scylla-cpp-driver-smoke-test$$/ {print "/"$$0; exit}')";\
+			if [ -n "$$pkg_path" ] && [ -x "$$pkg_path" ]; then\
+				smoke_bin="$$pkg_path";\
+				break;\
+			fi;\
+		done;\
 	fi;\
 	if [ -z "$$smoke_bin" ]; then\
 		echo "scylla-cpp-driver-smoke-test not found in PATH";\
