@@ -38,8 +38,8 @@ extensions = [
     "sphinx_scylladb_theme",
     "sphinx_multiversion",  # optional
     "myst_parser",  # optional
-    'breathe',
-    'sphinx_scylladb_markdown',
+    "breathe",
+    "sphinx_scylladb_markdown",
 ]
 
 # The suffix(es) of source filenames.
@@ -100,43 +100,55 @@ smv_outputdir_format = "{ref.name}"
 
 
 # -- Options for Doxygen (API Reference)
-breathe_projects = {
-	'API': "../../doxygen/xml/"
-}
-breathe_default_project = 'API'
-breathe_default_members = ('members', 'undoc-members')
+breathe_projects = {"API": "../../doxygen/xml/"}
+breathe_default_project = "API"
+breathe_default_members = ("members", "undoc-members")
 
 # Hide parent class names in sidebar
-toc_object_entries_show_parents = 'hide'
+toc_object_entries_show_parents = "hide"
+
 
 # Autogenerate API reference
 def _generate_structs(outdir, structs, project):
     """Write structs docs in the designated outdir folder"""
     for obj in structs:
-        with open(outdir + '/struct.' + obj + '.rst', 'w') as t_file:
-            t_file.write(obj + "\n" + "=" * len(obj) + "\n\n" + ".. doxygenstruct:: " + obj +" \n  :project: " + project)
+        with open(outdir + "/struct." + obj + ".rst", "w") as t_file:
+            t_file.write(
+                obj
+                + "\n"
+                + "=" * len(obj)
+                + "\n\n"
+                + ".. doxygenstruct:: "
+                + obj
+                + " \n  :project: "
+                + project
+            )
+
 
 def _generate_doxygen_rst(xmldir, outdir):
     """Autogenerate doxygen docs in the designated outdir folder"""
     structs = []
     files = os.listdir(os.path.join(os.path.dirname(__file__), xmldir))
     for file_name in files:
-        if 'struct' in file_name and '__' not in file_name:
-            structs.append(file_name
-            .replace('struct_', '')
-            .replace('_', ' ')
-            .replace('.xml','')
-            .title()
-            .replace(' ', ''))
+        if "struct" in file_name and "__" not in file_name:
+            structs.append(
+                file_name.replace("struct_", "")
+                .replace("_", " ")
+                .replace(".xml", "")
+                .title()
+                .replace(" ", "")
+            )
     _generate_structs(outdir, structs, breathe_default_project)
+
 
 def generate_doxygen(app):
     DOXYGEN_XML_DIR = breathe_projects[breathe_default_project]
-    _generate_doxygen_rst(DOXYGEN_XML_DIR, app.builder.srcdir + '/api')
+    _generate_doxygen_rst(DOXYGEN_XML_DIR, app.builder.srcdir + "/api")
+
 
 # -- Options for sitemap extension
 
-sitemap_url_scheme = '/stable/{link}'
+sitemap_url_scheme = "/stable/{link}"
 
 # The theme to use for pages.
 html_theme = "sphinx_scylladb_theme"
@@ -168,12 +180,13 @@ html_sidebars = {"**": ["side-nav.html"]}
 htmlhelp_basename = "ScyllaDocumentationdoc"
 
 # URL which points to the root of the HTML documentation.
-html_baseurl = 'https://cpp-rs-driver.docs.scylladb.com'
+html_baseurl = "https://cpp-rs-driver.docs.scylladb.com"
 
 # Dictionary of values to pass into the template engine’s context for all pages
 html_context = {"html_baseurl": html_baseurl}
 
 # -- Initialize Sphinx ----------------------------------------------
+
 
 def setup(sphinx):
     warnings.filterwarnings(
