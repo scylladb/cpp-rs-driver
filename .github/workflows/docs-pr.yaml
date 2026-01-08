@@ -21,13 +21,14 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
         with:
-          python-version: '3.10'
+          working-directory: docs
+          enable-cache: true
 
-      - name: Set up env
-        run: make -C docs setupenv
+      - name: Install doxygen
+        run: sudo apt-get update && sudo apt-get install -y doxygen
 
       - name: Build docs
         run: make -C docs test
