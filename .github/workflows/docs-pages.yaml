@@ -6,9 +6,10 @@ on:
   push:
     branches:
       - master
-      - 'branch-**'
+      - "branch-**"
     paths:
       - "docs/**"
+      - ".github/workflows/docs-pages.yaml"
   workflow_dispatch:
 
 jobs:
@@ -21,13 +22,15 @@ jobs:
           ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
           fetch-depth: 0
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
 
-      - name: Set up env
-        run: make -C docs setupenv
+      - name: Install doxygen
+        run: sudo apt-get update && sudo apt-get install -y doxygen
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "docs/uv.lock"
 
       - name: Build docs
         run: make -C docs multiversion

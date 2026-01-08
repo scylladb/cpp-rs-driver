@@ -1,8 +1,8 @@
 # Global variables
 # You can set these variables from the command line.
-POETRY        = poetry
+UV            = uv
 SPHINXOPTS    = -j auto
-SPHINXBUILD   = $(POETRY) run sphinx-build
+SPHINXBUILD   = $(UV) run --frozen sphinx-build
 PAPER         =
 BUILDDIR      = _build
 SOURCEDIR     = source
@@ -17,20 +17,14 @@ TESTSPHINXOPTS  = $(ALLSPHINXOPTS) -W --keep-going
 all: dirhtml
 
 # Setup commands
-.PHONY: setupenv
-setupenv:
-	pip install -q poetry
-	sudo apt-get install doxygen
-
 .PHONY: setup
 setup:
-	$(POETRY) install
-	$(POETRY) update
+	$(UV) sync
 	cd .. && doxygen Doxyfile.in
 
 .PHONY: update
 update:
-	$(POETRY) update
+	$(UV) lock --upgrade
 
 # Clean commands
 .PHONY: pristine
@@ -68,24 +62,24 @@ epub3: setup
 
 .PHONY: multiversion
 multiversion: setup
-	$(POETRY) run sphinx-multiversion source $(BUILDDIR)/dirhtml
+	$(UV) run --frozen sphinx-multiversion source $(BUILDDIR)/dirhtml
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/dirhtml."
 
 .PHONY: redirects
 redirects: setup
-	$(POETRY) run redirects-cli fromfile --yaml-file _utils/redirects.yaml --output-dir $(BUILDDIR)/dirhtml
+	$(UV) run --frozen redirects-cli fromfile --yaml-file _utils/redirects.yaml --output-dir $(BUILDDIR)/dirhtml
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/dirhtml."
 
 # Preview commands
 .PHONY: preview
 preview: setup
-	$(POETRY) run sphinx-autobuild -b dirhtml $(ALLSPHINXOPTS) $(BUILDDIR)/dirhtml --port 5500 --ignore "*/source/api/*"
+	$(UV) run --frozen sphinx-autobuild -b dirhtml $(ALLSPHINXOPTS) $(BUILDDIR)/dirhtml --port 5500 --ignore "*/source/api/*"
 
 .PHONY: multiversionpreview
 multiversionpreview: multiversion
-	$(POETRY) run python -m http.server 5500 --directory $(BUILDDIR)/dirhtml
+	$(UV) run --frozen python -m http.server 5500 --directory $(BUILDDIR)/dirhtml
 
 # Test commands
 .PHONY: test
