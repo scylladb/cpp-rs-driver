@@ -420,48 +420,92 @@ Now, use `--gtest_filter` to run certain integration tests:
 
 ##### Note: Tests that pass with ScyllaDB and Cassandra clusters can be found in Makefile: `SCYLLA_TEST_FILTER` and `CASSANDRA_TEST_FILTER` env variables.
 
-# Build rpm package
+# Creating Installable Packages
 ___
 
-To build rpm package, run the following command:
+If you want to distribute the driver or install it system-wide, you can create
+**installable packages** rather than copying files manually. Packages bundle the
+driver's libraries, headers, and metadata so your operating system's package
+manager (like `apt`, `dnf`, or the macOS/Windows installer) can install, update,
+and remove the driver cleanly.
+
+This project uses **CPack**, a packaging tool included with CMake, to generate
+packages for all major platforms.
+
+## Step 1: Build the Driver
+
+First, compile the driver in release mode:
+
 ```shell
-./dist/redhat/build_rpm.sh --target rocky-8-x86_64
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release
 ```
-It will construct chrooted build environment of target distribution using mock,
-and build rpm in the environment.
-Target parameter should be mock .cfg file name.
-Currently tested on rocky-8-x86_64, rocky-9-x86_64, fedora-38-x86_64, fedora-39-x86_64, fedora-40-x86_64, fedora-rawhide-x86_64.
-Build environment should be Fedora or RHEL variants + EPEL, since
-other distribution does not provide mock package.
-Built result will placed under build/redhat/{rpms,srpms}.
 
-# Build deb package
-___
+## Step 2: Create the Package
 
-To build deb package, run the following command:
+From the `build` directory, run `cpack` with a "generator" flag (`-G`) that
+matches your target system:
+
+### Linux
+
+Linux has two main package formats:
+
+- **DEB** (`.deb`) — used by Debian, Ubuntu, and derivatives
+- **RPM** (`.rpm`) — used by Fedora, RHEL, Rocky Linux, CentOS, and derivatives
+
 ```shell
-./dist/debian/build_deb.sh --target mantic
+cd build
+cpack -G DEB -C Release   # Creates a .deb file
+cpack -G RPM -C Release   # Creates a .rpm file
 ```
-It will construct chrooted build environment of target distribution using
-pbuilder, and build deb in the environment.
-Target parameter should be debian/ubuntu codename.
-On Ubuntu targets, currently tested on bionic (18.04), focal (20.04), jammy (22.04), mantic (23.10), noble (24.04).
-On Debian targets, currently tested on buster (10), bullseye (11), bookworm (12), trixie (13), sid (unstable).
-Build environment should be Fedora, Ubuntu or Debian, since these distribution
-provides pbuilder package.
-Built result will placed under build/debian/debs.
 
-# Build & install HomeBrew package (macOS)
-
----
-
-To build HomeBrew pacakge, run the following command:
+You can then install the resulting package with your package manager:
 ```shell
-cd dist/homebrew
-brew install --HEAD ./scylla-cpp-rs-driver.rb
+sudo apt install ./scylla-cpp-driver*.deb    # Debian/Ubuntu
+sudo dnf install ./scylla-cpp-driver*.rpm    # Fedora/RHEL
 ```
-It will run build & install the driver in HomeBrew environment.
-Tested on macOS 14.5.
+
+### macOS
+
+macOS supports two distribution formats:
+
+- **productbuild** (`.pkg`) — standard macOS installer package
+- **DragNDrop** (`.dmg`) — disk image that users drag to Applications
+
+```shell
+cd build
+cpack -G productbuild -C Release   # Creates a .pkg installer
+cpack -G DragNDrop -C Release      # Creates a .dmg disk image
+```
+
+### Windows
+
+Windows uses **MSI** installers, generated via the WiX Toolset (version 3.11 or later).
+
+**Installing WiX Toolset:**
+
+- **Via Chocolatey** (recommended):
+  ```powershell
+  choco install wixtoolset
+  ```
+
+- **Manual download:** Get the installer from [WiX Toolset releases](https://github.com/wixtoolset/wix3/releases)
+  and run the `.exe` installer. Make sure to add WiX to your PATH during installation.
+
+**Creating the package:**
+
+```powershell
+cd build
+cpack -G WIX -C Release
+```
+
+The installer places files in `Program Files\ScyllaDB\Scylla CPP Driver`.
+
+## Automated Packaging in CI
+
+GitHub Actions automatically builds packages on every release. See:
+- `.github/workflows/build-cpack-packages.yml` — builds packages for all platforms
+- `.github/workflows/release-upload-packages.yml` — attaches packages to GitHub releases
 
 # Getting Help
 ___
