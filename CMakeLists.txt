@@ -58,6 +58,18 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
   )
 endif()
 
+# Component metadata used for macOS productbuild packages. Other platforms
+# ignore these values, so keep the defaults empty by default.
+set(SCYLLA_DRIVER_COMPONENT_NAME "scylla_cpp_driver")
+set(SCYLLA_DRIVER_COMPONENT_ARGS COMPONENT ${SCYLLA_DRIVER_COMPONENT_NAME})
+
+# Define component names for runtime and dev packages
+# These must be set before add_subdirectory() calls so install commands can use them
+set(SCYLLA_DRIVER_RUNTIME_COMPONENT_NAME "${SCYLLA_DRIVER_COMPONENT_NAME}")
+set(SCYLLA_DRIVER_DEV_COMPONENT_NAME "${SCYLLA_DRIVER_COMPONENT_NAME}-dev")
+string(TOUPPER "${SCYLLA_DRIVER_RUNTIME_COMPONENT_NAME}" SCYLLA_DRIVER_RUNTIME_COMPONENT_NAME_UPPER)
+string(TOUPPER "${SCYLLA_DRIVER_DEV_COMPONENT_NAME}" SCYLLA_DRIVER_DEV_COMPONENT_NAME_UPPER)
+
 if(CASS_BUILD_SHARED)
   set(BUILD_SHARED_LIBS ON)
 endif()
@@ -250,3 +262,169 @@ endif()
 if(CASS_BUILD_INTEGRATION_TESTS OR CASS_BUILD_TESTS)
   add_subdirectory(tests)
 endif()
+
+#------------------------
+# Packaging (CPack)
+#------------------------
+
+set(_CPACK_PACKAGE_NAME "scylla-cpp-driver")
+set(CPACK_PACKAGE_NAME ${_CPACK_PACKAGE_NAME})
+set(CPACK_PACKAGE_VENDOR "ScyllaDB")
+set(CPACK_PACKAGE_CONTACT "ScyllaDB <info@scylladb.com>")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
+  "ScyllaDB C++ driver backed by the Rust core driver")
+set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/scylladb/cpp-rs-driver")
+set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION_STRING})
+set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
+set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
+set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
+if(WIN32)
+  # Prevent drive letters from bleeding into the staging path when CPack creates
+  # the temporary install tree on Windows.
+  set(CPACK_PACKAGING_INSTALL_PREFIX "/")
+else()
+  set(CPACK_PACKAGING_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
+endif()
+set(CPACK_MONOLITHIC_INSTALL ON)
+set(CPACK_VERBATIM_VARIABLES ON)
+
+# Normalize package output names so generated artifacts share a consistent
+# `scylla_cpp_driver_<version>_<platform>.{deb,rpm,pkg,msi}` pattern.
+set(CPACK_MONOLITHIC_INSTALL OFF)
+if(WIN32)
+  set(CPACK_MONOLITHIC_INSTALL ON)
+endif()
+
+set(SCYLLA_DRIVER_ARTIFACT_BASE_NAME ${SCYLLA_DRIVER_COMPONENT_NAME})
+set(_scylla_driver_system_processor "${CMAKE_SYSTEM_PROCESSOR}")
+
+set(SCYLLA_DRIVER_DEB_ARCH "${_scylla_driver_system_processor}")
+set(SCYLLA_DRIVER_RPM_ARCH "${_scylla_driver_system_processor}")
+set(SCYLLA_DRIVER_WIN_ARCH "${_scylla_driver_system_processor}")
+
+if(_scylla_driver_system_processor MATCHES "^(x86_64|AMD64)$")
+  set(SCYLLA_DRIVER_DEB_ARCH "amd64")
+  set(SCYLLA_DRIVER_RPM_ARCH "x86_64")
+  set(SCYLLA_DRIVER_WIN_ARCH "x64")
+elseif(_scylla_driver_system_processor MATCHES "^(aarch64|ARM64)$")
+  set(SCYLLA_DRIVER_DEB_ARCH "arm64")
+  set(SCYLLA_DRIVER_RPM_ARCH "aarch64")
+  set(SCYLLA_DRIVER_WIN_ARCH "arm64")
+endif()
+
+# Fall back to raw processor strings when no mapping exists.
+if(NOT SCYLLA_DRIVER_DEB_ARCH)
+  set(SCYLLA_DRIVER_DEB_ARCH "${_scylla_driver_system_processor}")
+endif()
+if(NOT SCYLLA_DRIVER_RPM_ARCH)
+  set(SCYLLA_DRIVER_RPM_ARCH "${_scylla_driver_system_processor}")
+endif()
+if(NOT SCYLLA_DRIVER_WIN_ARCH)
+  set(SCYLLA_DRIVER_WIN_ARCH "${_scylla_driver_system_processor}")
+endif()
+
+# Provide a default artifact name that individual generators can refine.
+set(CPACK_PACKAGE_FILE_NAME
+  "${SCYLLA_DRIVER_ARTIFACT_BASE_NAME}_${PROJECT_VERSION_STRING}")
+
+# Set the list of components for CPack
+set(CPACK_COMPONENTS_ALL ${SCYLLA_DRIVER_RUNTIME_COMPONENT_NAME} ${SCYLLA_DRIVER_DEV_COMPONENT_NAME})
+
+# Ensure CPack emits one artifact per component instead of merging them into a
+# single bundle.
+set(CPACK_COMPONENTS_GROUPING IGNORE)
+
+include(CPackComponent)
+
+# Runtime component: shared libraries only
+cpack_add_component(${SCYLLA_DRIVER_RUNTIME_COMPONENT_NAME}
+  DISPLAY_NAME "Scylla C++ Driver Runtime"
+  DESCRIPTION "Shared libraries for the Scylla C++ Driver"
+  REQUIRED)
+
+# Dev component: headers, static libraries, pkg-config files, and development symlinks
+cpack_add_component(${SCYLLA_DRIVER_DEV_COMPONENT_NAME}
+  DISPLAY_NAME "Scylla C++ Driver Development"
+  DESCRIPTION "Headers, static libraries, and development files for the Scylla C++ Driver")
+
+if(WIN32)
+  set(CPACK_GENERATOR "WIX")
+  set(CPACK_PACKAGE_INSTALL_DIRECTORY "ScyllaDB\\Scylla CPP Driver")
+  # Stable GUID keeps WiX upgrades working between versions.
+  # Generated with uuidgen; must NOT be changed, otherwise Windows will install
+  # side-by-side instead of upgrading.
+  set(CPACK_WIX_UPGRADE_GUID "3E09F4F4-1C4A-4B8B-973D-0CBA64D5E78F")
+  set(CPACK_PACKAGE_FILE_NAME
+    "${SCYLLA_DRIVER_ARTIFACT_BASE_NAME}_${PROJECT_VERSION_STRING}_${SCYLLA_DRIVER_WIN_ARCH}")
+  # Note OpenSSL dependency for Windows users
+  set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
+    "ScyllaDB C++ driver backed by the Rust core driver. Requires OpenSSL to be installed (e.g., via 'choco install openssl').")
+elseif(APPLE)
+  configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"
+    "${CMAKE_CURRENT_BINARY_DIR}/LICENSE.txt"
+    COPYONLY)
+  set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_BINARY_DIR}/LICENSE.txt")
+  set(CPACK_GENERATOR "productbuild;DragNDrop")
+  set(CPACK_DMG_COMPONENT_INSTALL ON)
+  set(CPACK_PACKAGE_FILE_NAME
+    "${SCYLLA_DRIVER_ARTIFACT_BASE_NAME}_${PROJECT_VERSION_STRING}_macos")
+  set(CPACK_PRODUCTBUILD_IDENTIFIER "com.scylladb.cpp-rs-driver")
+  set(CPACK_PRODUCTBUILD_SIGNING_IDENTITY "")
+  set(CPACK_PRODUCTBUILD_COMPONENT_INSTALL ON)
+  # Note OpenSSL dependency for macOS users
+  set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
+    "ScyllaDB C++ driver backed by the Rust core driver. Requires OpenSSL to be installed (e.g., via 'brew install openssl').")
+
+else()
+  set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
+  set(CPACK_GENERATOR "DEB;RPM")
+  set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "${SCYLLA_DRIVER_DEB_ARCH}")
+
+  set(CPACK_DEBIAN_${SCYLLA_DRIVER_RUNTIME_COMPONENT_NAME_UPPER}_FILE_NAME
+    "${SCYLLA_DRIVER_RUNTIME_COMPONENT_NAME}_${PROJECT_VERSION_STRING}_${SCYLLA_DRIVER_DEB_ARCH}.deb")
+  set(CPACK_DEBIAN_${SCYLLA_DRIVER_DEV_COMPONENT_NAME_UPPER}_FILE_NAME
+    "${SCYLLA_DRIVER_DEV_COMPONENT_NAME}_${PROJECT_VERSION_STRING}_${SCYLLA_DRIVER_DEB_ARCH}.deb")
+
+  # DEB package configuration
+  set(CPACK_DEB_COMPONENT_INSTALL ON)
+  set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
+  set(CPACK_DEBIAN_PACKAGE_MAINTAINER "ScyllaDB")
+  set(CPACK_DEBIAN_PACKAGE_SECTION "database")
+  set(CPACK_DEBIAN_PACKAGE_HOMEPAGE ${CPACK_PACKAGE_HOMEPAGE_URL})
+  set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+
+  # DEB runtime package
+  set(CPACK_DEBIAN_${SCYLLA_DRIVER_RUNTIME_COMPONENT_NAME_UPPER}_PACKAGE_NAME "${_CPACK_PACKAGE_NAME}")
+  set(CPACK_DEBIAN_${SCYLLA_DRIVER_RUNTIME_COMPONENT_NAME_UPPER}_PACKAGE_SECTION "libs")
+
+  # DEB dev package
+  set(CPACK_DEBIAN_${SCYLLA_DRIVER_DEV_COMPONENT_NAME_UPPER}_PACKAGE_NAME "${_CPACK_PACKAGE_NAME}-dev")
+  set(CPACK_DEBIAN_${SCYLLA_DRIVER_DEV_COMPONENT_NAME_UPPER}_PACKAGE_SECTION "libdevel")
+  set(CPACK_DEBIAN_${SCYLLA_DRIVER_DEV_COMPONENT_NAME_UPPER}_PACKAGE_DEPENDS "libssl-dev")
+
+  # RPM package configuration
+  set(CPACK_RPM_COMPONENT_INSTALL ON)
+  set(CPACK_RPM_PACKAGE_LICENSE "Apache-2.0")
+  set(CPACK_RPM_PACKAGE_URL ${CPACK_PACKAGE_HOMEPAGE_URL})
+  set(CPACK_RPM_PACKAGE_RELEASE 1)
+  set(CPACK_RPM_PACKAGE_GROUP "Applications/Databases")
+  set(CPACK_RPM_PACKAGE_ARCHITECTURE "${SCYLLA_DRIVER_RPM_ARCH}")
+
+  set(CPACK_RPM_${SCYLLA_DRIVER_RUNTIME_COMPONENT_NAME_UPPER}_FILE_NAME
+    "${SCYLLA_DRIVER_RUNTIME_COMPONENT_NAME}_${PROJECT_VERSION_STRING}_${SCYLLA_DRIVER_RPM_ARCH}.rpm")
+
+  # RPM runtime package
+  set(CPACK_RPM_${SCYLLA_DRIVER_RUNTIME_COMPONENT_NAME_UPPER}_PACKAGE_NAME "${_CPACK_PACKAGE_NAME}")
+  set(CPACK_RPM_${SCYLLA_DRIVER_RUNTIME_COMPONENT_NAME_UPPER}_PACKAGE_GROUP "System Environment/Libraries")
+  set(CPACK_RPM_${SCYLLA_DRIVER_RUNTIME_COMPONENT_NAME_UPPER}_PACKAGE_REQUIRES "openssl-libs")
+
+  # RPM dev package (devel suffix is standard for RPM)
+  set(CPACK_RPM_${SCYLLA_DRIVER_DEV_COMPONENT_NAME_UPPER}_PACKAGE_NAME "${_CPACK_PACKAGE_NAME}-devel")
+  set(CPACK_RPM_${SCYLLA_DRIVER_DEV_COMPONENT_NAME_UPPER}_PACKAGE_GROUP "Development/Libraries")
+  set(CPACK_RPM_${SCYLLA_DRIVER_DEV_COMPONENT_NAME_UPPER}_PACKAGE_REQUIRES "openssl-devel")
+  set(CPACK_RPM_${SCYLLA_DRIVER_DEV_COMPONENT_NAME_UPPER}_FILE_NAME
+    "${SCYLLA_DRIVER_COMPONENT_NAME}-devel_${PROJECT_VERSION_STRING}_${SCYLLA_DRIVER_RPM_ARCH}.rpm")
+endif()
+
+include(CPack)
