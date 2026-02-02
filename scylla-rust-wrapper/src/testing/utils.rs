@@ -1,6 +1,6 @@
 use scylla_proxy::{
-    Condition, Node, Proxy, Reaction as _, RequestFrame, RequestOpcode, RequestReaction,
-    RequestRule, ResponseFrame, RunningProxy,
+    Condition, DoorkeeperError, Node, Proxy, Reaction as _, RequestFrame, RequestOpcode,
+    RequestReaction, RequestRule, ResponseFrame, RunningProxy,
 };
 use std::{
     collections::HashMap,
@@ -144,11 +144,78 @@ pub(crate) async fn test_with_one_proxy_at_ip(
     let _ = proxy.finish().await;
 }
 
+/// Maximum number of attempts to start proxy with different addresses.
+/// This handles the case where addresses returned by `get_exclusive_local_address()`
+/// are already in use when tests run in parallel.
+const MAX_PROXY_BIND_ATTEMPTS: usize = 10;
+
+/// Checks if a DoorkeeperError is caused by an address already being in use.
+fn is_addr_in_use_error(error: &DoorkeeperError) -> bool {
+    let io_error = match error {
+        DoorkeeperError::Listen(_, e)
+        | DoorkeeperError::DriverConnectionAttempt(_, e)
+        | DoorkeeperError::NodeConnectionAttempt(_, e)
+        | DoorkeeperError::SocketCreate(e)
+        | DoorkeeperError::SocketBind(e)
+        | DoorkeeperError::ObtainingShardNumber(e) => e,
+        _ => return false,
+    };
+
+    io_error.kind() == std::io::ErrorKind::AddrInUse
+}
+
 pub(crate) async fn test_with_one_proxy(
     test: impl FnOnce(SocketAddr, RunningProxy) -> RunningProxy + Send + 'static,
     rules: impl IntoIterator<Item = RequestRule>,
 ) {
-    test_with_one_proxy_at_ip(test, rules, scylla_proxy::get_exclusive_local_address()).await
+    let rules: Vec<_> = rules.into_iter().collect();
+
+    for attempt in 0..MAX_PROXY_BIND_ATTEMPTS {
+        let ip = scylla_proxy::get_exclusive_local_address();
+        let proxy_addr = SocketAddr::new(ip, 9042);
+
+        let proxy_result = Proxy::builder()
+            .with_node(
+                Node::builder()
+                    .proxy_address(proxy_addr)
+                    .request_rules(rules.clone())
+                    .build_dry_mode(),
+            )
+            .build()
+            .run()
+            .await;
+
+        match proxy_result {
+            Ok(proxy) => {
+                // This is required to avoid the clash of a runtime built inside another runtime
+                // (the test runs one runtime to drive the proxy, and CassFuture implementation uses another)
+                let proxy = tokio::task::spawn_blocking(move || test(proxy_addr, proxy))
+                    .await
+                    .expect("Test thread panicked");
+
+                let _ = proxy.finish().await;
+                return;
+            }
+            Err(e) => {
+                if is_addr_in_use_error(&e) && attempt < MAX_PROXY_BIND_ATTEMPTS - 1 {
+                    eprintln!(
+                        "Proxy bind attempt {} failed for {}: {}. Retrying with new address...",
+                        attempt + 1,
+                        proxy_addr,
+                        e
+                    );
+                    continue;
+                }
+
+                panic!(
+                    "Failed to start proxy after {} attempts. Last error at {}: {}",
+                    attempt + 1,
+                    proxy_addr,
+                    e
+                );
+            }
+        }
+    }
 }
 
 /// Run a Rust test in a subprocess, setting up the proxy
@@ -161,7 +228,7 @@ pub(crate) async fn test_with_one_proxy(
 /// The basic usage is to simply put this macro around your `#[test]`
 /// function and add one argument of type `IpAddr` to it, like so:
 ///
-/// ```rust,nocompile
+/// ```no_run
 /// use crate::testing::rusty_fork_test_with_proxy;
 ///
 /// rusty_fork_test_with_proxy! {
@@ -185,7 +252,7 @@ pub(crate) async fn test_with_one_proxy(
 /// It is also possible to specify a timeout which is applied to the test in
 /// the block, by adding the following line straight before the test:
 ///
-/// ```rust,no_compile
+/// ```no_run
 /// #![rusty_fork(timeout_ms = 1000)]
 /// ```
 ///
