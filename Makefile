@@ -8,6 +8,15 @@ ifeq ($(OS),Windows_NT)
     .SHELLFLAGS := -NoProfile -Command
 endif
 
+UNAME_S := $(shell uname -s)
+ifeq ($(OS),Windows_NT)
+    OS_TYPE := windows
+else ifeq ($(UNAME_S),Darwin)
+    OS_TYPE := macos
+else
+    OS_TYPE := linux
+endif
+
 ifndef SCYLLA_TEST_FILTER
 SCYLLA_TEST_FILTER := $(subst ${SPACE},${EMPTY},ClusterTests.*\
 :BasicsTests.*\
@@ -185,6 +194,22 @@ FULL_RUSTFLAGS := --cfg scylla_unstable --cfg cpp_integration_testing
 CURRENT_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 BUILD_DIR := "${CURRENT_DIR}build"
 INTEGRATION_TEST_BIN := ${BUILD_DIR}/cassandra-integration-tests
+CMAKE_FLAGS ?=
+CMAKE_BUILD_TYPE ?= Release
+
+ifeq ($(OS_TYPE),macos)
+  CMAKE_INSTALL_PREFIX ?= /usr/local
+else
+  CMAKE_INSTALL_PREFIX ?= /usr
+endif
+
+ifeq ($(OS_TYPE),macos)
+  CPACK_GENERATORS ?= DragNDrop productbuild
+else ifeq ($(OS_TYPE),windows)
+  CPACK_GENERATORS ?= WIX
+else
+  CPACK_GENERATORS ?= DEB RPM
+endif
 
 clean:
 	rm -rf "${BUILD_DIR}"
@@ -253,6 +278,97 @@ build-examples:
 	@mkdir "${BUILD_DIR}" >/dev/null 2>&1 || true
 	@cd "${BUILD_DIR}"
 	cmake -DCASS_BUILD_INTEGRATION_TESTS=off -DCASS_BUILD_EXAMPLES=on -DCMAKE_BUILD_TYPE=Release .. && (make -j 4 || make)
+
+.ubuntu-package-install-dependencies: update-apt-cache-if-needed
+	sudo apt-get install -y rpm ninja-build pkg-config
+
+.fedora-package-install-dependencies:
+	sudo dnf install -y rpm-build ninja-build pkgconf-pkg-config
+
+.package-build-prepare-ubuntu:
+	@missing=""
+	for bin in ninja rpmbuild pkg-config; do
+		if ! command -v $$bin >/dev/null 2>&1; then
+			missing="$$missing $$bin"
+		fi
+	done
+	if [ -n "$$missing" ]; then
+		$(MAKE) .ubuntu-package-install-dependencies
+	fi
+
+.package-build-prepare-fedora:
+	@missing=""
+	for bin in ninja rpmbuild pkg-config; do
+		if ! command -v $$bin >/dev/null 2>&1; then
+			missing="$$missing $$bin"
+		fi
+	done
+	if [ -n "$$missing" ]; then
+		$(MAKE) .fedora-package-install-dependencies
+	fi
+
+.package-build-prepare-windows-openssl:
+	@pwsh -NoProfile -Command "if (-not (choco list --local-only --exact openssl.light | Select-String '^openssl.light$$')) { choco install openssl.light --no-progress -y }"
+
+.package-build-prepare-windows-pkgconfiglite:
+	@pwsh -NoProfile -Command "if (-not (choco list --local-only --exact pkgconfiglite | Select-String '^pkgconfiglite$$')) { choco install pkgconfiglite --no-progress -y --allow-empty-checksums }"
+
+.package-build-prepare-windows: .package-build-prepare-windows-openssl .package-build-prepare-windows-pkgconfiglite
+
+# Detect Linux distribution type (debian/ubuntu vs fedora/rhel)
+LINUX_DISTRO_FAMILY :=
+ifeq ($(OS_TYPE),linux)
+  ifneq ($(wildcard /etc/os-release),)
+    DISTRO_ID := $(shell grep "^ID=" /etc/os-release 2>/dev/null | cut -d= -f2 | tr -d '"')
+    DISTRO_ID_LIKE := $(shell grep "^ID_LIKE=" /etc/os-release 2>/dev/null | cut -d= -f2 | tr -d '"')
+    ifneq ($(filter fedora rhel centos rocky almalinux,$(DISTRO_ID) $(DISTRO_ID_LIKE)),)
+      LINUX_DISTRO_FAMILY := fedora
+    else
+      LINUX_DISTRO_FAMILY := debian
+    endif
+  else
+    # Default to debian if /etc/os-release doesn't exist
+    LINUX_DISTRO_FAMILY := debian
+  endif
+endif
+
+ifeq ($(OS_TYPE),macos)
+.package-build-prepare:
+else ifeq ($(OS_TYPE),windows)
+.package-build-prepare: .package-build-prepare-windows
+else ifeq ($(LINUX_DISTRO_FAMILY),fedora)
+.package-build-prepare: .package-build-prepare-fedora
+else
+.package-build-prepare: .package-build-prepare-ubuntu
+endif
+
+.package-configure: .package-build-prepare
+ifeq ($(OS_TYPE),windows)
+	cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) -DOPENSSL_VERSION=1.1.1u $(CMAKE_FLAGS)
+else
+	cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) -DCMAKE_INSTALL_PREFIX=$(CMAKE_INSTALL_PREFIX) $(CMAKE_FLAGS)
+endif
+
+build-driver: .package-configure
+ifeq ($(OS_TYPE),windows)
+	@pwsh -NoProfile -Command "$$opensslVersion = ((Select-String -Path 'build\\CMakeCache.txt' -Pattern '^OPENSSL_VERSION:STRING=' | Select-Object -First 1).Line -split '=', 2)[1]; $$opensslTarget = \"openssl-$${opensslVersion}-library\"; cmake --build build --config $(CMAKE_BUILD_TYPE) --target $$opensslTarget; $$env:OPENSSL_DIR = (Resolve-Path 'build\\libs\\openssl').Path; $$env:OPENSSL_INCLUDE_DIR = \"$$env:OPENSSL_DIR\\include\"; $$env:OPENSSL_LIB_DIR = \"$$env:OPENSSL_DIR\\lib\"; cmake --build build --config $(CMAKE_BUILD_TYPE)"
+else
+	cmake --build build --config $(CMAKE_BUILD_TYPE)
+endif
+
+build-package: build-driver
+ifeq ($(OS_TYPE),windows)
+	@pwsh -NoProfile -Command "Push-Location build; foreach ($$gen in '$(CPACK_GENERATORS)'.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries)) { cpack -G $$gen -C $(CMAKE_BUILD_TYPE) }; Pop-Location"
+else
+	@cd build
+	for gen in $(CPACK_GENERATORS); do
+		if [ "$${gen}" = "productbuild" ] && [ "$(OS_TYPE)" = "macos" ]; then
+			cmake -DCPACK_BUILD_DIR="$$PWD" -DCPACK_BUILD_CONFIG="$(CMAKE_BUILD_TYPE)" -P ../cmake/RunMacProductbuild.cmake
+		else
+			cpack -G $${gen} -C $(CMAKE_BUILD_TYPE)
+		fi
+	done
+endif
 
 update-rust-tooling:
 	@echo "Run rustup update"
@@ -373,3 +489,206 @@ run-examples-scylla: build-examples
 		}
 	done
 	docker compose -f tests/examples_cluster/docker-compose.yml down --remove-orphans
+
+.windows-setup-wix:
+ifeq ($(OS_TYPE),windows)
+	@pwsh -NoProfile -Command " \
+		$$wixPath = 'C:\\Program Files (x86)\\WiX Toolset v3.11\\bin'; \
+		if (Test-Path $$wixPath) { \
+			$$currentPath = [Environment]::GetEnvironmentVariable('PATH', 'Process'); \
+			if ($$currentPath -notlike \"*$$wixPath*\") { \
+				[Environment]::SetEnvironmentVariable('PATH', \"$$wixPath;$$currentPath\", 'Process'); \
+			}; \
+			if ($$env:GITHUB_PATH) { \
+				Add-Content -Path $$env:GITHUB_PATH -Value $$wixPath; \
+			} \
+		}"
+endif
+
+# =============================================================================
+# Package Testing Targets
+# =============================================================================
+# These targets provide end-to-end testing of built packages by installing
+# the driver packages, building a smoke-test app that links against them,
+# installing and running the smoke-test app.
+#
+# Usage:
+#   make test-package              # Test default package format(s) for current OS
+#   make test-package-deb          # Test DEB packages (Linux)
+#   make test-package-rpm          # Test RPM packages (Linux, uses Fedora container via Docker)
+#   make test-package-rpm-native   # Test RPM packages (native Fedora, for CI runners)
+#   make test-package-pkg          # Test PKG packages (macOS)
+#   make test-package-dmg          # Test DMG packages (macOS)
+#   make test-package-msi          # Test MSI packages (Windows)
+# =============================================================================
+
+SMOKE_TEST_DIR := packaging/smoke-test-app
+
+# DEB package testing (Ubuntu/Debian)
+test-package-deb: build-package
+	@echo "=== Testing DEB packages ==="
+	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-dev-deb
+	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-deb
+	$(MAKE) -C $(SMOKE_TEST_DIR) build-package CPACK_GENERATORS=DEB
+	$(MAKE) -C $(SMOKE_TEST_DIR) install-app-deb
+	$(MAKE) -C $(SMOKE_TEST_DIR) test-app-package
+	@echo "=== DEB package test completed successfully ==="
+	$(MAKE) -C $(SMOKE_TEST_DIR) remove-app-deb || true
+	$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-deb || true
+	$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-dev-deb || true
+
+# RPM package testing (runs in Fedora container for compatibility)
+test-package-rpm: build-package
+	@echo "=== Testing RPM packages in Fedora container ==="
+	docker compose -f $(SMOKE_TEST_DIR)/docker-compose.yml up -d --wait
+	docker run --rm \
+		-v "$(CURRENT_DIR):/workspace" \
+		-w /workspace \
+		--network host \
+		fedora:latest \
+		bash -c ' \
+			set -euo pipefail; \
+			dnf -y install make cmake gcc-c++ findutils rpm-build; \
+			$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-dev-rpm; \
+			$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-rpm; \
+			pc_file=$$(find /usr -name "scylla-cpp-driver.pc" 2>/dev/null | head -1); \
+			if [ -n "$$pc_file" ]; then \
+				pc_dir=$$(dirname "$$pc_file"); \
+				export PKG_CONFIG_PATH="$${pc_dir}:$${PKG_CONFIG_PATH:-}"; \
+			fi; \
+			lib_dir=$$(find /usr -name "libscylla-cpp-driver.so*" 2>/dev/null | head -1 | xargs dirname 2>/dev/null || true); \
+			if [ -n "$$lib_dir" ]; then \
+				export LD_LIBRARY_PATH="$${lib_dir}:$${LD_LIBRARY_PATH:-}"; \
+			fi; \
+			$(MAKE) -C $(SMOKE_TEST_DIR) build-package CPACK_GENERATORS=RPM; \
+			$(MAKE) -C $(SMOKE_TEST_DIR) install-app-rpm; \
+			smoke_bin=$$(find /usr -name "scylla-cpp-driver-smoke-test" -type f 2>/dev/null | head -1); \
+			if [ -z "$$smoke_bin" ]; then \
+				echo "ERROR: smoke-test binary not found"; \
+				exit 1; \
+			fi; \
+			"$$smoke_bin" 127.0.0.1 \
+		'
+	@echo "=== RPM package test completed successfully ==="
+	docker compose -f $(SMOKE_TEST_DIR)/docker-compose.yml down --remove-orphans || true
+
+# RPM package testing (native, for running directly in Fedora environment)
+# Use SCYLLA_HOST to specify the ScyllaDB host (default: 127.0.0.1)
+# Use SKIP_DOCKER_COMPOSE=1 to skip starting ScyllaDB via docker-compose (for CI with service containers)
+SCYLLA_HOST ?= 127.0.0.1
+SKIP_DOCKER_COMPOSE ?=
+test-package-rpm-native: build-package
+	@echo "=== Testing RPM packages (native) ==="
+	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-dev-rpm
+	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-rpm
+	$(MAKE) -C $(SMOKE_TEST_DIR) build-package CPACK_GENERATORS=RPM
+	$(MAKE) -C $(SMOKE_TEST_DIR) install-app-rpm
+	$(MAKE) -C $(SMOKE_TEST_DIR) test-app-package SCYLLA_HOST=$(SCYLLA_HOST) SKIP_DOCKER_COMPOSE=$(SKIP_DOCKER_COMPOSE)
+	@echo "=== RPM package test completed successfully ==="
+	$(MAKE) -C $(SMOKE_TEST_DIR) remove-app-rpm || true
+	$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-rpm || true
+	$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-dev-rpm || true
+
+# macOS PKG package testing
+test-package-pkg: build-package
+	@echo "=== Testing PKG packages ==="
+	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-dev-pkg
+	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-pkg
+	$(MAKE) -C $(SMOKE_TEST_DIR) build-package CPACK_GENERATORS=productbuild
+	$(MAKE) -C $(SMOKE_TEST_DIR) install-app-pkg
+	$(MAKE) -C $(SMOKE_TEST_DIR) test-app-package
+	@echo "=== PKG package test completed successfully ==="
+	$(MAKE) -C $(SMOKE_TEST_DIR) remove-app-pkg || true
+	$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-pkg || true
+	$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-dev-pkg || true
+
+# macOS DMG package testing
+test-package-dmg: build-package
+	@echo "=== Testing DMG packages ==="
+	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-dev-dmg
+	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-dmg
+	$(MAKE) -C $(SMOKE_TEST_DIR) build-package CPACK_GENERATORS=DragNDrop
+	$(MAKE) -C $(SMOKE_TEST_DIR) install-app-dmg
+	$(MAKE) -C $(SMOKE_TEST_DIR) test-app-package
+	@echo "=== DMG package test completed successfully ==="
+	$(MAKE) -C $(SMOKE_TEST_DIR) remove-app-dmg || true
+	$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-dmg || true
+	$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-dev-dmg || true
+
+# Windows MSI package testing
+test-package-msi: .windows-setup-wix build-package
+	@echo "=== Testing MSI packages ==="
+	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-dev
+	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver
+	$(MAKE) -C $(SMOKE_TEST_DIR) build-package
+	$(MAKE) -C $(SMOKE_TEST_DIR) install-app
+	$(MAKE) -C $(SMOKE_TEST_DIR) test-app-package
+	@echo "=== MSI package test completed successfully ==="
+
+# Combined Linux package testing (DEB + RPM)
+test-package-linux:
+	$(MAKE) test-package-deb
+	rm -rf $(SMOKE_TEST_DIR)/build
+	$(MAKE) test-package-rpm
+
+# Windows package testing (MSI)
+test-package-windows: test-package-msi
+
+# Combined macOS package testing (PKG + DMG)
+test-package-macos:
+	$(MAKE) test-package-pkg
+	rm -rf $(SMOKE_TEST_DIR)/build
+	$(MAKE) test-package-dmg
+
+# OS-specific default test-package target
+ifeq ($(OS_TYPE),macos)
+test-package: test-package-macos
+else ifeq ($(OS_TYPE),windows)
+test-package: test-package-windows
+else
+test-package: test-package-linux
+endif
+
+# Collect built packages into artifacts directory
+collect-package-artifacts:
+ifeq ($(OS_TYPE),windows)
+	@pwsh -NoProfile -Command " \
+		New-Item -ItemType Directory -Path artifacts\windows -Force | Out-Null; \
+		Get-ChildItem build -Filter *.msi | Copy-Item -Destination artifacts\windows; \
+		Get-ChildItem $(SMOKE_TEST_DIR)/build -Filter *.msi -ErrorAction SilentlyContinue | Copy-Item -Destination artifacts\windows"
+else ifeq ($(OS_TYPE),macos)
+	@set -euo pipefail
+	shopt -s nullglob
+	mkdir -p artifacts/macos
+	for file in build/*.pkg build/*.dmg $(SMOKE_TEST_DIR)/build/*.pkg $(SMOKE_TEST_DIR)/build/*.dmg; do
+		cp "$$file" artifacts/macos/
+	done
+else
+	@set -euo pipefail
+	shopt -s nullglob
+	mkdir -p artifacts/linux
+	for file in build/*.deb build/*.rpm; do
+		cp "$$file" artifacts/linux/
+	done
+endif
+
+# Download artifacts from GitHub Actions (requires RUN_ID, uses GH_TOKEN or GITHUB_TOKEN)
+download-package-artifacts:
+ifndef RUN_ID
+	$(error RUN_ID is required for downloading artifacts)
+endif
+	@set -euo pipefail
+	mkdir -p packages
+	gh run download $(RUN_ID) --dir packages
+
+# Upload packages to GitHub Release (requires TAG_NAME, uses GH_TOKEN or GITHUB_TOKEN)
+upload-packages-to-release:
+ifndef TAG_NAME
+	$(error TAG_NAME is required for uploading to release)
+endif
+	@set -euo pipefail
+	shopt -s nullglob
+	for file in packages/*/*; do
+		echo "Uploading $$file"
+		gh release upload "$(TAG_NAME)" "$$file" --clobber
+	done
