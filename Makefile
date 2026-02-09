@@ -1,5 +1,12 @@
 EMPTY :=
 SPACE := ${EMPTY} ${EMPTY}
+.ONESHELL:
+
+SHELL := bash
+ifeq ($(OS),Windows_NT)
+    SHELL := pwsh.exe
+    .SHELLFLAGS := -NoProfile -Command
+endif
 
 ifndef SCYLLA_TEST_FILTER
 SCYLLA_TEST_FILTER := $(subst ${SPACE},${EMPTY},ClusterTests.*\
@@ -183,79 +190,69 @@ clean:
 	rm -rf "${BUILD_DIR}"
 
 update-apt-cache-if-needed:
-	@{\
-		# It searches for a file that is at most one day old.\
-		# If there is no such file, executes apt update.\
-		@sudo find /var/cache/apt -type f -mtime -1 2>/dev/null | grep -c "" 2>/dev/null | grep 0 >/dev/null 2>&1 || (\
-			echo "Apt cache is outdated, update it.";\
-			sudo apt-get update || true;\
-		)\
-	}
+	@# It searches for a file that is at most one day old.
+	@# If there is no such file, executes apt update.
+	@sudo find /var/cache/apt -type f -mtime -1 2>/dev/null | grep -c "" 2>/dev/null | grep 0 >/dev/null 2>&1 || (
+		echo "Apt cache is outdated, update it."
+		sudo apt-get update || true
+	)
 
 install-cargo-if-missing: update-apt-cache-if-needed
-	@cargo --version >/dev/null 2>&1 || (\
-		echo "Cargo not found in the system, install it.";\
-		sudo apt-get install -y cargo;\
+	@cargo --version >/dev/null 2>&1 || (
+		echo "Cargo not found in the system, install it."
+		sudo apt-get install -y cargo
 	)
 
 install-valgrind-if-missing: update-apt-cache-if-needed
-	@valgrind --version >/dev/null 2>&1 || (\
-		echo "Valgrind not found in the system, install it.";\
-		sudo apt install -y valgrind;\
+	@valgrind --version >/dev/null 2>&1 || (
+		echo "Valgrind not found in the system, install it."
+		sudo apt install -y valgrind
 	)
 
 install-clang-format-if-missing: update-apt-cache-if-needed
-	@clang-format --version >/dev/null 2>&1 || (\
-		echo "clang-format not found in the system, install it.";\
-		sudo apt install -y clang-format;\
+	@clang-format --version >/dev/null 2>&1 || (
+		echo "clang-format not found in the system, install it."
+		sudo apt install -y clang-format
 	)
 
 install-ccm-if-missing:
-	@ccm list >/dev/null 2>&1 || (\
-		echo "CCM not found in the system, install it.";\
-		pip3 install --user https://github.com/scylladb/scylla-ccm/archive/${CCM_COMMIT_ID}.zip;\
+	@ccm list >/dev/null 2>&1 || (
+		echo "CCM not found in the system, install it."
+		pip3 install --user https://github.com/scylladb/scylla-ccm/archive/${CCM_COMMIT_ID}.zip
 	)
 
 install-ccm:
 	@pip3 install --user https://github.com/scylladb/scylla-ccm/archive/${CCM_COMMIT_ID}.zip
 
 install-java8-if-missing:
-	@{\
-		dpkg -l openjdk-8-jre >/dev/null 2>&1 && exit 0;\
-		echo "Java 8 not found in the system, install it";\
-		sudo apt install -y openjdk-8-jre;\
-	}
+	@dpkg -l openjdk-8-jre >/dev/null 2>&1 && exit 0
+	@echo "Java 8 not found in the system, install it"
+	@sudo apt install -y openjdk-8-jre
 
 install-build-dependencies: update-apt-cache-if-needed
 	@sudo apt-get install -y libssl1.1 libuv1-dev libkrb5-dev libc6-dbg
 
-install-bin-dependencies: update-apt-cache-if-needed
-	@sudo apt-get install -y libssl1.1 libuv1-dev libkrb5-dev libc6-dbg
+# Alias for backward compatibility
+install-bin-dependencies: install-build-dependencies
 
 build-integration-test-bin:
-	@{\
-		echo "Building integration test binary to ${INTEGRATION_TEST_BIN}";\
-  		mkdir "${BUILD_DIR}" >/dev/null 2>&1 || true;\
-		cd "${BUILD_DIR}";\
-		cmake -DCASS_BUILD_INTEGRATION_TESTS=ON -DCMAKE_BUILD_TYPE=Release .. && (make -j 4 || make);\
-	}
+	@echo "Building integration test binary to ${INTEGRATION_TEST_BIN}"
+	@mkdir "${BUILD_DIR}" >/dev/null 2>&1 || true
+	@cd "${BUILD_DIR}"
+	cmake -DCASS_BUILD_INTEGRATION_TESTS=ON -DCMAKE_BUILD_TYPE=Release .. && (make -j 4 || make)
 
 build-integration-test-bin-if-missing:
-	@{\
-		[ -f "${INTEGRATION_TEST_BIN}" ] && exit 0;\
-		echo "Integration test binary not found at ${INTEGRATION_TEST_BIN}, building it";\
-		mkdir "${BUILD_DIR}" >/dev/null 2>&1 || true;\
-		cd "${BUILD_DIR}";\
-		cmake -DCASS_BUILD_INTEGRATION_TESTS=ON -DCMAKE_BUILD_TYPE=Release .. && (make -j 4 || make);\
-	}
+	@[ -f "${INTEGRATION_TEST_BIN}" ] && exit 0
+	@echo "Integration test binary not found at ${INTEGRATION_TEST_BIN}, building it"
+	@mkdir "${BUILD_DIR}" >/dev/null 2>&1 || true
+	@cd "${BUILD_DIR}"
+	cmake -DCASS_BUILD_INTEGRATION_TESTS=ON -DCMAKE_BUILD_TYPE=Release .. && (make -j 4 || make)
 
 build-examples:
-	@{\
-		echo "Building examples to ${EXAMPLES_DIR}";\
-		mkdir "${BUILD_DIR}" >/dev/null 2>&1 || true;\
-		cd "${BUILD_DIR}";\
-		cmake -DCASS_BUILD_INTEGRATION_TESTS=off -DCASS_BUILD_EXAMPLES=on -DCMAKE_BUILD_TYPE=Release .. && (make -j 4 || make);\
-	}
+	@echo "Building examples to ${EXAMPLES_DIR}"
+	@mkdir "${BUILD_DIR}" >/dev/null 2>&1 || true
+	@cd "${BUILD_DIR}"
+	cmake -DCASS_BUILD_INTEGRATION_TESTS=off -DCASS_BUILD_EXAMPLES=on -DCMAKE_BUILD_TYPE=Release .. && (make -j 4 || make)
 
 update-rust-tooling:
 	@echo "Run rustup update"
@@ -263,27 +260,33 @@ update-rust-tooling:
 
 check-cargo: install-cargo-if-missing
 	@echo "Running \"cargo check\" in ./scylla-rust-wrapper"
-	@cd ${CURRENT_DIR}/scylla-rust-wrapper; cargo check --all-targets
+	@cd ${CURRENT_DIR}/scylla-rust-wrapper
+	cargo check --all-targets
 
 fix-cargo:
 	@echo "Running \"cargo fix --verbose --all\" in ./scylla-rust-wrapper"
-	@cd ${CURRENT_DIR}/scylla-rust-wrapper; cargo fix --verbose --all
+	@cd ${CURRENT_DIR}/scylla-rust-wrapper
+	cargo fix --verbose --all
 
 check-cargo-clippy: install-cargo-if-missing
 	@echo "Running \"cargo clippy --verbose --all-targets -- -D warnings -Aclippy::uninlined_format_args\" in ./scylla-rust-wrapper"
-	@cd ${CURRENT_DIR}/scylla-rust-wrapper; RUSTFLAGS="${FULL_RUSTFLAGS}" cargo clippy --verbose --all-targets -- -D warnings -Aclippy::uninlined_format_args
+	@cd ${CURRENT_DIR}/scylla-rust-wrapper
+	RUSTFLAGS="${FULL_RUSTFLAGS}" cargo clippy --verbose --all-targets -- -D warnings -Aclippy::uninlined_format_args
 
 fix-cargo-clippy: install-cargo-if-missing
 	@echo "Running \"cargo clippy --verbose --all-targets --fix -- -D warnings -Aclippy::uninlined_format_args\" in ./scylla-rust-wrapper"
-	@cd ${CURRENT_DIR}/scylla-rust-wrapper; cargo clippy --verbose --all-targets --fix -- -D warnings -Aclippy::uninlined_format_args
+	@cd ${CURRENT_DIR}/scylla-rust-wrapper
+	cargo clippy --verbose --all-targets --fix -- -D warnings -Aclippy::uninlined_format_args
 
 check-cargo-fmt: install-cargo-if-missing
 	@echo "Running \"cargo fmt --verbose --all -- --check\" in ./scylla-rust-wrapper"
-	@cd ${CURRENT_DIR}/scylla-rust-wrapper; cargo fmt --verbose --all -- --check
+	@cd ${CURRENT_DIR}/scylla-rust-wrapper
+	cargo fmt --verbose --all -- --check
 
 fix-cargo-fmt: install-cargo-if-missing
 	@echo "Running \"cargo fmt --verbose --all\" in ./scylla-rust-wrapper"
-	@cd ${CURRENT_DIR}/scylla-rust-wrapper; cargo fmt --verbose --all
+	@cd ${CURRENT_DIR}/scylla-rust-wrapper
+	cargo fmt --verbose --all
 
 check-clang-format: install-clang-format-if-missing
 	@echo "Running \"clang-format --dry-run\" on all files in ./src"
@@ -298,8 +301,8 @@ check: check-clang-format check-cargo check-cargo-clippy check-cargo-fmt
 fix: fix-clang-format fix-cargo fix-cargo-clippy fix-cargo-fmt
 
 .prepare-environment-update-aio-max-nr:
-	@if (( $$(< /proc/sys/fs/aio-max-nr) < 2097152 )); then \
-		echo 2097152 | sudo tee /proc/sys/fs/aio-max-nr >/dev/null; \
+	@if (( $$(< /proc/sys/fs/aio-max-nr) < 2097152 )); then
+		echo 2097152 | sudo tee /proc/sys/fs/aio-max-nr >/dev/null
 	fi
 
 .prepare-environment-install-libc:
@@ -344,7 +347,8 @@ endif
 	build/cassandra-integration-tests --version=${CASSANDRA_VERSION} --category=CASSANDRA --verbose=ccm --gtest_filter="${CASSANDRA_NO_VALGRIND_TEST_FILTER}"
 
 run-test-unit: install-cargo-if-missing
-	@cd ${CURRENT_DIR}/scylla-rust-wrapper; RUSTFLAGS="${FULL_RUSTFLAGS}" cargo test
+	@cd ${CURRENT_DIR}/scylla-rust-wrapper
+	RUSTFLAGS="${FULL_RUSTFLAGS}" cargo test
 
 # Currently not used.
 CQLSH := cqlsh
@@ -359,14 +363,13 @@ run-examples-scylla: build-examples
 	@# CQLSH_HOST=${SCYLLA_EXAMPLES_URI} ${CQLSH} -e "DROP KEYSPACE IF EXISTS EXAMPLES"; \
 
 	@echo "Running examples on scylla ${SCYLLA_VERSION}"
-	@for example in ${SCYLLA_EXAMPLES_TO_RUN} ; do \
-		echo -e "\nRunning example: $${example}"; \
-		build/examples/drop_examples_keyspace/drop_examples_keyspace ${SCYLLA_EXAMPLES_URI} || exit 1; \
-		build/examples/$${example}/$${example} ${SCYLLA_EXAMPLES_URI} || { \
-		    echo "Example \`$${example}\` has failed!"; \
-			docker compose -f tests/examples_cluster/docker-compose.yml down; \
-			exit 42; \
-		}; \
+	@for example in ${SCYLLA_EXAMPLES_TO_RUN}; do
+		echo -e "\nRunning example: $${example}"
+		build/examples/drop_examples_keyspace/drop_examples_keyspace ${SCYLLA_EXAMPLES_URI} || exit 1
+		build/examples/$${example}/$${example} ${SCYLLA_EXAMPLES_URI} || {
+		    echo "Example \`$${example}\` has failed!"
+			docker compose -f tests/examples_cluster/docker-compose.yml down
+			exit 42
+		}
 	done
-
-	@docker compose -f tests/examples_cluster/docker-compose.yml down --remove-orphans
+	docker compose -f tests/examples_cluster/docker-compose.yml down --remove-orphans
