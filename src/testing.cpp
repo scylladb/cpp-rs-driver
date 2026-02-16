@@ -47,44 +47,44 @@ String get_host_from_future(CassFuture* future) {
 }
 
 StringVec get_attempted_hosts_from_future(CassFuture* future) {
-    // Original implementation commented out for reference.
-    /*
-    if (future->type() != Future::FUTURE_TYPE_RESPONSE) {
-        return StringVec();
+  // Original implementation commented out for reference.
+  /*
+  if (future->type() != Future::FUTURE_TYPE_RESPONSE) {
+      return StringVec();
+  }
+
+  StringVec attempted_hosts;
+  ResponseFuture* response_future = static_cast<ResponseFuture*>(future->from());
+
+  AddressVec attempted_addresses = response_future->attempted_addresses();
+  for (const auto& address : attempted_addresses) {
+      attempted_hosts.push_back(address.to_string());
+  }
+  std::sort(attempted_hosts.begin(), attempted_hosts.end());
+  return attempted_hosts;
+  */
+
+  StringVec attempted_hosts;
+
+  char* const concatenated_attempted_addresses = testing_future_get_attempted_hosts(future);
+
+  std::string concatenated_addresses = concatenated_attempted_addresses;
+  std::stringstream stream{ concatenated_addresses };
+  while (true) {
+    String address;
+    if (std::getline(stream, address, '\n')) {
+      if (!address.empty()) {
+        attempted_hosts.push_back(address);
+      }
+    } else {
+      break; // No more addresses to read.
     }
+  }
+  std::sort(attempted_hosts.begin(), attempted_hosts.end());
 
-    StringVec attempted_hosts;
-    ResponseFuture* response_future = static_cast<ResponseFuture*>(future->from());
+  testing_free_cstring(concatenated_attempted_addresses);
 
-    AddressVec attempted_addresses = response_future->attempted_addresses();
-    for (const auto& address : attempted_addresses) {
-        attempted_hosts.push_back(address.to_string());
-    }
-    std::sort(attempted_hosts.begin(), attempted_hosts.end());
-    return attempted_hosts;
-    */
-
-    StringVec attempted_hosts;
-
-    char* const concatenated_attempted_addresses = testing_future_get_attempted_hosts(future);
-
-    std::string concatenated_addresses = concatenated_attempted_addresses;
-    std::stringstream stream{concatenated_addresses};
-    while (true) {
-        String address;
-        if (std::getline(stream, address, '\n')) {
-            if (!address.empty()) {
-                attempted_hosts.push_back(address);
-            }
-        } else {
-            break; // No more addresses to read.
-        }
-    }
-    std::sort(attempted_hosts.begin(), attempted_hosts.end());
-
-    testing_free_cstring(concatenated_attempted_addresses);
-
-    return attempted_hosts;
+  return attempted_hosts;
 }
 
 unsigned get_connect_timeout_from_cluster(CassCluster* cluster) {
@@ -143,7 +143,7 @@ String get_server_name(CassFuture* future) {
 }
 
 void set_record_attempted_hosts(CassStatement* statement, bool enable) {
-    testing_statement_set_recording_history_listener(statement, (cass_bool_t) enable);
+  testing_statement_set_recording_history_listener(statement, (cass_bool_t)enable);
 }
 
 void set_sleeping_history_listener_on_statement(CassStatement* statement, uint64_t sleep_time_ms) {
@@ -154,8 +154,6 @@ void set_sleeping_history_listener_on_batch(CassBatch* batch, uint64_t sleep_tim
   testing_batch_set_sleeping_history_listener(batch, sleep_time_ms);
 }
 
-CassRetryPolicy* retry_policy_ignoring_new() {
-  return testing_retry_policy_ignoring_new();
-}
+CassRetryPolicy* retry_policy_ignoring_new() { return testing_retry_policy_ignoring_new(); }
 
 }}} // namespace datastax::internal::testing
