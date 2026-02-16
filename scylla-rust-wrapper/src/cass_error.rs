@@ -133,7 +133,22 @@ impl ToCassError for DbError {
             DbError::AlreadyExists { .. } => CassError::CASS_ERROR_SERVER_ALREADY_EXISTS,
             DbError::Unprepared { .. } => CassError::CASS_ERROR_SERVER_UNPREPARED,
             DbError::Other(num) => {
-                CassError((CassErrorSource::CASS_ERROR_SOURCE_SERVER.0 << 24) | *num as u32)
+                // Bindgen generates C enum wrappers with platform-dependent
+                // underlying types: c_uint (u32) on Linux, c_int (i32) on
+                // Windows/MSVC.  Cast to u32 to normalize.
+                #[allow(clippy::unnecessary_cast)]
+                let source = CassErrorSource::CASS_ERROR_SOURCE_SERVER.0 as u32;
+                let code = (source << 24) | (*num as u32);
+                const {
+                    // On some systems enums will be signed, and on some unsigned,
+                    // and we need to deal with that.
+                    // What we do assume, is that on all supported systems those enums will
+                    // have a size of 4 bytes. If this is not true, we wan't to fail early (at
+                    // compile time).
+                    assert!(std::mem::size_of::<CassError>() == 4);
+                    assert!(std::mem::size_of::<CassErrorSource>() == 4);
+                }
+                CassError(code as _)
             }
             // TODO: add appropriate error if rate limit reached
             DbError::RateLimitReached { .. } => CassError::CASS_ERROR_SERVER_UNAVAILABLE,
