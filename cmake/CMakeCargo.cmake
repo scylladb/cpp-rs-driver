@@ -49,8 +49,14 @@ function(cargo_build)
     endif()
 
     set(LIB_FILE "${CARGO_TARGET_DIR}/${LIB_TARGET}/${LIB_BUILD_TYPE}/${CMAKE_STATIC_LIBRARY_PREFIX}${LIB_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}")
+    set(LIB_OUTPUTS ${LIB_FILE})
     if(BUILD_SHARED_LIBS)
       set(LIB_FILE_SHARED "${CARGO_TARGET_DIR}/${LIB_TARGET}/${LIB_BUILD_TYPE}/${CMAKE_SHARED_LIBRARY_PREFIX}${LIB_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX}")
+      list(APPEND LIB_OUTPUTS ${LIB_FILE_SHARED})
+      if(WIN32)
+        set(LIB_FILE_SHARED_IMPLIB "${LIB_FILE_SHARED}${CMAKE_IMPORT_LIBRARY_SUFFIX}")
+        list(APPEND LIB_OUTPUTS ${LIB_FILE_SHARED_IMPLIB})
+      endif()
     endif()
 
 	if(IOS)
@@ -76,7 +82,7 @@ function(cargo_build)
     set(CARGO_ENV_COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${CARGO_TARGET_DIR}" "RUSTFLAGS=${CMAKE_Rust_FLAGS}")
 
     add_custom_command(
-        OUTPUT ${LIB_FILE} ${LIB_FILE_SHARED}
+        OUTPUT ${LIB_OUTPUTS}
         COMMAND ${CARGO_ENV_COMMAND} ${CARGO_EXECUTABLE} ARGS ${CARGO_ARGS}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDS ${LIB_SOURCES}
@@ -90,5 +96,8 @@ function(cargo_build)
       add_library(${CARGO_NAME}_shared SHARED IMPORTED GLOBAL)
       add_dependencies(${CARGO_NAME}_shared ${CARGO_NAME}_shared_target)
       set_target_properties(${CARGO_NAME}_shared PROPERTIES IMPORTED_LOCATION ${LIB_FILE_SHARED})
+      if(WIN32)
+        set_target_properties(${CARGO_NAME}_shared PROPERTIES IMPORTED_IMPLIB ${LIB_FILE_SHARED_IMPLIB})
+      endif()
     endif()
 endfunction()

@@ -1,0 +1,146 @@
+name: Build CPack Packages
+
+on:
+  workflow_call:
+    inputs:
+      build-type:
+        description: CMake build type used for packaging
+        type: string
+        default: Release
+      extra-cmake-flags:
+        description: Additional flags passed to CMake configure step
+        type: string
+        default: ""
+      save-artifacts:
+        description: Save built packages as artifacts
+        type: boolean
+        default: false
+    secrets: {}
+  workflow_dispatch:
+    inputs:
+      build-type:
+        description: CMake build type used for packaging
+        type: string
+        default: Release
+      extra-cmake-flags:
+        description: Additional flags passed to CMake configure step
+        type: string
+        default: ""
+      save-artifacts:
+        description: Save built packages as artifacts
+        type: boolean
+        default: false
+    secrets: {}
+
+env:
+  CARGO_TERM_COLOR: always
+  CMAKE_BUILD_TYPE: ${{ inputs.build-type }}
+  CMAKE_FLAGS: ${{ inputs.extra-cmake-flags }}
+
+jobs:
+  linux-deb:
+    name: Linux DEB packages
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and test DEB packages
+        run: make test-package-deb
+
+      - name: Collect artifacts
+        if: inputs.save-artifacts
+        run: make collect-package-artifacts
+
+      - uses: actions/upload-artifact@v4
+        if: inputs.save-artifacts
+        with:
+          name: linux-deb-packages
+          path: artifacts/linux
+          retention-days: 7
+
+  linux-rpm:
+    name: Linux RPM packages
+    runs-on: ubuntu-24.04
+    container:
+      image: fedora:latest
+    services:
+      scylla:
+        image: scylladb/scylla
+        ports:
+          - 9042:9042
+        options: >-
+          --health-cmd "cqlsh scylla -e \"select * from system.local WHERE key='local'\""
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 60
+    steps:
+      - name: Install dependencies
+        run: dnf -y install git make cmake gcc-c++ findutils rpm-build ninja-build pkgconf-pkg-config openssl-devel clang
+
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Build and test RPM packages
+        run: |
+          source "$HOME/.cargo/env"
+          make test-package-rpm-native SCYLLA_HOST=scylla SKIP_DOCKER_COMPOSE=1
+
+      - name: Collect artifacts
+        if: inputs.save-artifacts
+        run: |
+          source "$HOME/.cargo/env"
+          make collect-package-artifacts
+
+      - uses: actions/upload-artifact@v4
+        if: inputs.save-artifacts
+        with:
+          name: linux-rpm-packages
+          path: artifacts/linux
+          retention-days: 7
+
+  macos:
+    name: macOS packages
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install GNU make
+        run: brew install make
+
+      - name: Build and test macOS packages (PKG + DMG)
+        run: gmake test-package-macos
+
+      - name: Collect artifacts
+        if: inputs.save-artifacts
+        run: gmake collect-package-artifacts
+
+      - uses: actions/upload-artifact@v4
+        if: inputs.save-artifacts
+        with:
+          name: macos-packages
+          path: artifacts/macos
+          retention-days: 7
+
+  windows:
+    name: Windows packages
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and test Windows packages (MSI)
+        run: make test-package-windows
+
+      - name: Collect artifacts
+        if: inputs.save-artifacts
+        run: make collect-package-artifacts
+
+      - uses: actions/upload-artifact@v4
+        if: inputs.save-artifacts
+        with:
+          name: windows-packages
+          path: artifacts/windows
+          retention-days: 7
