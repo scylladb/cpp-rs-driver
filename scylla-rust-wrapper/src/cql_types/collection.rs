@@ -101,7 +101,7 @@ impl CassCollection {
                     // We will do the typecheck if just the key type is defined as well (half-typed maps).
                     match typ {
                         MapDataType::Key(k_typ) => {
-                            if index % 2 == 0 && !value::is_type_compatible(value, k_typ) {
+                            if index.is_multiple_of(2) && !value::is_type_compatible(value, k_typ) {
                                 tracing::error!(
                                     "Tried to append to a collection, but the value type is incompatible with the collection's data type."
                                 );
@@ -109,13 +109,14 @@ impl CassCollection {
                             }
                         }
                         MapDataType::KeyAndValue(k_typ, v_typ) => {
-                            if index % 2 == 0 && !value::is_type_compatible(value, k_typ) {
+                            if index.is_multiple_of(2) && !value::is_type_compatible(value, k_typ) {
                                 tracing::error!(
                                     "Tried to append to a collection, but the value type is incompatible with the collection's data type."
                                 );
                                 return CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE;
                             }
-                            if index % 2 != 0 && !value::is_type_compatible(value, v_typ) {
+                            if !index.is_multiple_of(2) && !value::is_type_compatible(value, v_typ)
+                            {
                                 tracing::error!(
                                     "Tried to append to a collection, but the value type is incompatible with the collection's data type."
                                 );
@@ -147,34 +148,41 @@ impl CassCollection {
     }
 }
 
-impl From<&CassCollection> for CassCqlValue {
-    fn from(collection: &CassCollection) -> Self {
+impl TryFrom<&CassCollection> for CassCqlValue {
+    type Error = CassError;
+
+    fn try_from(collection: &CassCollection) -> Result<Self, Self::Error> {
         // FIXME: validate that collection items are correct
         let data_type = collection.data_type.clone();
         match collection.collection_type {
-            CollectionType::List => CassCqlValue::List {
+            CollectionType::List => Ok(CassCqlValue::List {
                 data_type,
                 values: collection.items.clone(),
-            },
+            }),
             CollectionType::Map => {
-                let mut grouped_items = Vec::new();
-                // FIXME: validate even number of items
-                for i in (0..collection.items.len()).step_by(2) {
-                    let key = collection.items[i].clone();
-                    let value = collection.items[i + 1].clone();
-
-                    grouped_items.push((key, value));
+                let (pairs, remainder) = collection.items.as_chunks::<2>();
+                if !remainder.is_empty() {
+                    tracing::error!(
+                        "Map collection has an odd number of items ({}). Maps must have an even number of items (key-value pairs).",
+                        collection.items.len()
+                    );
+                    return Err(CassError::CASS_ERROR_LIB_INVALID_ITEM_COUNT);
                 }
+                let grouped_items = pairs
+                    .iter()
+                    .cloned()
+                    .map(|[key, value]| (key, value))
+                    .collect();
 
-                CassCqlValue::Map {
+                Ok(CassCqlValue::Map {
                     data_type,
                     values: grouped_items,
-                }
+                })
             }
-            CollectionType::Set => CassCqlValue::Set {
+            CollectionType::Set => Ok(CassCqlValue::Set {
                 data_type,
                 values: collection.items.clone(),
-            },
+            }),
         }
     }
 }
@@ -578,6 +586,80 @@ mod tests {
             cass_data_type_add_sub_type(empty_set_dt.borrow(), empty_list_dt);
 
             cass_data_type_free(empty_set_dt)
+        }
+    }
+
+    #[test]
+    fn test_map_collection_with_odd_items_returns_error() {
+        // Regression test for https://github.com/scylladb/cpp-rs-driver/issues/411
+        // When a map collection has an odd number of items, converting it to
+        // CassCqlValue should return an error (maps must have key-value pairs).
+        use super::{BoxFFI, CassCollection, CassCqlValue};
+        use std::convert::TryInto;
+
+        unsafe {
+            // Create a map collection with 3 items (odd number: key1, value1, key2 - missing value2)
+            let mut map = cass_collection_new(CassCollectionType::CASS_COLLECTION_TYPE_MAP, 2);
+            assert_cass_error_eq!(
+                cass_collection_append_int16(map.borrow_mut(), 1), // key1
+                CassError::CASS_OK
+            );
+            assert_cass_error_eq!(
+                cass_collection_append_int16(map.borrow_mut(), 100), // value1
+                CassError::CASS_OK
+            );
+            assert_cass_error_eq!(
+                cass_collection_append_int16(map.borrow_mut(), 2), // key2 (no value!)
+                CassError::CASS_OK
+            );
+
+            // Conversion should return an error for odd number of items
+            let collection_ref: &CassCollection =
+                BoxFFI::as_ref(map.borrow().into_c_const()).unwrap();
+            let result: Result<CassCqlValue, CassError> = collection_ref.try_into();
+            assert_matches::assert_matches!(
+                result,
+                Err(CassError::CASS_ERROR_LIB_INVALID_ITEM_COUNT)
+            );
+
+            cass_collection_free(map);
+        }
+
+        // Also test that an even number of items works correctly
+        unsafe {
+            let mut map = cass_collection_new(CassCollectionType::CASS_COLLECTION_TYPE_MAP, 2);
+            assert_cass_error_eq!(
+                cass_collection_append_int16(map.borrow_mut(), 1), // key1
+                CassError::CASS_OK
+            );
+            assert_cass_error_eq!(
+                cass_collection_append_int16(map.borrow_mut(), 100), // value1
+                CassError::CASS_OK
+            );
+            assert_cass_error_eq!(
+                cass_collection_append_int16(map.borrow_mut(), 2), // key2
+                CassError::CASS_OK
+            );
+            assert_cass_error_eq!(
+                cass_collection_append_int16(map.borrow_mut(), 200), // value2
+                CassError::CASS_OK
+            );
+
+            let collection_ref: &CassCollection =
+                BoxFFI::as_ref(map.borrow().into_c_const()).unwrap();
+            let result: Result<CassCqlValue, CassError> = collection_ref.try_into();
+            assert!(result.is_ok(), "Should succeed for even number of items");
+            let cql_value = result.unwrap();
+
+            // Verify the result - should have 2 key-value pairs
+            match cql_value {
+                CassCqlValue::Map { values, .. } => {
+                    assert_eq!(values.len(), 2, "Should have 2 complete key-value pairs");
+                }
+                _ => panic!("Expected CassCqlValue::Map"),
+            }
+
+            cass_collection_free(map);
         }
     }
 }

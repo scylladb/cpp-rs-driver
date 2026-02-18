@@ -8,7 +8,7 @@ readme = "./README.md"
 keywords = ["database", "scylla", "cql", "cassandra"]
 categories = ["database"]
 license = "MIT OR Apache-2.0"
-rust-version = "1.85"
+rust-version = "1.88"
 
 [dependencies]
 scylla = { git = "https://github.com/scylladb/scylla-rust-driver.git", rev = "4f02969823f7b07b0d6b007a11863fe4aac95821", features = [
