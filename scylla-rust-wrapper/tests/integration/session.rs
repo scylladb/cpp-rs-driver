@@ -83,6 +83,7 @@ fn retry_policy_on_statement_and_batch_is_handled_properly_rules()
             Condition::any([
                 Condition::RequestOpcode(RequestOpcode::Query),
                 Condition::RequestOpcode(RequestOpcode::Batch),
+                Condition::RequestOpcode(RequestOpcode::Prepare),
             ])
             .and(Condition::not(Condition::ConnectionRegisteredAnyEvent))
             // this 1 differentiates Fallthrough and Default retry policies.
@@ -102,6 +103,7 @@ fn retry_policy_on_statement_and_batch_is_handled_properly_rules()
             Condition::any([
                 Condition::RequestOpcode(RequestOpcode::Query),
                 Condition::RequestOpcode(RequestOpcode::Batch),
+                Condition::RequestOpcode(RequestOpcode::Prepare),
             ])
             .and(Condition::not(Condition::ConnectionRegisteredAnyEvent)),
             // We make the second attempt return a hard, nonrecoverable error.

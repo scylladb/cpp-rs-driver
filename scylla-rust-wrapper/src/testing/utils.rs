@@ -92,7 +92,12 @@ pub(crate) fn handshake_rules() -> impl IntoIterator<Item = RequestRule> {
 // As these are very generic, they should be put last in the rules Vec.
 pub(crate) fn generic_drop_queries_rules() -> impl IntoIterator<Item = RequestRule> {
     [RequestRule(
-        Condition::RequestOpcode(RequestOpcode::Query),
+        Condition::any([
+            Condition::RequestOpcode(RequestOpcode::Query),
+            Condition::RequestOpcode(RequestOpcode::Execute),
+            Condition::RequestOpcode(RequestOpcode::Prepare),
+            Condition::RequestOpcode(RequestOpcode::Batch),
+        ]),
         // We won't respond to any queries (including metadata fetch),
         // but the driver will manage to continue with dummy metadata.
         RequestReaction::forge().server_error(),
