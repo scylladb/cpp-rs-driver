@@ -80,13 +80,13 @@ fn retry_policy_on_statement_and_batch_is_handled_properly_rules()
     handshake_rules()
         .into_iter()
         .chain(std::iter::once(RequestRule(
-            Condition::RequestOpcode(RequestOpcode::Query)
-                .or(Condition::RequestOpcode(RequestOpcode::Batch))
-                .and(Condition::BodyContainsCaseInsensitive(Box::new(
-                    *b"SELECT host_id FROM system.",
-                )))
-                // this 1 differentiates Fallthrough and Default retry policies.
-                .and(Condition::TrueForLimitedTimes(1)),
+            Condition::any([
+                Condition::RequestOpcode(RequestOpcode::Query),
+                Condition::RequestOpcode(RequestOpcode::Batch),
+            ])
+            .and(Condition::not(Condition::ConnectionRegisteredAnyEvent))
+            // this 1 differentiates Fallthrough and Default retry policies.
+            .and(Condition::TrueForLimitedTimes(1)),
             // We simulate the read timeout error in order to trigger DefaultRetryPolicy's
             // retry on the same node.
             // We don't use the example ReadTimeout error that is included in proxy,
@@ -99,11 +99,11 @@ fn retry_policy_on_statement_and_batch_is_handled_properly_rules()
             }),
         )))
         .chain(std::iter::once(RequestRule(
-            Condition::RequestOpcode(RequestOpcode::Query)
-                .or(Condition::RequestOpcode(RequestOpcode::Batch))
-                .and(Condition::BodyContainsCaseInsensitive(Box::new(
-                    *b"SELECT host_id FROM system.",
-                ))),
+            Condition::any([
+                Condition::RequestOpcode(RequestOpcode::Query),
+                Condition::RequestOpcode(RequestOpcode::Batch),
+            ])
+            .and(Condition::not(Condition::ConnectionRegisteredAnyEvent)),
             // We make the second attempt return a hard, nonrecoverable error.
             RequestReaction::forge().read_failure(),
         )))

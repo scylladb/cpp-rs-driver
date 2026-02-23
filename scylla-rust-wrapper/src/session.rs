@@ -984,11 +984,11 @@ mod tests {
             session_resolves_exec_profile_on_first_query_do,
             handshake_rules().into_iter().chain(
                 iter::once(RequestRule(
-                    Condition::RequestOpcode(RequestOpcode::Query)
-                        .or(Condition::RequestOpcode(RequestOpcode::Batch))
-                        .and(Condition::BodyContainsCaseInsensitive(Box::new(
-                            *b"INSERT INTO system.",
-                        ))),
+                    Condition::any([
+                        Condition::RequestOpcode(RequestOpcode::Query),
+                        Condition::RequestOpcode(RequestOpcode::Batch),
+                    ])
+                    .and(Condition::not(Condition::ConnectionRegisteredAnyEvent)),
                     // We simulate the write failure error that a ScyllaDB node would respond with anyway.
                     RequestReaction::forge().write_failure(),
                 ))
