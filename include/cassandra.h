@@ -51,9 +51,9 @@
  * over the Cassandra Binary Protocol (versions 1, 2, or 3).
  */
 
-#define CASS_VERSION_MAJOR 2
-#define CASS_VERSION_MINOR 16
-#define CASS_VERSION_PATCH 1
+#define CASS_VERSION_MAJOR 1
+#define CASS_VERSION_MINOR 0
+#define CASS_VERSION_PATCH 0
 #define CASS_VERSION_SUFFIX ""
 
 #ifdef __cplusplus

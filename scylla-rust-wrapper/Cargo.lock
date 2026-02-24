@@ -1162,7 +1162,7 @@ dependencies = [
 
 [[package]]
 name = "scylla-rust-wrapper"
-version = "0.6.0"
+version = "1.0.0"
 dependencies = [
  "arc-swap",
  "assert_matches",
