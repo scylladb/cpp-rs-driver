@@ -3,9 +3,10 @@ SPACE := ${EMPTY} ${EMPTY}
 .ONESHELL:
 
 SHELL := bash
+.SHELLFLAGS := -ec
 ifeq ($(OS),Windows_NT)
     SHELL := pwsh.exe
-    .SHELLFLAGS := -NoProfile -Command
+    .SHELLFLAGS := -NoProfile -Command $$ErrorActionPreference = 'Stop';
 endif
 
 UNAME_S := $(shell uname -s)
