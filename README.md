@@ -153,235 +153,277 @@ The driver inherits almost all the features of C/C++ and Rust drivers, such as:
 
 # Limitations
 
-##### Note: This section may be incomplete, so not everything that is not fully supported is mentioned here.
+This section covers all the functions that were present in old cpp-driver but are not present in this driver, and current status / reasons.
 
-<table>
-    <thead>
-        <tr>
-            <th>Function</th>
-            <th>Description</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr>
-            <td colspan=2 align="center" style="font-weight:bold">Statement</td>
-        </tr>
-        <tr>
-            <td>cass_statement_bind_custom[by_name]</td>
-            <td>Binding is not implemented for custom types in the Rust driver.</td>
-        </tr>
-        <tr>
-            <td colspan=2 align="center" style="font-weight:bold">Collection</td>
-        </tr>
-        <tr>
-            <td>cass_collection_append_custom[_n]</td>
-            <td>Unimplemented because of the same reasons as binding for statements.<br> <b>Note</b>: The driver does not check whether the type of the appended value is compatible with the type of the collection items.</td>
-        </tr>
-        <tr>
-            <td colspan=2 align="center" style="font-weight:bold">User Defined Type</td>
-        </tr>
-        <tr>
-            <td>cass_user_type_set_custom[by_name]</td>
-            <td>Unimplemented because of the same reasons as binding for statements.<br> <b>Note</b>: The driver does not check whether the type of the value being set for a field of the UDT is compatible with the field's actual type.</td>
-        </tr>
-        <tr>
-            <td colspan=2 align="center" style="font-weight:bold">Metadata</td>
-        </tr>
-        <tr>
-            <td>cass_keyspace_meta_is_virtual</td>
-            <td rowspan="7"> UDF, Aggregate and Index are not supported in the Rust driver, yet. </td>
-        </tr>
-        <tr>
-            <td>cass_table_meta_is_virtual</td>
-        </tr>
-        <tr>
-            <td>cass_table_meta_clustering_key_order</td>
-        </tr>
-        <tr>
-            <td>cass_materialized_view_meta_clustering_key_order</td>
-        </tr>
-        <tr>
-            <td>cass_function_*</td>
-        </tr>
-        <tr>
-            <td>cass_aggregate_*</td>
-        </tr>
-        <tr>
-            <td>cass_index_*</td>
-        </tr>
-    </tbody>
-</table>
+## Not done (yet)
 
-## Unimplemented functions from `cassandra.h`
+Functions here are simply not (yet) implemented. We may implement them at some point.
+External contributions for those are welcome.
 
-#### CassAggregate:
-- cass_aggregate_meta_argument_count
-- cass_aggregate_meta_argument_type
-- cass_aggregate_meta_field_by_name
-- cass_aggregate_meta_field_by_name_n
-- cass_aggregate_meta_final_func
-- cass_aggregate_meta_full_name
-- cass_aggregate_meta_init_cond
-- cass_aggregate_meta_name
-- cass_aggregate_meta_return_type
-- cass_aggregate_meta_state_func
-- cass_aggregate_meta_state_type
+<details>
+    <summary>Index metadata</summary>
 
-#### CassAlloc:
-- cass_alloc_set_functions
+Issue: https://github.com/scylladb/cpp-rs-driver/issues/272
+Implementation will need support in Rust Driver first. Issue: https://github.com/scylladb/scylla-rust-driver/issues/1034
+ - cass_index_meta_name
+ - cass_index_meta_options
+ - cass_index_meta_target
+ - cass_index_meta_type
+ - cass_table_meta_index
+ - cass_table_meta_index_by_name
+ - cass_table_meta_index_by_name_n
+ - cass_table_meta_index_count
+ - cass_iterator_get_index_meta
+ - cass_iterator_indexes_from_table_meta
+</details>
+<details>
+    <summary>Custom allocator</summary>
 
-#### CassAuthenticator:
-- cass_authenticator_address
-- cass_authenticator_class_name
-- cass_authenticator_exchange_data
-- cass_authenticator_hostname
-- cass_authenticator_response
-- cass_authenticator_set_error
-- cass_authenticator_set_error_n
-- cass_authenticator_set_exchange_data
-- cass_authenticator_set_response
+Function: cass_alloc_set_functions
+Issue: https://github.com/scylladb/cpp-rs-driver/issues/277
+</details>
+<details>
+    <summary>cass_cluster_set_prepare_on_all_hosts</summary>
 
-#### CassBatch:
-- cass_batch_set_custom_payload
-- cass_batch_set_keyspace
-- cass_batch_set_keyspace_n
+Issue: https://github.com/scylladb/cpp-rs-driver/issues/278
+Will need Rust Driver support first: https://github.com/scylladb/scylla-rust-driver/issues/1284
+</details>
+<details>
+    <summary>cass_session_get_speculative_execution_metrics</summary>
 
-#### CassCluster:
-- cass_cluster_set_authenticator_callbacks
-- cass_cluster_set_cloud_secure_connection_bundle
-- cass_cluster_set_cloud_secure_connection_bundle_n
-- cass_cluster_set_cloud_secure_connection_bundle_no_ssl_lib_init
-- cass_cluster_set_cloud_secure_connection_bundle_no_ssl_lib_init_n
-- cass_cluster_set_host_listener_callback
-- cass_cluster_set_max_concurrent_creation
-- cass_cluster_set_max_concurrent_requests_threshold
-- cass_cluster_set_max_connections_per_host
-- cass_cluster_set_max_requests_per_flush
-- cass_cluster_set_max_reusable_write_objects
-- cass_cluster_set_monitor_reporting_interval
-- cass_cluster_set_new_request_ratio
-- cass_cluster_set_no_compact
-- cass_cluster_set_pending_requests_high_water_mark
-- cass_cluster_set_pending_requests_low_water_mark
-- cass_cluster_set_prepare_on_all_hosts
-- cass_cluster_set_prepare_on_up_or_add_host
-- cass_cluster_set_queue_size_event
-- cass_cluster_set_queue_size_io
-- cass_cluster_set_tracing_consistency
-- cass_cluster_set_tracing_max_wait_time
-- cass_cluster_set_tracing_retry_wait_time
-- cass_cluster_set_use_hostname_resolution
-- cass_cluster_set_use_randomized_contact_points
-- cass_cluster_set_write_bytes_high_water_mark
-- cass_cluster_set_write_bytes_low_water_mark
+Issue: https://github.com/scylladb/cpp-rs-driver/issues/266
+Will need Rust Driver support first: https://github.com/scylladb/scylla-rust-driver/issues/1041
+</details>
+<details>
+    <summary>Clustering key order</summary>
 
-#### CassCollection:
-- cass_collection_append_custom
-- cass_collection_append_custom_n
+Issue: https://github.com/scylladb/cpp-rs-driver/issues/271
+ - cass_materialized_view_meta_clustering_key_order
+ - cass_table_meta_clustering_key_order
+</details>
+<details>
+    <summary>Schema version</summary>
 
-#### CassColumnMeta:
+Issue: https://github.com/scylladb/cpp-rs-driver/issues/270
+Rust Driver issue: https://github.com/scylladb/scylla-rust-driver/pull/1307
+ - cass_schema_meta_snapshot_version
+ - cass_schema_meta_version
+</details>
+<details>
+    <summary>Custom authenticator</summary>
+
+Issue: https://github.com/scylladb/cpp-rs-driver/issues/265
+ - cass_authenticator_address
+ - cass_authenticator_class_name
+ - cass_authenticator_exchange_data
+ - cass_authenticator_hostname
+ - cass_authenticator_response
+ - cass_authenticator_set_error
+ - cass_authenticator_set_error_n
+ - cass_authenticator_set_exchange_data
+ - cass_authenticator_set_response
+ - cass_cluster_set_authenticator_callbacks
+</details>
+<details>
+    <summary>cass_cluster_set_use_hostname_resolution</summary>
+
+We need to understand use cases for this, and decide if we want this or not.
+Issue: https://github.com/scylladb/cpp-rs-driver/issues/426
+</details>
+
+
+## Features not supported by ScyllaDB
+
+Those functions need features that are not supported by ScyllaDB, or are only experimental.
+We will most likely not work on them (until ScyllaDB supports those features), but we
+may consider external contributions.
+
+<details>
+    <summary>Custom payload</summary>
+
+ScyllaDB has basically no support for custom payload.
+They are only used for Tablets support in drivers: https://github.com/scylladb/scylladb/blob/master/docs/dev/protocol-extensions.md#negotiate-sending-tablets-info-to-the-drivers
+Issue: https://github.com/scylladb/cpp-rs-driver/issues/261
+Implementation will need support in Rust Driver first. No issue for that yet.
+ - cass_custom_payload_free
+ - cass_custom_payload_new
+ - cass_custom_payload_remove
+ - cass_custom_payload_remove_n
+ - cass_custom_payload_set
+ - cass_custom_payload_set_n
+ - cass_future_custom_payload_item
+ - cass_future_custom_payload_item_count
+ - cass_batch_set_custom_payload
+ - cass_statement_set_custom_payload
+</details>
+<details>
+    <summary>Set keyspace on statement</summary>
+
+This requires CQLv5 protocol, not yet supported by ScyllaDB or Rust Driver.
+Issue: https://github.com/scylladb/cpp-rs-driver/issues/279
+Implementation will need support in Rust Driver first. No issue for that yet.
+ - cass_batch_set_keyspace
+ - cass_batch_set_keyspace_n
+ - cass_statement_set_keyspace
+ - cass_statement_set_keyspace_n
+</details>
+<details>
+    <summary>UDF metadata</summary>
+
+UDFs are experimental in ScyllaDB
+Issue: https://github.com/scylladb/cpp-rs-driver/issues/275
+Implementation will need support in Rust Driver first. Issue: https://github.com/scylladb/scylla-rust-driver/issues/1034
+ - cass_function_meta_argument
+ - cass_function_meta_argument_count
+ - cass_function_meta_argument_type_by_name
+ - cass_function_meta_argument_type_by_name_n
+ - cass_function_meta_body
+ - cass_function_meta_called_on_null_input
+ - cass_function_meta_full_name
+ - cass_function_meta_language
+ - cass_function_meta_name
+ - cass_function_meta_return_type
+ - cass_iterator_functions_from_keyspace_meta
+ - cass_iterator_get_function_meta
+ - cass_keyspace_meta_function_by_name
+ - cass_keyspace_meta_function_by_name_n
+</details>
+<details>
+    <summary>UDA metadata</summary>
+
+UDAs are experimental in ScyllaDB
+Issue: https://github.com/scylladb/cpp-rs-driver/issues/273
+Implementation will need support in Rust Driver first. Issue: https://github.com/scylladb/scylla-rust-driver/issues/1034
+ - cass_aggregate_meta_argument_count
+ - cass_aggregate_meta_argument_type
+ - cass_aggregate_meta_final_func
+ - cass_aggregate_meta_full_name
+ - cass_aggregate_meta_init_cond
+ - cass_aggregate_meta_name
+ - cass_aggregate_meta_return_type
+ - cass_aggregate_meta_state_func
+ - cass_aggregate_meta_state_type
+ - cass_iterator_aggregates_from_keyspace_meta
+ - cass_iterator_get_aggregate_meta
+ - cass_keyspace_meta_aggregate_by_name
+ - cass_keyspace_meta_aggregate_by_name_n
+</details>
+<details>
+    <summary>Table / Keyspace metadata: is_virtual</summary>
+
+Scylla does not have the same system tables that Cassandra exposes this information in.
+Issue: https://github.com/scylladb/cpp-rs-driver/issues/268
+ - cass_keyspace_meta_is_virtual
+ - cass_table_meta_is_virtual
+</details>
+
+## Not planned 
+
+Functions in this section were intentionally not implemented.
+They may be incompatible with driver architecture, deprecated / no-op in the old driver,
+or footguns that make no sense.
+We do not plan to implement those, unless there is a very good reason to.
+If you require some of those functionalities, please open an issue, and we'll discuss how we can solve this.
+
+<details>
+    <summary>Raw metadata accessors</summary>
+
+Those APIs are not really compatible with the driver architecture, implementing it would be difficult.
+If you need some of it, please open an issue, so that we can learn about your use case and figure out
+how we can address it.
+- cass_keyspace_meta_field_by_name
+- cass_keyspace_meta_field_by_name_n
+- cass_table_meta_field_by_name
+- cass_table_meta_field_by_name_n
+- cass_materialized_view_meta_field_by_name
+- cass_materialized_view_meta_field_by_name_n
 - cass_column_meta_field_by_name
 - cass_column_meta_field_by_name_n
-
-#### CassCustomPayload:
-- cass_custom_payload_free
-- cass_custom_payload_new
-- cass_custom_payload_remove
-- cass_custom_payload_remove_n
-- cass_custom_payload_set
-- cass_custom_payload_set_n
-
-#### CassFunctionMeta:
-- cass_function_meta_argument
-- cass_function_meta_argument_count
-- cass_function_meta_argument_type_by_name
-- cass_function_meta_argument_type_by_name_n
-- cass_function_meta_body
-- cass_function_meta_body
-- cass_function_meta_called_on_null_input
-- cass_function_meta_field_by_name
-- cass_function_meta_field_by_name_n
-- cass_function_meta_full_name
-- cass_function_meta_language
-- cass_function_meta_name
-- cass_function_meta_return_type
-
-#### CassFuture:
-- cass_future_custom_payload_item
-- cass_future_custom_payload_item_count
-
-#### CassIndexMeta:
-- cass_index_meta_field_by_name
-- cass_index_meta_field_by_name_n
-- cass_index_meta_name
-- cass_index_meta_options
-- cass_index_meta_target
-- cass_index_meta_type
-
-#### CassIterator:
-- cass_iterator_aggregates_from_keyspace_meta
-- cass_iterator_fields_from_aggregate_meta
 - cass_iterator_fields_from_column_meta
-- cass_iterator_fields_from_function_meta
-- cass_iterator_fields_from_index_meta
 - cass_iterator_fields_from_keyspace_meta
 - cass_iterator_fields_from_materialized_view_meta
 - cass_iterator_fields_from_table_meta
-- cass_iterator_functions_from_keyspace_meta
-- cass_iterator_get_aggregate_meta
-- cass_iterator_get_function_meta
-- cass_iterator_get_index_meta
 - cass_iterator_get_meta_field_name
 - cass_iterator_get_meta_field_value
-- cass_iterator_indexes_from_table_meta
+- cass_function_meta_field_by_name
+- cass_function_meta_field_by_name_n
+- cass_iterator_fields_from_function_meta
+- cass_aggregate_meta_field_by_name
+- cass_aggregate_meta_field_by_name_n
+- cass_iterator_fields_from_aggregate_meta
+- cass_index_meta_field_by_name
+- cass_index_meta_field_by_name_n
+- cass_iterator_fields_from_index_meta
+</details>
+<details>
+    <summary>Meaningless for our driver</summary>
 
-#### CassKeyspaceMeta:
-- cass_keyspace_meta_aggregate_by_name
-- cass_keyspace_meta_aggregate_by_name_n
-- cass_keyspace_meta_field_by_name
-- cass_keyspace_meta_field_by_name_n
-- cass_keyspace_meta_function_by_name
-- cass_keyspace_meta_function_by_name_n
-- cass_keyspace_meta_is_virtual
+Because of different architectures of new and old driver, those configurations can't be directly translated.
+ - cass_cluster_set_max_reusable_write_objects
+ - cass_cluster_set_new_request_ratio
+ - cass_cluster_set_queue_size_io
+</details>
+<details>
+    <summary>Footguns, ancient APIs</summary>
 
-#### CassMaterializedViewMeta:
-- cass_materialized_view_meta_clustering_key_order
-- cass_materialized_view_meta_field_by_name
-- cass_materialized_view_meta_field_by_name_n
+Those API are simply bad in our opinion, and have good replacements.
+ - cass_statement_add_key_index: Prepared statements should be used instead
+ - cass_cluster_set_prepare_on_up_or_add_host: Driver automatically reprepares statements, and events are unreliable.
+ - cass_cluster_set_no_compact: Ancient feature, we see no point in supporting it.
+</details>
+<details>
+    <summary>Tracing</summary>
 
-#### CassSchemaMeta:
-- cass_schema_meta_snapshot_version
-- cass_schema_meta_version
+Semantics of those functions are really weird. Old driver fetches tracing data in order to wait until it
+becomes available, but has no API to expose it to the user, who must fetch the data again.
+If some users need tracing APIs, we'll prefer to implement new ones that actually expose tracing info.
+ - cass_cluster_set_tracing_consistency
+ - cass_cluster_set_tracing_max_wait_time
+ - cass_cluster_set_tracing_retry_wait_time
+</details>
+<details>
+    <summary>"Custom" type</summary>
 
-#### CassSession:
-- cass_session_get_speculative_execution_metrics
+This is deprecated basically everywhere and has no good use, especially with Scylla.
+ - cass_collection_append_custom
+ - cass_collection_append_custom_n
+ - cass_statement_bind_custom
+ - cass_statement_bind_custom_by_name
+ - cass_statement_bind_custom_by_name_n
+ - cass_statement_bind_custom_n
+ - cass_tuple_set_custom
+ - cass_tuple_set_custom_n
+ - cass_user_type_set_custom
+ - cass_user_type_set_custom_by_name
+ - cass_user_type_set_custom_by_name_n
+ - cass_user_type_set_custom_n
+</details>
+<details>
+    <summary>Deprecated and no-op in old driver</summary>
 
-#### CassStatement:
-- cass_statement_add_key_index
-- cass_statement_bind_custom
-- cass_statement_bind_custom_by_name
-- cass_statement_bind_custom_by_name_n
-- cass_statement_bind_custom_n
-- cass_statement_set_custom_payload
-- cass_statement_set_keyspace
-- cass_statement_set_keyspace_n
+Those APIs were already deprecated, and not doing anything. We see no reason to keep them.
+ - cass_cluster_set_max_concurrent_creation
+ - cass_cluster_set_max_concurrent_requests_threshold
+ - cass_cluster_set_max_connections_per_host
+ - cass_cluster_set_max_requests_per_flush
+ - cass_cluster_set_pending_requests_high_water_mark
+ - cass_cluster_set_pending_requests_low_water_mark
+ - cass_cluster_set_queue_size_event
+ - cass_cluster_set_write_bytes_high_water_mark
+ - cass_cluster_set_write_bytes_low_water_mark
+ - cass_log_cleanup
+ - cass_log_set_queue_size
+</details>
+<details>
+    <summary>DSE functions</summary>
 
-#### CassTableMeta:
-- cass_table_meta_clustering_key_order
-- cass_table_meta_field_by_name
-- cass_table_meta_field_by_name_n
-- cass_table_meta_index
-- cass_table_meta_index_by_name
-- cass_table_meta_index_by_name_n
-- cass_table_meta_index_count
-- cass_table_meta_is_virtual
-
-#### CassTuple:
-- cass_tuple_set_custom
-- cass_tuple_set_custom_n
-
-#### CassValue:
-- cass_value_get_custom
+Our driver doesn't support DSE-exclusive features.
+ - cass_cluster_set_cloud_secure_connection_bundle
+ - cass_cluster_set_cloud_secure_connection_bundle_n
+ - cass_cluster_set_cloud_secure_connection_bundle_no_ssl_lib_init
+ - cass_cluster_set_cloud_secure_connection_bundle_no_ssl_lib_init_n
+ - cass_cluster_set_monitor_reporting_interval
+</details>
 
 # Testing
 ___
