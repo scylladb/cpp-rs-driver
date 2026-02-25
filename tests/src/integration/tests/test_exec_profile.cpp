@@ -271,13 +271,13 @@ CASSANDRA_INTEGRATION_TEST_F(ExecutionProfileTest, RequestTimeout) {
   Batch batch;
   batch.add(statement);
   batch.set_execution_profile("request_timeout");
-  batch.set_sleep_time(2); // Simulate >=2ms latency
+  batch.set_sleep_time(10); // Simulate >=10ms latency (well above 1ms timeout)
   result = session_.execute(batch, false);
   ASSERT_EQ(CASS_ERROR_LIB_REQUEST_TIMED_OUT, result.error_code());
 
   // Execute a simple query with assigned profile (should timeout)
   statement.set_execution_profile("request_timeout");
-  statement.set_sleep_time(2); // Simulate >=2ms latency
+  statement.set_sleep_time(10); // Simulate >=10ms latency (well above 1ms timeout)
   result = session_.execute(statement, false);
   ASSERT_EQ(CASS_ERROR_LIB_REQUEST_TIMED_OUT, result.error_code());
 }
