@@ -2477,6 +2477,26 @@ cass_cluster_set_use_schema(CassCluster* cluster,
                             cass_bool_t enabled);
 
 /**
+ * Enable/Disable retrieving hostnames for IP addresses using reverse IP lookup.
+ *
+ * This is useful for authentication (Kerberos) or encryption (SSL) services
+ * that require a valid hostname for verification.
+ *
+ * <b>Default:</b> cass_false (disabled).
+ *
+ * @public @memberof CassCluster
+ *
+ * @param[in] cluster
+ * @param[in] enabled
+ * @return CASS_OK if successful, otherwise an error occurred
+ *
+ * @see cass_cluster_set_resolve_timeout()
+ */
+CASS_EXPORT CassError
+cass_cluster_set_use_hostname_resolution(CassCluster* cluster,
+                                         cass_bool_t enabled);
+
+/**
  * Enable/Disable the randomization of the contact points list.
  *
  * <b>Default:</b> cass_true (enabled).
