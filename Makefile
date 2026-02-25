@@ -655,13 +655,12 @@ collect-package-artifacts:
 ifeq ($(OS_TYPE),windows)
 	@pwsh -NoProfile -Command " \
 		New-Item -ItemType Directory -Path artifacts\windows -Force | Out-Null; \
-		Get-ChildItem build -Filter *.msi | Copy-Item -Destination artifacts\windows; \
-		Get-ChildItem $(SMOKE_TEST_DIR)/build -Filter *.msi -ErrorAction SilentlyContinue | Copy-Item -Destination artifacts\windows"
+		Get-ChildItem build -Filter *.msi | Copy-Item -Destination artifacts\windows"
 else ifeq ($(OS_TYPE),macos)
 	@set -euo pipefail
 	shopt -s nullglob
 	mkdir -p artifacts/macos
-	for file in build/*.pkg build/*.dmg $(SMOKE_TEST_DIR)/build/*.pkg $(SMOKE_TEST_DIR)/build/*.dmg; do
+	for file in build/*.pkg build/*.dmg; do
 		cp "$$file" artifacts/macos/
 	done
 else
