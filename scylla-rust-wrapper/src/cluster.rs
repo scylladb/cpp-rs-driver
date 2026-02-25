@@ -1186,15 +1186,6 @@ pub unsafe extern "C" fn cass_cluster_set_protocol_version(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn cass_cluster_set_queue_size_event(
-    _cluster: CassBorrowedExclusivePtr<CassCluster, CMut>,
-    _queue_size: c_uint,
-) -> CassError {
-    // In Cpp Driver this function is also a no-op...
-    CassError::CASS_OK
-}
-
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_cluster_set_constant_speculative_execution_policy(
     cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
     constant_delay_ms: cass_int64_t,

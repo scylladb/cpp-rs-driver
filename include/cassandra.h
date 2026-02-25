@@ -2477,6 +2477,26 @@ cass_cluster_set_use_schema(CassCluster* cluster,
                             cass_bool_t enabled);
 
 /**
+ * Enable/Disable retrieving hostnames for IP addresses using reverse IP lookup.
+ *
+ * This is useful for authentication (Kerberos) or encryption (SSL) services
+ * that require a valid hostname for verification.
+ *
+ * <b>Default:</b> cass_false (disabled).
+ *
+ * @public @memberof CassCluster
+ *
+ * @param[in] cluster
+ * @param[in] enabled
+ * @return CASS_OK if successful, otherwise an error occurred
+ *
+ * @see cass_cluster_set_resolve_timeout()
+ */
+CASS_EXPORT CassError
+cass_cluster_set_use_hostname_resolution(CassCluster* cluster,
+                                         cass_bool_t enabled);
+
+/**
  * Enable/Disable the randomization of the contact points list.
  *
  * <b>Default:</b> cass_true (enabled).
@@ -3231,42 +3251,6 @@ cass_keyspace_meta_aggregate_by_name_n(const CassKeyspaceMeta* keyspace_meta,
                                        size_t arguments_length);
 
 /**
- * Gets a metadata field for the provided name. Metadata fields allow direct
- * access to the column data found in the underlying "keyspaces" metadata table.
- *
- * <b>Warning:</b> This function is not yet implemented.
- *
- * @public @memberof CassKeyspaceMeta
- *
- * @param[in] keyspace_meta
- * @param[in] name
- * @return A metadata field value. NULL if the field does not exist.
- */
-CASS_EXPORT const CassValue*
-cass_keyspace_meta_field_by_name(const CassKeyspaceMeta* keyspace_meta,
-                                 const char* name);
-
-/**
- * Same as cass_keyspace_meta_field_by_name(), but with lengths for string
- * parameters.
- *
- * <b>Warning:</b> This function is not yet implemented.
- *
- * @public @memberof CassKeyspaceMeta
- *
- * @param[in] keyspace_meta
- * @param[in] name
- * @param[in] name_length
- * @return same as cass_keyspace_meta_field_by_name()
- *
- * @see cass_keyspace_meta_field_by_name()
- */
-CASS_EXPORT const CassValue*
-cass_keyspace_meta_field_by_name_n(const CassKeyspaceMeta* keyspace_meta,
-                                   const char* name,
-                                   size_t name_length);
-
-/**
  * Gets the name of the table.
  *
  * @public @memberof CassTableMeta
@@ -3538,42 +3522,6 @@ cass_table_meta_clustering_key_order(const CassTableMeta* table_meta,
                                      size_t index);
 
 /**
- * Gets a metadata field for the provided name. Metadata fields allow direct
- * access to the column data found in the underlying "tables" metadata table.
- *
- * <b>Warning:</b> This function is not yet implemented.
- *
- * @public @memberof CassTableMeta
- *
- * @param[in] table_meta
- * @param[in] name
- * @return A metadata field value. NULL if the field does not exist.
- */
-CASS_EXPORT const CassValue*
-cass_table_meta_field_by_name(const CassTableMeta* table_meta,
-                              const char* name);
-
-/**
- * Same as cass_table_meta_field_by_name(), but with lengths for string
- * parameters.
- *
- * <b>Warning:</b> This function is not yet implemented.
- *
- * @public @memberof CassTableMeta
- *
- * @param[in] table_meta
- * @param[in] name
- * @param[in] name_length
- * @return same as cass_table_meta_field_by_name()
- *
- * @see cass_table_meta_field_by_name()
- */
-CASS_EXPORT const CassValue*
-cass_table_meta_field_by_name_n(const CassTableMeta* table_meta,
-                                const char* name,
-                                size_t name_length);
-
-/**
  * Gets the column metadata for the provided column name.
  *
  * @public @memberof CassMaterializedViewMeta
@@ -3722,42 +3670,6 @@ cass_materialized_view_meta_clustering_key_order(const CassMaterializedViewMeta*
                                                  size_t index);
 
 /**
- * Gets a metadata field for the provided name. Metadata fields allow direct
- * access to the column data found in the underlying "views" metadata view.
- *
- * <b>Warning:</b> This function is not yet implemented.
- *
- * @public @memberof CassMaterializedViewMeta
- *
- * @param[in] view_meta
- * @param[in] name
- * @return A metadata field value. NULL if the field does not exist.
- */
-CASS_EXPORT const CassValue*
-cass_materialized_view_meta_field_by_name(const CassMaterializedViewMeta* view_meta,
-                                          const char* name);
-
-/**
- * Same as cass_materialized_view_meta_field_by_name(), but with lengths for string
- * parameters.
- *
- * <b>Warning:</b> This function is not yet implemented.
- *
- * @public @memberof CassMaterializedViewMeta
- *
- * @param[in] view_meta
- * @param[in] name
- * @param[in] name_length
- * @return same as cass_materialized_view_meta_field_by_name()
- *
- * @see cass_materialized_view_meta_field_by_name()
- */
-CASS_EXPORT const CassValue*
-cass_materialized_view_meta_field_by_name_n(const CassMaterializedViewMeta* view_meta,
-                                            const char* name,
-                                            size_t name_length);
-
-/**
  * Gets the name of the column.
  *
  * @public @memberof CassColumnMeta
@@ -3792,42 +3704,6 @@ cass_column_meta_type(const CassColumnMeta* column_meta);
  */
 CASS_EXPORT const CassDataType*
 cass_column_meta_data_type(const CassColumnMeta* column_meta);
-
-/**
- * Gets a metadata field for the provided name. Metadata fields allow direct
- * access to the column data found in the underlying "columns" metadata table.
- *
- * <b>Warning:</b> This function is not yet implemented.
- *
- * @public @memberof CassColumnMeta
- *
- * @param[in] column_meta
- * @param[in] name
- * @return A metadata field value. NULL if the field does not exist.
- */
-CASS_EXPORT const CassValue*
-cass_column_meta_field_by_name(const CassColumnMeta* column_meta,
-                               const char* name);
-
-/**
- * Same as cass_column_meta_field_by_name(), but with lengths for string
- * parameters.
- *
- * <b>Warning:</b> This function is not yet implemented.
- *
- * @public @memberof CassColumnMeta
- *
- * @param[in] column_meta
- * @param[in] name
- * @param[in] name_length
- * @return same as cass_column_meta_field_by_name()
- *
- * @see cass_column_meta_field_by_name()
- */
-CASS_EXPORT const CassValue*
-cass_column_meta_field_by_name_n(const CassColumnMeta* column_meta,
-                                 const char* name,
-                                 size_t name_length);
 
 /**
  * Gets the name of the index.
@@ -3886,42 +3762,6 @@ cass_index_meta_target(const CassIndexMeta* index_meta,
  */
 CASS_EXPORT const CassValue*
 cass_index_meta_options(const CassIndexMeta* index_meta);
-
-/**
- * Gets a metadata field for the provided name. Metadata fields allow direct
- * access to the index data found in the underlying "indexes" metadata table.
- *
- * <b>Warning:</b> This function is not yet implemented.
- *
- * @public @memberof CassIndexMeta
- *
- * @param[in] index_meta
- * @param[in] name
- * @return A metadata field value. NULL if the field does not exist.
- */
-CASS_EXPORT const CassValue*
-cass_index_meta_field_by_name(const CassIndexMeta* index_meta,
-                               const char* name);
-
-/**
- * Same as cass_index_meta_field_by_name(), but with lengths for string
- * parameters.
- *
- * <b>Warning:</b> This function is not yet implemented.
- *
- * @public @memberof CassIndexMeta
- *
- * @param[in] index_meta
- * @param[in] name
- * @param[in] name_length
- * @return same as cass_index_meta_field_by_name()
- *
- * @see cass_index_meta_field_by_name()
- */
-CASS_EXPORT const CassValue*
-cass_index_meta_field_by_name_n(const CassIndexMeta* index_meta,
-                                 const char* name,
-                                 size_t name_length);
 
 /**
  * Gets the name of the function.
@@ -4085,42 +3925,6 @@ CASS_EXPORT const CassDataType*
 cass_function_meta_return_type(const CassFunctionMeta* function_meta);
 
 /**
- * Gets a metadata field for the provided name. Metadata fields allow direct
- * access to the column data found in the underlying "functions" metadata table.
- *
- * <b>Warning:</b> This function is not yet implemented.
- *
- * @public @memberof CassFunctionMeta
- *
- * @param[in] function_meta
- * @param[in] name
- * @return A metadata field value. NULL if the field does not exist.
- */
-CASS_EXPORT const CassValue*
-cass_function_meta_field_by_name(const CassFunctionMeta* function_meta,
-                                 const char* name);
-
-/**
- * Same as cass_function_meta_field_by_name(), but with lengths for string
- * parameters.
- *
- * <b>Warning:</b> This function is not yet implemented.
- *
- * @public @memberof CassFunctionMeta
- *
- * @param[in] function_meta
- * @param[in] name
- * @param[in] name_length
- * @return same as cass_function_meta_field_by_name()
- *
- * @see cass_function_meta_field_by_name()
- */
-CASS_EXPORT const CassValue*
-cass_function_meta_field_by_name_n(const CassFunctionMeta* function_meta,
-                                   const char* name,
-                                   size_t name_length);
-
-/**
  * Gets the name of the aggregate.
  *
  * <b>Warning:</b> This function is not yet implemented.
@@ -4249,42 +4053,6 @@ cass_aggregate_meta_final_func(const CassAggregateMeta* aggregate_meta);
  */
 CASS_EXPORT const CassValue*
 cass_aggregate_meta_init_cond(const CassAggregateMeta* aggregate_meta);
-
-/**
- * Gets a metadata field for the provided name. Metadata fields allow direct
- * access to the column data found in the underlying "aggregates" metadata table.
- *
- * <b>Warning:</b> This function is not yet implemented.
- *
- * @public @memberof CassAggregateMeta
- *
- * @param[in] aggregate_meta
- * @param[in] name
- * @return A metadata field value. NULL if the field does not exist.
- */
-CASS_EXPORT const CassValue*
-cass_aggregate_meta_field_by_name(const CassAggregateMeta* aggregate_meta,
-                                  const char* name);
-
-/**
- * Same as cass_aggregate_meta_field_by_name(), but with lengths for string
- * parameters.
- *
- * <b>Warning:</b> This function is not yet implemented.
- *
- * @public @memberof CassAggregateMeta
- *
- * @param[in] aggregate_meta
- * @param[in] name
- * @param[in] name_length
- * @return same as cass_aggregate_meta_field_by_name()
- *
- * @see cass_aggregate_meta_field_by_name()
- */
-CASS_EXPORT const CassValue*
-cass_aggregate_meta_field_by_name_n(const CassAggregateMeta* aggregate_meta,
-                                    const char* name,
-                                    size_t name_length);
 
 /***********************************************************************************
  *
@@ -8204,94 +7972,6 @@ cass_user_type_set_bytes_by_name_n(CassUserType* user_type,
                                    size_t value_size);
 
 /**
- * Sets a "custom" in a user defined type at the specified index.
- *
- * @public @memberof CassUserType
- *
- * @param[in] user_type
- * @param[in] index
- * @param[in] class_name
- * @param[in] value
- * @param[in] value_size
- * @return CASS_OK if successful, otherwise an error occurred.
- */
-CASS_EXPORT CassError
-cass_user_type_set_custom(CassUserType* user_type,
-                          size_t index,
-                          const char* class_name,
-                          const cass_byte_t* value,
-                          size_t value_size);
-
-/**
- * Same as cass_user_type_set_custom(), but with lengths for string
- * parameters.
- *
- * @public @memberof CassUserType
- *
- * @param[in] user_type
- * @param[in] index
- * @param[in] class_name
- * @param[in] class_name_length
- * @param[in] value
- * @param[in] value_size
- * @return same as cass_user_type_set_custom()
- *
- * @see cass_user_type_set_custom()
- */
-CASS_EXPORT CassError
-cass_user_type_set_custom_n(CassUserType* user_type,
-                            size_t index,
-                            const char* class_name,
-                            size_t class_name_length,
-                            const cass_byte_t* value,
-                            size_t value_size);
-
-/**
- * Sets a "custom" in a user defined type at the specified name.
- *
- * @public @memberof CassUserType
- *
- * @param[in] user_type
- * @param[in] name
- * @param[in] class_name
- * @param[in] value
- * @param[in] value_size
- * @return CASS_OK if successful, otherwise an error occurred.
- */
-CASS_EXPORT CassError
-cass_user_type_set_custom_by_name(CassUserType* user_type,
-                                  const char* name,
-                                  const char* class_name,
-                                  const cass_byte_t* value,
-                                  size_t value_size);
-
-/**
- * Same as cass_user_type_set_custom_by_name(), but with lengths for string
- * parameters.
- *
- * @public @memberof CassUserType
- *
- * @param[in] user_type
- * @param[in] name
- * @param[in] name_length
- * @param[in] class_name
- * @param[in] class_name_length
- * @param[in] value
- * @param[in] value_size
- * @return same as cass_user_type_set_custom_by_name()
- *
- * @see cass_user_type_set_custom_by_name()
- */
-CASS_EXPORT CassError
-cass_user_type_set_custom_by_name_n(CassUserType* user_type,
-                                    const char* name,
-                                    size_t name_length,
-                                    const char* class_name,
-                                    size_t class_name_length,
-                                    const cass_byte_t* value,
-                                    size_t value_size);
-
-/**
  * Sets a "uuid" or "timeuuid" in a user defined type at the specified index.
  *
  * @public @memberof CassUserType
@@ -9243,26 +8923,6 @@ CASS_EXPORT CassIterator*
 cass_iterator_aggregates_from_keyspace_meta(const CassKeyspaceMeta* keyspace_meta);
 
 /**
- * Creates a new fields iterator for the specified keyspace metadata. Metadata
- * fields allow direct access to the column data found in the underlying
- * "keyspaces" metadata table. This can be used to iterate those metadata
- * field entries.
- *
- * <b>Warning:</b> This function is not yet implemented.
- *
- * @public @memberof CassKeyspaceMeta
- *
- * @param[in] keyspace_meta
- * @return A new iterator that must be freed.
- *
- * @see cass_iterator_get_meta_field_name()
- * @see cass_iterator_get_meta_field_value()
- * @see cass_iterator_free()
- */
-CASS_EXPORT CassIterator*
-cass_iterator_fields_from_keyspace_meta(const CassKeyspaceMeta* keyspace_meta);
-
-/**
  * Creates a new iterator for the specified table metadata.
  * This can be used to iterate over columns.
  *
@@ -9310,26 +8970,6 @@ CASS_EXPORT CassIterator*
 cass_iterator_materialized_views_from_table_meta(const CassTableMeta* table_meta);
 
 /**
- * Creates a new fields iterator for the specified table metadata. Metadata
- * fields allow direct access to the column data found in the underlying
- * "tables" metadata table. This can be used to iterate those metadata
- * field entries.
- *
- * <b>Warning:</b> This function is not yet implemented.
- *
- * @public @memberof CassTableMeta
- *
- * @param[in] table_meta
- * @return A new iterator that must be freed.
- *
- * @see cass_iterator_get_meta_field_name()
- * @see cass_iterator_get_meta_field_value()
- * @see cass_iterator_free()
- */
-CASS_EXPORT CassIterator*
-cass_iterator_fields_from_table_meta(const CassTableMeta* table_meta);
-
-/**
  * Creates a new iterator for the specified materialized view metadata.
  * This can be used to iterate over columns.
  *
@@ -9343,104 +8983,6 @@ cass_iterator_fields_from_table_meta(const CassTableMeta* table_meta);
  */
 CASS_EXPORT CassIterator*
 cass_iterator_columns_from_materialized_view_meta(const CassMaterializedViewMeta* view_meta);
-
-/**
- * Creates a new fields iterator for the specified materialized view metadata.
- * Metadata fields allow direct access to the column data found in the
- * underlying "views" metadata view. This can be used to iterate those metadata
- * field entries.
- *
- * <b>Warning:</b> This function is not yet implemented.
- *
- * @public @memberof CassMaterializedViewMeta
- *
- * @param[in] view_meta
- * @return A new iterator that must be freed.
- *
- * @see cass_iterator_get_meta_field_name()
- * @see cass_iterator_get_meta_field_value()
- * @see cass_iterator_free()
- */
-CASS_EXPORT CassIterator*
-cass_iterator_fields_from_materialized_view_meta(const CassMaterializedViewMeta* view_meta);
-
-/**
- * Creates a new fields iterator for the specified column metadata. Metadata
- * fields allow direct access to the column data found in the underlying
- * "columns" metadata table. This can be used to iterate those metadata
- * field entries.
- *
- * <b>Warning:</b> This function is not yet implemented.
- *
- * @public @memberof CassColumnMeta
- *
- * @param[in] column_meta
- * @return A new iterator that must be freed.
- *
- * @see cass_iterator_get_meta_field_name()
- * @see cass_iterator_get_meta_field_value()
- * @see cass_iterator_free()
- */
-CASS_EXPORT CassIterator*
-cass_iterator_fields_from_column_meta(const CassColumnMeta* column_meta);
-
-/**
- * Creates a new fields iterator for the specified index metadata. Metadata
- * fields allow direct access to the index data found in the underlying
- * "indexes" metadata table. This can be used to iterate those metadata
- * field entries.
- *
- * <b>Warning:</b> This function is not yet implemented.
- *
- * @public @memberof CassIndexMeta
- *
- * @param[in] index_meta
- * @return A new iterator that must be freed.
- *
- * @see cass_iterator_get_meta_field_name()
- * @see cass_iterator_get_meta_field_value()
- * @see cass_iterator_free()
- */
-CASS_EXPORT CassIterator*
-cass_iterator_fields_from_index_meta(const CassIndexMeta* index_meta);
-
-/**
- * Creates a new fields iterator for the specified function metadata. Metadata
- * fields allow direct access to the column data found in the underlying
- * "functions" metadata table. This can be used to iterate those metadata
- * field entries.
- *
- * <b>Warning:</b> This function is not yet implemented.
- *
- * @public @memberof CassFunctionMeta
- *
- * @param[in] function_meta
- * @return A new iterator that must be freed.
- *
- * @see cass_iterator_get_meta_field()
- * @see cass_iterator_free()
- */
-CASS_EXPORT CassIterator*
-cass_iterator_fields_from_function_meta(const CassFunctionMeta* function_meta);
-
-/**
- * Creates a new fields iterator for the specified aggregate metadata. Metadata
- * fields allow direct access to the column data found in the underlying
- * "aggregates" metadata table. This can be used to iterate those metadata
- * field entries.
- *
- * <b>Warning:</b> This function is not yet implemented.
- *
- * @public @memberof CassAggregateMeta
- *
- * @param[in] aggregate_meta
- * @return A new iterator that must be freed.
- *
- * @see cass_iterator_get_meta_field()
- * @see cass_iterator_free()
- */
-CASS_EXPORT CassIterator*
-cass_iterator_fields_from_aggregate_meta(const CassAggregateMeta* aggregate_meta);
 
 /**
  * Advance the iterator to the next row, column or collection item.
@@ -9673,42 +9215,6 @@ cass_iterator_get_column_meta(const CassIterator* iterator);
  */
 CASS_EXPORT const CassIndexMeta*
 cass_iterator_get_index_meta(const CassIterator* iterator);
-
-/**
- * Gets the metadata field name at the iterator's current position.
- *
- * Calling cass_iterator_next() will invalidate the previous
- * value returned by this method.
- *
- * <b>Warning:</b> This function is not yet implemented.
- *
- * @public @memberof CassIterator
- *
- * @param[in] iterator
- * @param[out] name
- * @param[out] name_length
- * @return CASS_OK if successful, otherwise error occurred
- */
-CASS_EXPORT CassError
-cass_iterator_get_meta_field_name(const CassIterator* iterator,
-                                  const char** name,
-                                  size_t* name_length);
-
-/**
- * Gets the metadata field value at the iterator's current position.
- *
- * Calling cass_iterator_next() will invalidate the previous
- * value returned by this method.
- *
- * <b>Warning:</b> This function is not yet implemented.
- *
- * @public @memberof CassIterator
- *
- * @param[in] iterator
- * @return A metadata field value
- */
-CASS_EXPORT const CassValue*
-cass_iterator_get_meta_field_value(const CassIterator* iterator);
 
 /***********************************************************************************
  *
