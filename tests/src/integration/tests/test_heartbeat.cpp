@@ -84,8 +84,12 @@ CASSANDRA_INTEGRATION_TEST_F(HeartbeatTests, HeartbeatFailed) {
   CHECK_FAILURE;
 
   logger_.add_critera("Timed out while waiting for response to keepalive request");
-  Cluster cluster =
-      default_cluster().with_connection_heartbeat_interval(1).with_connection_idle_timeout(5);
+  // Use 1 connection per host to avoid asynchronous shard-aware connection
+  // establishment that could race with the baseline connection count read.
+  Cluster cluster = default_cluster()
+                        .with_core_connections_per_host(1)
+                        .with_connection_heartbeat_interval(1)
+                        .with_connection_idle_timeout(5);
   connect(cluster);
 
   cass_uint64_t initial_connections = session_.metrics().stats.total_connections;
