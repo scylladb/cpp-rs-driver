@@ -622,6 +622,10 @@ pub unsafe extern "C" fn cass_cluster_set_timestamp_gen(
         CassTimestampGen::Monotonic(monotonic_timestamp_generator) => {
             Some(Arc::clone(monotonic_timestamp_generator) as _)
         }
+        #[cfg(cpp_integration_testing)]
+        CassTimestampGen::RecordingMonotonic(recording_timestamp_generator) => {
+            Some(Arc::clone(recording_timestamp_generator) as _)
+        }
     };
 
     cluster.session_builder.config.timestamp_generator = rust_timestamp_gen;

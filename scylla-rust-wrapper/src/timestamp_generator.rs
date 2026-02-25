@@ -2,12 +2,47 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use scylla::policies::timestamp_generator::MonotonicTimestampGenerator;
+#[cfg(cpp_integration_testing)]
+use scylla::policies::timestamp_generator::TimestampGenerator;
 
 use crate::argconv::{BoxFFI, CMut, CassOwnedExclusivePtr, FFI, FromBox};
 
 pub enum CassTimestampGen {
     ServerSide,
     Monotonic(Arc<MonotonicTimestampGenerator>),
+    #[cfg(cpp_integration_testing)]
+    RecordingMonotonic(Arc<RecordingTimestampGenerator>),
+}
+
+/// A wrapper around `MonotonicTimestampGenerator` that records all generated timestamps.
+/// This is used for integration testing purposes only.
+#[cfg(cpp_integration_testing)]
+pub struct RecordingTimestampGenerator {
+    inner: MonotonicTimestampGenerator,
+    timestamps: std::sync::Mutex<Vec<i64>>,
+}
+
+#[cfg(cpp_integration_testing)]
+impl RecordingTimestampGenerator {
+    pub fn new() -> Self {
+        Self {
+            inner: MonotonicTimestampGenerator::new(),
+            timestamps: std::sync::Mutex::new(Vec::new()),
+        }
+    }
+
+    pub fn contains(&self, timestamp: i64) -> bool {
+        self.timestamps.lock().unwrap().contains(&timestamp)
+    }
+}
+
+#[cfg(cpp_integration_testing)]
+impl TimestampGenerator for RecordingTimestampGenerator {
+    fn next_timestamp(&self) -> i64 {
+        let ts = self.inner.next_timestamp();
+        self.timestamps.lock().unwrap().push(ts);
+        ts
+    }
 }
 
 impl FFI for CassTimestampGen {

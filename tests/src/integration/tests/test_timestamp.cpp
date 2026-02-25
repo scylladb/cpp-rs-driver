@@ -16,46 +16,11 @@
 
 #include "integration.hpp"
 
-#include "timestamp_generator.hpp"
-
-using datastax::internal::SharedRefPtr;
+extern "C" {
+#include "testing_rust_impls.h"
+}
 
 class TimestampTests : public Integration {
-private:
-  /**
-   * Monotonic timestamp generator class to mimic cass_timestamp_gen_monotonic_new() and
-   * cass_timestamp_gen_monotonic_new_with_settings(). This class allows for the generated timestamp
-   * to be retrieved.
-   */
-  class TestMonotonicTimestampGenerator
-      : public datastax::internal::core::MonotonicTimestampGenerator {
-  public:
-    typedef SharedRefPtr<TestMonotonicTimestampGenerator> Ptr;
-    TestMonotonicTimestampGenerator(int64_t warning_threshold_us = 1000000,
-                                    int64_t warning_interval_ms = 1000)
-        : datastax::internal::core::MonotonicTimestampGenerator(warning_threshold_us,
-                                                                warning_interval_ms) {}
-
-    bool contains(BigInteger timestamp) {
-      for (std::vector<BigInteger>::iterator it = timestamps_.begin(), end = timestamps_.end();
-           it != end; ++it) {
-        if (timestamp == *it) {
-          return true;
-        }
-      }
-      return false;
-    }
-
-    virtual int64_t next() {
-      int64_t timestamp = datastax::internal::core::MonotonicTimestampGenerator::next();
-      timestamps_.push_back(BigInteger(timestamp));
-      return timestamp;
-    }
-
-  private:
-    std::vector<BigInteger> timestamps_;
-  };
-
 public:
   void SetUp() {
     Integration::SetUp();
@@ -84,20 +49,7 @@ public:
     return result.first_row().column_by_name<BigInteger>("write_time_value");
   }
 
-  TimestampGenerator timestamp_generator(int64_t warning_threshold_us = 1000000,
-                                         int64_t warning_interval_ms = 1000) {
-    timestamp_generator_.reset(
-        new TestMonotonicTimestampGenerator(warning_threshold_us, warning_interval_ms));
-    timestamp_generator_->inc_ref();
-    return CassTimestampGen::to(timestamp_generator_.get());
-  }
-
-  bool contains_timestamp(BigInteger timestamp) {
-    return timestamp_generator_->contains(timestamp);
-  }
-
 private:
-  TestMonotonicTimestampGenerator::Ptr timestamp_generator_;
   Prepared prepared_insert_statement_;
 };
 
@@ -216,7 +168,8 @@ CASSANDRA_INTEGRATION_TEST_F(TimestampTests, ServerSideTimestampGeneratorBatchSt
 CASSANDRA_INTEGRATION_TEST_F(TimestampTests, MonotonicTimestampGenerator) {
   CHECK_FAILURE;
   SKIP_IF_CASSANDRA_VERSION_LT(2.1.0);
-  connect(default_cluster().with_timestamp_generator(timestamp_generator()));
+  TimestampGenerator generator(testing_timestamp_gen_monotonic_new());
+  connect(default_cluster().with_timestamp_generator(generator));
 
   BigInteger last_timestamp;
   for (int i = 0; i < 100; ++i) {
@@ -224,7 +177,7 @@ CASSANDRA_INTEGRATION_TEST_F(TimestampTests, MonotonicTimestampGenerator) {
     session_.execute(create_insert_statement(key));
 
     BigInteger timestamp(select_timestamp(key));
-    EXPECT_TRUE(contains_timestamp(timestamp));
+    EXPECT_TRUE(testing_timestamp_gen_contains_timestamp(generator.get(), timestamp.value()));
 
     if (!last_timestamp.is_null()) {
       EXPECT_NE(last_timestamp, timestamp);
