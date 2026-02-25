@@ -17,6 +17,7 @@ pub enum CassTimestampGen {
 /// A wrapper around `MonotonicTimestampGenerator` that records all generated timestamps.
 /// This is used for integration testing purposes only.
 #[cfg(cpp_integration_testing)]
+#[allow(unnameable_types)]
 pub struct RecordingTimestampGenerator {
     inner: MonotonicTimestampGenerator,
     timestamps: std::sync::Mutex<Vec<i64>>,
