@@ -78,7 +78,7 @@ impl CassResult {
         try_get_or_make_result_metadata: Option<
             impl FnOnce(&QueryRowsResult) -> Option<Arc<CassResultMetadata>>,
         >,
-    ) -> Result<Self, Arc<CassErrorResult>> {
+    ) -> Result<Arc<Self>, Arc<CassErrorResult>> {
         match result.into_rows_result() {
             Ok(rows_result) => {
                 let metadata = try_get_or_make_result_metadata
@@ -95,7 +95,7 @@ impl CassResult {
                     Arc::clone(&shared_data),
                 )?;
 
-                let cass_result = CassResult {
+                let result_arc = Arc::new(CassResult {
                     tracing_id,
                     paging_state_response,
                     kind: CassResultKind::Rows(CassRowsResult {
@@ -103,9 +103,9 @@ impl CassResult {
                         first_row,
                     }),
                     coordinator,
-                };
+                });
 
-                Ok(cass_result)
+                Ok(result_arc)
             }
             Err(IntoRowsResultError::ResultNotRows(result)) => {
                 let cass_result = CassResult {
@@ -115,7 +115,7 @@ impl CassResult {
                     coordinator: Some(result.request_coordinator().clone()),
                 };
 
-                Ok(cass_result)
+                Ok(Arc::new(cass_result))
             }
             Err(IntoRowsResultError::ResultMetadataLazyDeserializationError(err)) => {
                 Err(Arc::new(err.into()))
@@ -1211,7 +1211,7 @@ mod tests {
     const FIRST_COLUMN_NAME: &str = "bigint_col";
     const SECOND_COLUMN_NAME: &str = "varint_col";
     const THIRD_COLUMN_NAME: &str = "list_double_col";
-    fn create_cass_rows_result() -> CassResult {
+    fn create_cass_rows_result() -> Arc<CassResult> {
         let metadata = Arc::new(CassResultMetadata::from_column_specs(ColumnSpecs::new(&[
             col_spec(FIRST_COLUMN_NAME, ColumnType::Native(NativeType::BigInt)),
             col_spec(SECOND_COLUMN_NAME, ColumnType::Native(NativeType::Varint)),
@@ -1231,7 +1231,7 @@ mod tests {
         )
         .unwrap();
 
-        CassResult {
+        let result_arc = Arc::new(CassResult {
             tracing_id: None,
             paging_state_response: PagingStateResponse::NoMorePages,
             kind: CassResultKind::Rows(CassRowsResult {
@@ -1239,7 +1239,9 @@ mod tests {
                 first_row,
             }),
             coordinator: None,
-        }
+        });
+
+        result_arc
     }
 
     unsafe fn cass_result_column_name_rust_str(
@@ -1262,7 +1264,7 @@ mod tests {
 
     #[test]
     fn rows_cass_result_api_test() {
-        let result = Arc::new(create_cass_rows_result());
+        let result = create_cass_rows_result();
 
         unsafe {
             let result_ptr = ArcFFI::as_ptr(&result);

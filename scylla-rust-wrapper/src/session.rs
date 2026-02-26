@@ -484,7 +484,7 @@ pub unsafe extern "C" fn cass_session_execute(
                     paging_state_response,
                     get_or_make_result_metadata,
                 ) {
-                    Ok(result) => Ok(CassResultValue::QueryResult(Arc::new(result))),
+                    Ok(result_arc) => Ok(CassResultValue::QueryResult(result_arc)),
                     Err(e) => Ok(CassResultValue::QueryError(e)),
                 }
             }
