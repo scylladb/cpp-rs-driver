@@ -40,6 +40,8 @@ impl CassResultIterator<'_> {
             return false;
         };
 
+        let old_row = rows_result_iterator.current_row.take();
+
         let new_row =
             rows_result_iterator
                 .iterator
@@ -50,6 +52,7 @@ impl CassResultIterator<'_> {
                             CassRow::from_raw_row_and_metadata(
                                 raw_row,
                                 rows_result_iterator.result_metadata,
+                                old_row,
                             )
                         })
                         .inspect_err(|e| {

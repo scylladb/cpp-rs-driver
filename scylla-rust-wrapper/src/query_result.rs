@@ -179,8 +179,16 @@ impl<'result> CassRow<'result> {
     pub(crate) fn from_raw_row_and_metadata(
         row: CassRawRow<'result, 'result>,
         result_metadata: &'result CassResultMetadata,
+        old_row: Option<Self>,
     ) -> Result<Self, DeserializationError> {
-        let mut columns = Vec::with_capacity(row.columns.columns_remaining());
+        let mut columns = match old_row {
+            Some(row) => {
+                let mut old_vec = row.columns;
+                old_vec.clear();
+                old_vec
+            }
+            None => Vec::with_capacity(row.columns.columns_remaining()),
+        };
 
         let mut raw_columns_with_cass_metadata = row
             .columns
@@ -281,8 +289,9 @@ mod row_with_self_borrowed_result_data {
                         .next()
                         .ok_or(AttachError::NoRows)?;
 
-                    let row_result = raw_row_result
-                        .and_then(|raw_row| CassRow::from_raw_row_and_metadata(raw_row, metadata));
+                    let row_result = raw_row_result.and_then(|raw_row| {
+                        CassRow::from_raw_row_and_metadata(raw_row, metadata, None)
+                    });
 
                     let row = row_result
                         .map_err(CassErrorResult::from)
