@@ -124,6 +124,12 @@ impl CassResult {
     }
 }
 
+impl CassRowsResult {
+    pub(crate) fn first_row(&self) -> Option<&CassRow<'_>> {
+        self.first_row.as_ref().map(|r| r.row())
+    }
+}
+
 impl FFI for CassResult {
     type Origin = FromArc;
 }
@@ -1133,13 +1139,12 @@ pub unsafe extern "C" fn cass_result_first_row(
         return RefFFI::null();
     };
 
-    let CassResultKind::Rows(CassRowsResult { first_row, .. }) = &result.kind else {
+    let CassResultKind::Rows(cass_rows_result) = &result.kind else {
         return RefFFI::null();
     };
 
-    first_row
-        .as_ref()
-        .map(RowWithSelfBorrowedResultData::row)
+    cass_rows_result
+        .first_row()
         .map(RefFFI::as_ptr)
         .unwrap_or(RefFFI::null())
 }
