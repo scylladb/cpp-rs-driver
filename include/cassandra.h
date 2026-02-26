@@ -6534,16 +6534,6 @@ CASS_EXPORT CASS_DEPRECATED(size_t
 cass_data_sub_type_count(const CassDataType* data_type));
 
 /**
- * Gets the sub-data type count of a UDT (user defined type), tuple
- * or collection.
- *
- * <b>Note:</b> Only valid for UDT, tuple and collection data types.
- *
- * @param[in] data_type
- * @return Returns the number of sub-data types
- */
-
-/**
  * Gets the sub-data type of a UDT (user defined type), tuple or collection at
  * the specified index.
  *
