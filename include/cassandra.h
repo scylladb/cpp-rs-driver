@@ -6350,6 +6350,8 @@ cass_data_type_free(CassDataType* data_type);
 /**
  * Gets the value type of the specified data type.
  *
+ * @public @memberof CassDataType
+ *
  * @param[in] data_type
  * @return The value type
  */
@@ -6358,6 +6360,8 @@ cass_data_type_type(const CassDataType* data_type);
 
 /**
  * Gets whether a data type is frozen.
+ *
+ * @public @memberof CassDataType
  *
  * @param[in] data_type
  * @return cass_true if the data type is frozen, otherwise cass_false.
@@ -6369,6 +6373,8 @@ cass_data_type_is_frozen(const CassDataType* data_type);
  * Gets the type name of a UDT data type.
  *
  * <b>Note:</b> Only valid for UDT data types.
+ *
+ * @public @memberof CassDataType
  *
  * @param[in] data_type
  * @param[out] type_name
@@ -6384,6 +6390,8 @@ cass_data_type_type_name(const CassDataType* data_type,
  * Sets the type name of a UDT data type.
  *
  * <b>Note:</b> Only valid for UDT data types.
+ *
+ * @public @memberof CassDataType
  *
  * @param[in] data_type
  * @param[in] type_name
@@ -6414,6 +6422,8 @@ cass_data_type_set_type_name_n(CassDataType* data_type,
  *
  * <b>Note:</b> Only valid for UDT data types.
  *
+ * @public @memberof CassDataType
+ *
  * @param[in] data_type
  * @param[out] keyspace
  * @param[out] keyspace_length
@@ -6428,6 +6438,8 @@ cass_data_type_keyspace(const CassDataType* data_type,
  * Sets the keyspace of a UDT data type.
  *
  * <b>Note:</b> Only valid for UDT data types.
+ *
+ * @public @memberof CassDataType
  *
  * @param[in] data_type
  * @param[in] keyspace
@@ -6458,6 +6470,8 @@ cass_data_type_set_keyspace_n(CassDataType* data_type,
  *
  * <b>Note:</b> Only valid for custom data types.
  *
+ * @public @memberof CassDataType
+ *
  * @param[in] data_type
  * @param[out] class_name
  * @param[out] class_name_length
@@ -6472,6 +6486,8 @@ cass_data_type_class_name(const CassDataType* data_type,
  * Sets the class name of a custom data type.
  *
  * <b>Note:</b> Only valid for custom data types.
+ *
+ * @public @memberof CassDataType
  *
  * @param[in] data_type
  * @param[in] class_name
@@ -6503,6 +6519,8 @@ cass_data_type_set_class_name_n(CassDataType* data_type,
  *
  * <b>Note:</b> Only valid for UDT, tuple and collection data types.
  *
+ * @public @memberof CassDataType
+ *
  * @param[in] data_type
  * @return Returns the number of sub-data types
  */
@@ -6531,6 +6549,8 @@ cass_data_sub_type_count(const CassDataType* data_type));
  *
  * <b>Note:</b> Only valid for UDT, tuple and collection data types.
  *
+ * @public @memberof CassDataType
+ *
  * @param[in] data_type
  * @param[in] index
  * @return Returns a reference to a child data type. Do not free this
@@ -6545,6 +6565,8 @@ cass_data_type_sub_data_type(const CassDataType* data_type,
  * Gets the sub-data type of a UDT (user defined type) at the specified index.
  *
  * <b>Note:</b> Only valid for UDT data types.
+ *
+ * @public @memberof CassDataType
  *
  * @param[in] data_type
  * @param[in] name
@@ -6579,6 +6601,8 @@ cass_data_type_sub_data_type_by_name_n(const CassDataType* data_type,
  *
  * <b>Note:</b> Only valid for UDT data types.
  *
+ * @public @memberof CassDataType
+ *
  * @param[in] data_type
  * @param[in] index
  * @param[out] name
@@ -6596,6 +6620,8 @@ cass_data_type_sub_type_name(const CassDataType* data_type,
  *
  * <b>Note:</b> Only valid for tuple and collection data types.
  *
+ * @public @memberof CassDataType
+ *
  * @param[in] data_type
  * @param[in] sub_data_type
  * @return CASS_OK if successful, otherwise an error occurred.
@@ -6608,6 +6634,8 @@ cass_data_type_add_sub_type(CassDataType* data_type,
  * Adds a sub-data type to a UDT (user defined type).
  *
  * <b>Note:</b> Only valid for UDT data types.
+ *
+ * @public @memberof CassDataType
  *
  * @param[in] data_type
  * @param[in] name
@@ -6624,6 +6652,8 @@ cass_data_type_add_sub_type_by_name(CassDataType* data_type,
  * parameters.
  *
  * <b>Note:</b> Only valid for UDT data types.
+ *
+ * @public @memberof CassDataType
  *
  * @param[in] data_type
  * @param[in] name
@@ -6642,6 +6672,8 @@ cass_data_type_add_sub_type_by_name_n(CassDataType* data_type,
  *
  * <b>Note:</b> Only valid for tuple and collection data types.
  *
+ * @public @memberof CassDataType
+ *
  * @param[in] data_type
  * @param[in] sub_value_type
  * @return CASS_OK if successful, otherwise an error occurred.
@@ -6655,6 +6687,8 @@ cass_data_type_add_sub_value_type(CassDataType* data_type,
  * Adds a sub-data type to a UDT (user defined type) using a value type.
  *
  * <b>Note:</b> Only valid for UDT data types.
+ *
+ * @public @memberof CassDataType
  *
  * @param[in] data_type
  * @param[in] name
@@ -6671,6 +6705,8 @@ cass_data_type_add_sub_value_type_by_name(CassDataType* data_type,
  * parameters.
  *
  * <b>Note:</b> Only valid for UDT data types.
+ *
+ * @public @memberof CassDataType
  *
  * @param[in] data_type
  * @param[in] name
@@ -6732,6 +6768,8 @@ cass_collection_free(CassCollection* collection);
 
 /**
  * Gets the data type of a collection.
+ *
+ * @public @memberof CassCollection
  *
  * @param[in] collection
  * @return Returns a reference to the data type of the collection. Do not free
@@ -7041,6 +7079,8 @@ cass_tuple_free(CassTuple* tuple);
 
 /**
  * Gets the data type of a tuple.
+ *
+ * @public @memberof CassTuple
  *
  * @param[in] tuple
  * @return Returns a reference to the data type of the tuple. Do not free
@@ -7384,6 +7424,8 @@ cass_user_type_free(CassUserType* user_type);
 
 /**
  * Gets the data type of a user defined type.
+ *
+ * @public @memberof CassUserType
  *
  * @param[in] user_type
  * @return Returns a reference to the data type of the user defined type.
@@ -9804,6 +9846,8 @@ cass_timestamp_gen_monotonic_new();
 /**
  * Same as cass_timestamp_gen_monotonic_new(), but with settings for controlling
  * warnings about clock skew.
+ *
+ * @public @memberof CassTimestampGen
  *
  * @param warning_threshold_us The amount of clock skew, in microseconds, that
  * must be detected before a warning is triggered. A threshold less than 0 can
