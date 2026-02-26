@@ -6221,7 +6221,7 @@ cass_batch_set_custom_payload(CassBatch* batch,
 /**
  * Sets whether the batch should use tracing.
  *
- * @public @memberof CassStatement
+ * @public @memberof CassBatch
  *
  * @param[in] batch
  * @param[in] enabled
