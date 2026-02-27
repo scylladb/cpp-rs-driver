@@ -112,7 +112,7 @@ toc_object_entries_show_parents = "hide"
 def _generate_structs(outdir, structs, project):
     """Write structs docs in the designated outdir folder"""
     for obj in structs:
-        with open(outdir + "/struct." + obj + ".rst", "w") as t_file:
+        with open(outdir / f"struct.{obj}.rst", "w") as t_file:
             t_file.write(
                 obj
                 + "\n"
@@ -143,7 +143,7 @@ def _generate_doxygen_rst(xmldir, outdir):
 
 def generate_doxygen(app):
     DOXYGEN_XML_DIR = breathe_projects[breathe_default_project]
-    _generate_doxygen_rst(DOXYGEN_XML_DIR, app.builder.srcdir + "/api")
+    _generate_doxygen_rst(DOXYGEN_XML_DIR, app.builder.srcdir / "api")
 
 
 # -- Options for sitemap extension
