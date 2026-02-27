@@ -859,6 +859,8 @@ typedef struct CassAuthenticator_ CassAuthenticator;
 /**
  * A callback used to initiate an authentication exchange.
  *
+ * @memberof CassAuthenticatorCallbacks
+ *
  * Use cass_authenticator_set_response() to set the response token.
  *
  * Use cass_authenticator_set_error() if an error occurred during
@@ -873,6 +875,8 @@ typedef void (*CassAuthenticatorInitialCallback)(CassAuthenticator* auth,
 /**
  * A callback used when an authentication challenge initiated
  * by the server.
+ *
+ * @memberof CassAuthenticatorCallbacks
  *
  * Use cass_authenticator_set_response() to set the response token.
  *
@@ -892,6 +896,8 @@ typedef void (*CassAuthenticatorChallengeCallback)(CassAuthenticator* auth,
  * A callback used to indicate the success of the authentication
  * exchange.
  *
+ * @memberof CassAuthenticatorCallbacks
+ *
  * Use cass_authenticator_set_error() if an error occurred while evaluating
  * the success token.
  *
@@ -909,6 +915,8 @@ typedef void (*CassAuthenticatorSuccessCallback)(CassAuthenticator* auth,
  * the process of the authentication exchange. This is called after
  * the termination of the exchange regardless of the outcome.
  *
+ * @memberof CassAuthenticatorCallbacks
+ *
  * @param[in] auth
  * @param[in] data
  */
@@ -917,6 +925,8 @@ typedef void (*CassAuthenticatorCleanupCallback)(CassAuthenticator* auth,
 
 /**
  * A callback used to cleanup resources.
+ *
+ * @memberof CassAuthenticatorCallbacks
  *
  * @param[in] data
  */
