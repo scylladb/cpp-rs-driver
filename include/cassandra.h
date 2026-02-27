@@ -663,6 +663,9 @@ typedef enum CassIteratorType_ {
 #define CASS_LOG_LEVEL_MAP CASS_LOG_LEVEL_MAPPING /* Deprecated */
 /* @endcond */
 
+/**
+ * @ingroup Logging
+ */
 typedef enum CassLogLevel_ {
 #define XX_LOG(log_level, _) log_level,
   CASS_LOG_LEVEL_MAPPING(XX_LOG)
@@ -810,6 +813,8 @@ typedef void (*CassFutureCallback)(CassFuture* future,
 
 /**
  * A log message.
+ *
+ * @ingroup Logging
  */
 typedef struct CassLogMessage_ {
   /**
@@ -825,6 +830,8 @@ typedef struct CassLogMessage_ {
 
 /**
  * A callback that's used to handle logging.
+ *
+ * @ingroup Logging
  *
  * @param[in] message
  * @param[in] data user defined data provided when the callback

@@ -147,24 +147,30 @@ def _generate_doxygen_rst(xmldir, outdir):
     """Autogenerate doxygen docs in the designated outdir folder"""
     structs = []
     groups = []
+    group_structs = set()
     xml_path = os.path.join(os.path.dirname(__file__), xmldir)
     files = os.listdir(xml_path)
     for file_name in files:
-        if "struct" in file_name and "__" not in file_name:
-            structs.append(
-                file_name.replace("struct_", "")
-                .replace("_", " ")
-                .replace(".xml", "")
-                .title()
-                .replace(" ", "")
-            )
-        elif file_name.startswith("group__") and file_name.endswith(".xml"):
+        if file_name.startswith("group__") and file_name.endswith(".xml"):
             tree = ET.parse(os.path.join(xml_path, file_name))
             root = tree.getroot()
             compoundname = root.find(".//compoundname")
             if compoundname is not None and compoundname.text:
                 group_name = compoundname.text
                 groups.append(group_name)
+            for inner in root.iter("innerclass"):
+                group_structs.add(inner.text)
+    for file_name in files:
+        if "struct" in file_name and "__" not in file_name:
+            name = (
+                file_name.replace("struct_", "")
+                .replace("_", " ")
+                .replace(".xml", "")
+                .title()
+                .replace(" ", "")
+            )
+            if name not in group_structs:
+                structs.append(name)
     _generate_structs(outdir, structs, breathe_default_project)
     _generate_groups(outdir, groups, breathe_default_project)
 
