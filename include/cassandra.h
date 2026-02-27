@@ -60,26 +60,65 @@
 extern "C" {
 #endif
 
+/**
+ * @ingroup BasicTypes
+ */
 typedef enum { cass_false = 0, cass_true = 1 } cass_bool_t;
 
+/**
+ * @ingroup BasicTypes
+ */
 typedef float cass_float_t;
+/**
+ * @ingroup BasicTypes
+ */
 typedef double cass_double_t;
 
+/**
+ * @ingroup BasicTypes
+ */
 typedef int8_t cass_int8_t;
+/**
+ * @ingroup BasicTypes
+ */
 typedef uint8_t cass_uint8_t;
 
+/**
+ * @ingroup BasicTypes
+ */
 typedef int16_t cass_int16_t;
+/**
+ * @ingroup BasicTypes
+ */
 typedef uint16_t cass_uint16_t;
 
+/**
+ * @ingroup BasicTypes
+ */
 typedef int32_t cass_int32_t;
+/**
+ * @ingroup BasicTypes
+ */
 typedef uint32_t cass_uint32_t;
 
+/**
+ * @ingroup BasicTypes
+ */
 typedef int64_t cass_int64_t;
+/**
+ * @ingroup BasicTypes
+ */
 typedef uint64_t cass_uint64_t;
 
 #define CASS_UINT64_MAX 18446744073709551615ULL
 
+/**
+ * @ingroup BasicTypes
+ */
 typedef cass_uint8_t cass_byte_t;
+/**
+ * @ingroup BasicTypes
+ */
 typedef cass_uint64_t cass_duration_t;
 
 /**
@@ -902,6 +941,12 @@ typedef enum CassCompressionType_ {
   CASS_COMPRESSION_SNAPPY,
   CASS_COMPRESSION_NONE
 } CassCompressionType;
+
+/**
+ * @defgroup BasicTypes Basic types
+ *
+ * Primitive type aliases used throughout the driver API.
+ */
 
 /**
  * @defgroup Logging Logging
