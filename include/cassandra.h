@@ -903,6 +903,18 @@ typedef enum CassCompressionType_ {
   CASS_COMPRESSION_NONE
 } CassCompressionType;
 
+/**
+ * @defgroup Logging Logging
+ *
+ * Functions for configuring logging in the driver.
+ */
+
+/**
+ * @defgroup Miscellaneous Miscellaneous
+ *
+ * Utility and miscellaneous functions.
+ */
+
 /***********************************************************************************
  *
  * Execution Profile
@@ -10082,6 +10094,8 @@ cass_custom_payload_remove_n(CassCustomPayload* payload,
 /**
  * Gets the string for a consistency.
  *
+ * @ingroup Miscellaneous
+ *
  * @param[in] consistency
  * @return A null-terminated string for the consistency.
  * Example: "ALL", "ONE", "QUORUM", etc.
@@ -10096,6 +10110,8 @@ cass_consistency_string(CassConsistency consistency);
  ***********************************************************************************/
 /**
  * Gets the string for a write type.
+ *
+ * @ingroup Miscellaneous
  *
  * @param[in] write_type
  * @return A null-terminated string for the write type.
@@ -10113,6 +10129,8 @@ cass_write_type_string(CassWriteType write_type);
 /**
  * Gets a description for an error code.
  *
+ * @ingroup Miscellaneous
+ *
  * @param[in] error
  * @return A null-terminated string describing the error.
  */
@@ -10128,6 +10146,8 @@ cass_error_desc(CassError error);
 /**
  * Sets the log level.
  *
+ * @ingroup Logging
+ *
  * <b>Note:</b> This needs to be done before any call that might log, such as
  * any of the cass_cluster_*() or cass_ssl_*() functions.
  *
@@ -10140,6 +10160,8 @@ cass_log_set_level(CassLogLevel log_level);
 
 /**
  * Sets a callback for handling logging events.
+ *
+ * @ingroup Logging
  *
  * <b>Note:</b> This needs to be done before any call that might log, such as
  * any of the cass_cluster_*() or cass_ssl_*() functions.
@@ -10157,6 +10179,8 @@ cass_log_set_callback(CassLogCallback callback,
 /**
  * Analogous getter - useful for restoring logger to previous values.
  *
+ * @ingroup Logging
+ *
  * @param[out] callback_out Current logging callback. Must point to a valid memory area.
  * @param[out] data_out Current Logger instance. Must point to a valid memory area.
  */
@@ -10165,6 +10189,8 @@ cass_log_get_callback_and_data(CassLogCallback* callback_out, void** data_out);
 
 /**
  * Gets the string for a log level.
+ *
+ * @ingroup Logging
  *
  * @param[in] log_level
  * @return A null-terminated string for the log level.
@@ -10256,6 +10282,8 @@ cass_inet_from_string_n(const char* str,
  * represents the number of days since the Epoch (1970-01-01) with the Epoch centered at
  * the value 2^31.
  *
+ * @ingroup Miscellaneous
+ *
  * @param[in] epoch_secs
  * @return the number of days since the date -5877641-06-23
  */
@@ -10266,6 +10294,8 @@ cass_date_from_epoch(cass_int64_t epoch_secs);
  * Converts a unix timestamp (in seconds) to the Cassandra "time" type. The "time" type
  * represents the number of nanoseconds since midnight (range 0 to 86399999999999).
  *
+ * @ingroup Miscellaneous
+ *
  * @param[in] epoch_secs
  * @return nanoseconds since midnight
  */
@@ -10274,6 +10304,8 @@ cass_time_from_epoch(cass_int64_t epoch_secs);
 
 /**
  * Combines the Cassandra "date" and "time" types to Epoch time in seconds.
+ *
+ * @ingroup Miscellaneous
  *
  * @param[in] date
  * @param[in] time
@@ -10292,6 +10324,8 @@ cass_date_time_to_epoch(cass_uint32_t date,
 
 /**
  * Set custom allocation functions.
+ *
+ * @ingroup Miscellaneous
  *
  * <b>Warning:</b> This function is not yet implemented.
  *
