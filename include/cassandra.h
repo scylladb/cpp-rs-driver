@@ -583,6 +583,9 @@ typedef enum CassIndexType_ {
   XX(CASS_VALUE_TYPE_UDT,  0x0030, "", "") \
   XX(CASS_VALUE_TYPE_TUPLE,  0x0031, "tuple", "org.apache.cassandra.db.marshal.TupleType")
 
+/**
+ * @ingroup CassValueType
+ */
 typedef enum CassValueType_ {
   CASS_VALUE_TYPE_UNKNOWN = 0xFFFF,
 #define XX_VALUE_TYPE(name, type, cql, klass) name = type,
@@ -1006,6 +1009,12 @@ typedef enum CassCompressionType_ {
  * @defgroup CassConsistency CassConsistency
  *
  * Consistency levels for queries.
+ */
+
+/**
+ * @defgroup CassValueType CassValueType
+ *
+ * Data type representations for values.
  */
 
 /**
