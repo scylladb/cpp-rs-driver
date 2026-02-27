@@ -590,6 +590,9 @@ typedef enum CassValueType_ {
   /* @endcond */
 } CassValueType;
 
+/**
+ * @ingroup Miscellaneous
+ */
 typedef enum CassClusteringOrder_ {
   CASS_CLUSTERING_ORDER_NONE,
   CASS_CLUSTERING_ORDER_ASC,
@@ -655,6 +658,9 @@ typedef enum CassSslVerifyFlags_ {
   CASS_SSL_VERIFY_PEER_IDENTITY_DNS = 0x04
 } CassSslVerifyFlags;
 
+/**
+ * @ingroup Miscellaneous
+ */
 typedef enum CassProtocolVersion_ {
   CASS_PROTOCOL_VERSION_V1    = 0x01, /**< Deprecated */
   CASS_PROTOCOL_VERSION_V2    = 0x02, /**< Deprecated */
@@ -942,6 +948,9 @@ typedef struct CassAuthenticatorCallbacks_ {
   CassAuthenticatorCleanupCallback cleanup_callback;
 } CassAuthenticatorCallbacks;
 
+/**
+ * @ingroup Miscellaneous
+ */
 typedef enum CassHostListenerEvent_ {
   CASS_HOST_LISTENER_EVENT_UP,
   CASS_HOST_LISTENER_EVENT_DOWN,
@@ -952,6 +961,8 @@ typedef enum CassHostListenerEvent_ {
 /**
  * A callback used to indicate the host state for a node in the cluster.
  *
+ * @ingroup Miscellaneous
+ *
  * @param[in] event
  * @param[in] address
  * @param[in] data
@@ -961,6 +972,9 @@ typedef void(*CassHostListenerCallback)(CassHostListenerEvent event,
                                         const CassInet address,
                                         void* data);
 
+/**
+ * @ingroup Miscellaneous
+ */
 typedef enum CassCompressionType_ {
   CASS_COMPRESSION_LZ4,
   CASS_COMPRESSION_SNAPPY,
