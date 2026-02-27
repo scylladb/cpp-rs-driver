@@ -807,6 +807,8 @@ typedef void (*CassLogCallback)(const CassLogMessage* message,
  * A custom malloc function. This function should allocate "size" bytes and
  * return a pointer to that memory
  *
+ * @ingroup CustomAllocator
+ *
  * @param[in] size The size of the memory to allocate
  *
  * @see CassFreeFunction
@@ -818,6 +820,8 @@ typedef void* (*CassMallocFunction)(size_t size);
  * A custom realloc function. This function attempts to change the size of the
  * memory pointed to by "ptr". If the memory cannot be resized then new memory
  * should be allocated and contain the contents of the original memory at "ptr".
+ *
+ * @ingroup CustomAllocator
  *
  * @param[in] ptr A pointer to the original memory. If NULL it should behave the
  * same as "CassMallocFunction"
@@ -833,6 +837,8 @@ typedef void* (*CassReallocFunction)(void* ptr, size_t size);
  * A custom free function. This function deallocates the memory pointed to by
  * "ptr" that was previously allocated by a "CassMallocFunction" or
  * "CassReallocFunction" function.
+ *
+ * @ingroup CustomAllocator
  *
  * @param[in] ptr A pointer to memory that should be deallocated. If NULL then
  * this will perform no operation.
@@ -967,6 +973,12 @@ typedef enum CassCompressionType_ {
  * @defgroup CassError CassError
  *
  * Error codes and related types.
+ */
+
+/**
+ * @defgroup CustomAllocator Custom allocator
+ *
+ * Custom memory allocation functions.
  */
 
 /**
@@ -10385,7 +10397,7 @@ cass_date_time_to_epoch(cass_uint32_t date,
 /**
  * Set custom allocation functions.
  *
- * @ingroup Miscellaneous
+ * @ingroup CustomAllocator
  *
  * <b>Warning:</b> This function is not yet implemented.
  *
