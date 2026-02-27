@@ -507,6 +507,9 @@ typedef enum CassConsistency_ {
 #define CASS_CONSISTENCY_MAP CASS_CONSISTENCY_MAPPING /* Deprecated */
 /* @endcond */
 
+/**
+ * @ingroup CassError
+ */
 typedef enum CassWriteType_ {
   CASS_WRITE_TYPE_UNKNOWN,
   CASS_WRITE_TYPE_SIMPLE,
@@ -664,6 +667,9 @@ typedef enum CassProtocolVersion_ {
                                            driver with DataStax Enterprise */
 } CassProtocolVersion;
 
+/**
+ * @ingroup CassError
+ */
 typedef enum  CassErrorSource_ {
   CASS_ERROR_SOURCE_NONE,
   CASS_ERROR_SOURCE_LIB,
@@ -740,6 +746,9 @@ typedef enum  CassErrorSource_ {
 
 #define CASS_ERROR(source, code) ((source << 24) | code)
 
+/**
+ * @ingroup CassError
+ */
 typedef enum CassError_ {
   CASS_OK = 0,
 #define XX_ERROR(source, name, code, _) name = CASS_ERROR(source, code),
@@ -952,6 +961,12 @@ typedef enum CassCompressionType_ {
  * @defgroup Logging Logging
  *
  * Functions for configuring logging in the driver.
+ */
+
+/**
+ * @defgroup CassError CassError
+ *
+ * Error codes and related types.
  */
 
 /**
@@ -10156,7 +10171,7 @@ cass_consistency_string(CassConsistency consistency);
 /**
  * Gets the string for a write type.
  *
- * @ingroup Miscellaneous
+ * @ingroup CassError
  *
  * @param[in] write_type
  * @return A null-terminated string for the write type.
@@ -10174,7 +10189,7 @@ cass_write_type_string(CassWriteType write_type);
 /**
  * Gets a description for an error code.
  *
- * @ingroup Miscellaneous
+ * @ingroup CassError
  *
  * @param[in] error
  * @return A null-terminated string describing the error.
