@@ -539,6 +539,9 @@ typedef enum CassWriteType_ {
 #define CASS_WRITE_TYPE_MAP CASS_WRITE_TYPE_MAPPING /* Deprecated */
 /* @endcond */
 
+/**
+ * @memberof CassColumnMeta
+ */
 typedef enum CassColumnType_ {
   CASS_COLUMN_TYPE_REGULAR,
   CASS_COLUMN_TYPE_PARTITION_KEY,
@@ -547,6 +550,9 @@ typedef enum CassColumnType_ {
   CASS_COLUMN_TYPE_COMPACT_VALUE
 } CassColumnType;
 
+/**
+ * @memberof CassIndexMeta
+ */
 typedef enum CassIndexType_ {
   CASS_INDEX_TYPE_UNKNOWN,
   CASS_INDEX_TYPE_KEYS,
@@ -605,18 +611,27 @@ typedef enum CassClusteringOrder_ {
   CASS_CLUSTERING_ORDER_DESC
 } CassClusteringOrder;
 
+/**
+ * @memberof CassCollection
+ */
 typedef enum CassCollectionType_ {
   CASS_COLLECTION_TYPE_LIST = CASS_VALUE_TYPE_LIST,
   CASS_COLLECTION_TYPE_MAP  = CASS_VALUE_TYPE_MAP,
   CASS_COLLECTION_TYPE_SET  = CASS_VALUE_TYPE_SET
 } CassCollectionType;
 
+/**
+ * @memberof CassBatch
+ */
 typedef enum CassBatchType_ {
   CASS_BATCH_TYPE_LOGGED   = 0x00,
   CASS_BATCH_TYPE_UNLOGGED = 0x01,
   CASS_BATCH_TYPE_COUNTER  = 0x02
 } CassBatchType;
 
+/**
+ * @memberof CassIterator
+ */
 typedef enum CassIteratorType_ {
   CASS_ITERATOR_TYPE_RESULT,
   CASS_ITERATOR_TYPE_ROW,
@@ -657,6 +672,9 @@ typedef enum CassLogLevel_ {
   /* @endcond */
 } CassLogLevel;
 
+/**
+ * @memberof CassSsl
+ */
 typedef enum CassSslVerifyFlags_ {
   CASS_SSL_VERIFY_NONE              = 0x00,
   CASS_SSL_VERIFY_PEER_CERT         = 0x01,
@@ -773,6 +791,8 @@ typedef enum CassError_ {
 
 /**
  * A callback that's notified when the future is set.
+ *
+ * @memberof CassFuture
  *
  * @param[in] future
  * @param[in] data user defined data provided when the callback
