@@ -474,6 +474,9 @@ typedef struct CassSpeculativeExecutionMetrics_ {
   cass_double_t percentage; /**< Fraction of requests that are aborted speculative retries */
 } CassSpeculativeExecutionMetrics;
 
+/**
+ * @ingroup CassConsistency
+ */
 typedef enum CassConsistency_ {
   CASS_CONSISTENCY_UNKNOWN      = 0xFFFF,
   CASS_CONSISTENCY_ANY          = 0x0000,
@@ -997,6 +1000,12 @@ typedef enum CassCompressionType_ {
  * @defgroup CassError CassError
  *
  * Error codes and related types.
+ */
+
+/**
+ * @defgroup CassConsistency CassConsistency
+ *
+ * Consistency levels for queries.
  */
 
 /**
@@ -10190,7 +10199,7 @@ cass_custom_payload_remove_n(CassCustomPayload* payload,
 /**
  * Gets the string for a consistency.
  *
- * @ingroup Miscellaneous
+ * @ingroup CassConsistency
  *
  * @param[in] consistency
  * @return A null-terminated string for the consistency.
