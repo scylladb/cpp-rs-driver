@@ -714,7 +714,7 @@ typedef enum CassError_ {
 /**
  * A callback that's notified when the future is set.
  *
- * @param[in] message
+ * @param[in] future
  * @param[in] data user defined data provided when the callback
  * was registered.
  *
@@ -1102,6 +1102,8 @@ cass_execution_profile_set_load_balance_rack_aware(CassExecProfile* profile,
  * @param[in] profile
  * @param[in] local_dc
  * @param[in] local_dc_length
+ * @param[in] local_rack
+ * @param[in] local_rack_length
  * @return same cass_execution_profile_set_load_balance_rack_aware()
  *
  * @see cass_execution_profile_set_load_balance_rack_aware()
@@ -1987,7 +1989,6 @@ cass_cluster_set_credentials(CassCluster* cluster,
  * @param[in] username_length
  * @param[in] password
  * @param[in] password_length
- * @return same as cass_cluster_set_credentials()
  *
  * @see cass_cluster_set_credentials();
  */
@@ -2094,6 +2095,8 @@ cass_cluster_set_load_balance_rack_aware(CassCluster* cluster,
  * @param[in] cluster
  * @param[in] local_dc
  * @param[in] local_dc_length
+ * @param[in] local_rack
+ * @param[in] local_rack_length
  * @return same as cass_cluster_set_load_balance_dc_aware()
  *
  * @see cass_cluster_set_load_balance_dc_aware()
@@ -2234,7 +2237,6 @@ cass_cluster_set_whitelist_filtering(CassCluster* cluster,
  * @param[in] cluster
  * @param[in] hosts
  * @param[in] hosts_length
- * @return same as cass_cluster_set_whitelist_filtering()
  *
  * @see cass_cluster_set_whitelist_filtering()
  */
@@ -2276,7 +2278,6 @@ cass_cluster_set_blacklist_filtering(CassCluster* cluster,
  * @param[in] cluster
  * @param[in] hosts
  * @param[in] hosts_length
- * @return same as cass_cluster_set_blacklist_filtering()
  *
  * @see cass_cluster_set_blacklist_filtering()
  */
@@ -2310,7 +2311,6 @@ cass_cluster_set_whitelist_dc_filtering(CassCluster* cluster,
  * @param[in] cluster
  * @param[in] dcs
  * @param[in] dcs_length
- * @return same as cass_cluster_set_whitelist_dc_filtering()
  *
  * @see cass_cluster_set_whitelist_dc_filtering()
  */
@@ -2344,7 +2344,6 @@ cass_cluster_set_blacklist_dc_filtering(CassCluster* cluster,
  * @param[in] cluster
  * @param[in] dcs
  * @param[in] dcs_length
- * @return same as cass_cluster_set_blacklist_dc_filtering()
  *
  * @see cass_cluster_set_blacklist_dc_filtering()
  */
@@ -4163,7 +4162,6 @@ cass_ssl_add_trusted_cert_n(CassSsl* ssl,
  *
  * @param[in] ssl
  * @param[in] flags
- * @return CASS_OK if successful, otherwise an error occurred
  *
  * @see cass_cluster_set_use_hostname_resolution()
  */
