@@ -34,6 +34,10 @@ pristine: clean
 .PHONY: clean
 clean:
 	rm -rf $(BUILDDIR)/*
+	# We need to use git clean instead of rm -rf because
+	# source/api/index.rst is actually tracked by git.
+	git clean -f -d -X $(SOURCEDIR)/api/
+	rm -rf ../doxygen/*
 
 # Generate output commands
 .PHONY: dirhtml
