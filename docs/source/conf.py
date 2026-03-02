@@ -3,6 +3,7 @@ import os
 import re
 import sys
 import warnings
+import xml.etree.ElementTree as ET
 from datetime import date
 
 from sphinx_scylladb_theme.utils import multiversion_regex_builder
@@ -112,7 +113,7 @@ toc_object_entries_show_parents = "hide"
 def _generate_structs(outdir, structs, project):
     """Write structs docs in the designated outdir folder"""
     for obj in structs:
-        with open(outdir + "/struct." + obj + ".rst", "w") as t_file:
+        with open(outdir / f"struct.{obj}.rst", "w") as t_file:
             t_file.write(
                 obj
                 + "\n"
@@ -125,25 +126,58 @@ def _generate_structs(outdir, structs, project):
             )
 
 
+def _generate_groups(outdir, groups, project):
+    """Write structs docs in the designated outdir folder"""
+    for obj in groups:
+        with open(outdir / f"group.{obj}.rst", "w") as t_file:
+            t_file.write(
+                obj
+                + "\n"
+                + "=" * len(obj)
+                + "\n\n"
+                + ".. doxygengroup:: "
+                + obj
+                + "\n  :project: "
+                + breathe_default_project
+                + "\n  :content-only:"
+            )
+
+
 def _generate_doxygen_rst(xmldir, outdir):
     """Autogenerate doxygen docs in the designated outdir folder"""
     structs = []
-    files = os.listdir(os.path.join(os.path.dirname(__file__), xmldir))
+    groups = []
+    group_structs = set()
+    xml_path = os.path.join(os.path.dirname(__file__), xmldir)
+    files = os.listdir(xml_path)
+    for file_name in files:
+        if file_name.startswith("group__") and file_name.endswith(".xml"):
+            tree = ET.parse(os.path.join(xml_path, file_name))
+            root = tree.getroot()
+            compoundname = root.find(".//compoundname")
+            if compoundname is not None and compoundname.text:
+                group_name = compoundname.text
+                groups.append(group_name)
+            for inner in root.iter("innerclass"):
+                group_structs.add(inner.text)
     for file_name in files:
         if "struct" in file_name and "__" not in file_name:
-            structs.append(
+            name = (
                 file_name.replace("struct_", "")
                 .replace("_", " ")
                 .replace(".xml", "")
                 .title()
                 .replace(" ", "")
             )
+            if name not in group_structs:
+                structs.append(name)
     _generate_structs(outdir, structs, breathe_default_project)
+    _generate_groups(outdir, groups, breathe_default_project)
 
 
 def generate_doxygen(app):
     DOXYGEN_XML_DIR = breathe_projects[breathe_default_project]
-    _generate_doxygen_rst(DOXYGEN_XML_DIR, app.builder.srcdir + "/api")
+    _generate_doxygen_rst(DOXYGEN_XML_DIR, app.builder.srcdir / "api")
 
 
 # -- Options for sitemap extension
