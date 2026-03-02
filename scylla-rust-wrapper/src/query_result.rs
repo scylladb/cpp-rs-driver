@@ -10,7 +10,6 @@ use crate::cql_types::inet::CassInet;
 use crate::cql_types::uuid::CassUuid;
 use crate::types::*;
 use cass_raw_value::CassRawValue;
-use row_with_self_borrowed_result_data::RowWithSelfBorrowedResultData;
 use scylla::cluster::metadata::{ColumnType, NativeType};
 use scylla::deserialize::row::{
     BuiltinDeserializationError, BuiltinDeserializationErrorKind, ColumnIterator, DeserializeRow,
@@ -24,6 +23,7 @@ use scylla::value::{
     Counter, CqlDate, CqlDecimalBorrowed, CqlDuration, CqlTime, CqlTimestamp, CqlTimeuuid,
 };
 use std::convert::TryInto;
+use std::mem::ManuallyDrop;
 use std::net::IpAddr;
 use std::os::raw::c_char;
 use std::sync::Arc;
@@ -38,9 +38,49 @@ pub(crate) enum CassResultKind {
 
 #[derive(Debug)]
 pub(crate) struct CassRowsResult {
-    // Arc: shared with first_row (yoke).
-    pub(crate) shared_data: Arc<CassRowsResultSharedData>,
-    pub(crate) first_row: Option<RowWithSelfBorrowedResultData>,
+    pub(crate) shared_data: CassRowsResultSharedData,
+    /// SAFETY: borrows from `shared_data`. See [`SelfBorrowingFirstRow`] docs.
+    first_row: Option<SelfBorrowingFirstRow>,
+}
+
+impl Drop for CassRowsResult {
+    fn drop(&mut self) {
+        // Drop first_row before shared_data, because it borrows from shared_data.
+        if let Some(SelfBorrowingFirstRow(row)) = self.first_row.take() {
+            drop(ManuallyDrop::into_inner(row));
+        }
+    }
+}
+
+/// A wrapper around a `CassRow` that self-borrows from sibling data.
+///
+/// The contained `CassRow` actually borrows from `CassRowsResultSharedData`
+/// stored as a sibling field in `CassRowsResult`. The lifetime is erased
+/// to `'static` because Rust cannot express self-referential lifetimes.
+///
+/// # Safety invariants
+///
+/// 1. `CassRowsResult` is always stored inside `Arc<CassResult>`,
+///    so the address of `CassRowsResultSharedData` is stable.
+/// 2. `CassRowsResult::Drop` drops this field before `shared_data`.
+/// 3. Access is only through [`row()`](Self::row), which shortens the
+///    lifetime to `&self`, preventing the reference from escaping.
+#[derive(Debug)]
+struct SelfBorrowingFirstRow(ManuallyDrop<CassRow<'static>>);
+
+impl SelfBorrowingFirstRow {
+    /// Returns a reference to the contained row with the lifetime shortened
+    /// to match the borrow of `self`.
+    ///
+    /// This is critical for soundness: the stored `CassRow<'static>` actually
+    /// borrows from sibling data. By returning `&'a CassRow<'a>`, we tie
+    /// the lifetime to `&self`, which is bounded by `Arc<CassResult>`.
+    fn row<'a>(&'a self) -> &'a CassRow<'a> {
+        // SAFETY: We shorten the lifetime from 'static to 'a.
+        // The actual data lifetime is the Arc<CassResult> lifetime,
+        // and 'a (the &self borrow) cannot exceed that.
+        unsafe { &*(&*self.0 as *const CassRow<'a>) }
+    }
 }
 
 #[derive(Debug)]
@@ -72,13 +112,17 @@ impl CassResult {
     /// - query result
     /// - paging state response
     /// - optional cached result metadata - it's provided for prepared statements
+    ///
+    /// Returns `Arc<CassResult>` directly, because for rows results the first row
+    /// self-borrows from `CassRowsResultSharedData`. The data must be at its final
+    /// address (inside Arc) before the self-borrow is created.
     pub(crate) fn from_result_payload(
         result: QueryResult,
         paging_state_response: PagingStateResponse,
         try_get_or_make_result_metadata: Option<
             impl FnOnce(&QueryRowsResult) -> Option<Arc<CassResultMetadata>>,
         >,
-    ) -> Result<Self, Arc<CassErrorResult>> {
+    ) -> Result<Arc<Self>, Arc<CassErrorResult>> {
         match result.into_rows_result() {
             Ok(rows_result) => {
                 let metadata = try_get_or_make_result_metadata
@@ -90,22 +134,35 @@ impl CassResult {
                     });
 
                 let (raw_rows, tracing_id, _, coordinator) = rows_result.into_inner();
-                let shared_data = Arc::new(CassRowsResultSharedData { raw_rows, metadata });
-                let first_row = RowWithSelfBorrowedResultData::first_from_raw_rows_and_metadata(
-                    Arc::clone(&shared_data),
-                )?;
+                let shared_data = CassRowsResultSharedData { raw_rows, metadata };
 
-                let cass_result = CassResult {
+                // Phase 1: Create CassResult without first_row.
+                let mut result_arc = Arc::new(CassResult {
                     tracing_id,
                     paging_state_response,
                     kind: CassResultKind::Rows(CassRowsResult {
                         shared_data,
-                        first_row,
+                        first_row: None,
                     }),
                     coordinator,
-                };
+                });
 
-                Ok(cass_result)
+                // Phase 2: Now that shared_data is at its final address inside
+                // the Arc, we can deserialize the first row which borrows from it.
+                {
+                    let result_mut =
+                        Arc::get_mut(&mut result_arc).expect("sole owner of freshly created Arc");
+                    let CassResultKind::Rows(ref mut rows_result) = result_mut.kind else {
+                        unreachable!("We just created this with Rows variant");
+                    };
+                    // SAFETY: `shared_data` is at its final address inside the Arc
+                    // and won't move. See `SelfBorrowingFirstRow` safety docs.
+                    unsafe {
+                        rows_result.init_first_row()?;
+                    }
+                }
+
+                Ok(result_arc)
             }
             Err(IntoRowsResultError::ResultNotRows(result)) => {
                 let cass_result = CassResult {
@@ -115,12 +172,60 @@ impl CassResult {
                     coordinator: Some(result.request_coordinator().clone()),
                 };
 
-                Ok(cass_result)
+                Ok(Arc::new(cass_result))
             }
             Err(IntoRowsResultError::ResultMetadataLazyDeserializationError(err)) => {
                 Err(Arc::new(err.into()))
             }
         }
+    }
+}
+
+impl CassRowsResult {
+    /// Deserializes the first row from `shared_data` and stores it in `first_row`.
+    ///
+    /// # Safety
+    ///
+    /// Must only be called when `self` is at its final address (inside `Arc<CassResult>`).
+    /// The deserialized row borrows from `self.shared_data`. The caller must ensure
+    /// the address of `shared_data` will not change after this call.
+    unsafe fn init_first_row(&mut self) -> Result<(), Arc<CassErrorResult>> {
+        let CassRowsResultSharedData {
+            ref raw_rows,
+            ref metadata,
+        } = self.shared_data;
+
+        let mut iter = raw_rows
+            .rows_iter::<CassRawRow>()
+            // unwrap: CassRawRow always passes the typecheck.
+            .unwrap();
+
+        let first_row = iter
+            .next()
+            .map(|raw_row_result| -> Result<_, Arc<CassErrorResult>> {
+                let raw_row = raw_row_result
+                    .map_err(CassErrorResult::from)
+                    .map_err(Arc::new)?;
+                let row = CassRow::from_raw_row_and_metadata(raw_row, metadata, None)
+                    .map_err(CassErrorResult::from)
+                    .map_err(Arc::new)?;
+                // SAFETY: Transmute CassRow<'a> to CassRow<'static>.
+                // This erases the lifetime, which is safe because:
+                // 1. shared_data lives inside Arc<CassResult> (stable address).
+                // 2. CassRowsResult::Drop drops first_row before shared_data.
+                // 3. SelfBorrowingFirstRow::row() shortens the lifetime back
+                //    on access, preventing the reference from escaping.
+                let row_static: CassRow<'static> = unsafe { std::mem::transmute(row) };
+                Ok(SelfBorrowingFirstRow(ManuallyDrop::new(row_static)))
+            })
+            .transpose()?;
+
+        self.first_row = first_row;
+        Ok(())
+    }
+
+    pub(crate) fn first_row(&self) -> Option<&CassRow<'_>> {
+        self.first_row.as_ref().map(|r| r.row())
     }
 }
 
@@ -177,12 +282,20 @@ impl FFI for CassRow<'_> {
 
 impl<'result> CassRow<'result> {
     pub(crate) fn from_raw_row_and_metadata(
-        row: CassRawRow<'result, 'result>,
+        raw_row: CassRawRow<'result, 'result>,
         result_metadata: &'result CassResultMetadata,
+        old_row: Option<Self>,
     ) -> Result<Self, DeserializationError> {
-        let mut columns = Vec::with_capacity(row.columns.columns_remaining());
+        let mut columns = match old_row {
+            Some(row) => {
+                let mut old_vec = row.columns;
+                old_vec.clear();
+                old_vec
+            }
+            None => Vec::with_capacity(raw_row.columns.columns_remaining()),
+        };
 
-        let mut raw_columns_with_cass_metadata = row
+        let mut raw_columns_with_cass_metadata = raw_row
             .columns
             .zip(result_metadata.col_specs.iter())
             .map(|(raw_column_res, cass_metadata)| {
@@ -219,89 +332,6 @@ impl<'result> CassRow<'result> {
             columns,
             result_metadata,
         })
-    }
-}
-
-/// Module defining [`RowWithSelfBorrowedResultData`] struct.
-/// The purpose of this module is so the `query_result` module does not directly depend on `yoke`.
-mod row_with_self_borrowed_result_data {
-    use std::sync::Arc;
-
-    use yoke::{Yoke, Yokeable};
-
-    use crate::cass_error::CassErrorResult;
-    use crate::query_result::CassRawRow;
-
-    use super::{CassRow, CassRowsResultSharedData};
-
-    /// A simple wrapper over CassRow.
-    /// Needed, so we can implement Yokeable for it, instead of implementing it for CassRow.
-    #[derive(Debug, Yokeable)]
-    struct CassRowWrapper<'result>(CassRow<'result>);
-
-    /// A wrapper over struct which self-borrows the metadata allocated using Arc.
-    ///
-    /// It's needed to safely express the relationship between [`CassRowsResult`][super::CassRowsResult]
-    /// and its `first_row` field. The relationship is as follows:
-    /// 1. `CassRowsResult` owns `shared_data` field, which is an `Arc<CassRowsResultSharedData>`.
-    /// 2. `CassRowsResult` owns the row (`first_row`)
-    /// 3. `CassRow` borrows from `shared_data` (serialized values bytes and metadata).
-    ///
-    /// This struct is a shared owner of the row bytes and metadata, and self-borrows this data
-    /// to the `CassRow` it contains.
-    #[derive(Debug)]
-    pub(crate) struct RowWithSelfBorrowedResultData(
-        Yoke<CassRowWrapper<'static>, Arc<CassRowsResultSharedData>>,
-    );
-
-    impl RowWithSelfBorrowedResultData {
-        /// Constructs [`RowWithSelfBorrowedResultData`] based on the first row from `raw_rows_and_metadata`.
-        pub(super) fn first_from_raw_rows_and_metadata(
-            raw_rows_and_metadata: Arc<CassRowsResultSharedData>,
-        ) -> Result<Option<Self>, Arc<CassErrorResult>> {
-            enum AttachError {
-                CassErrorResult(Arc<CassErrorResult>),
-                NoRows,
-            }
-            impl From<CassErrorResult> for AttachError {
-                fn from(err: CassErrorResult) -> Self {
-                    AttachError::CassErrorResult(Arc::new(err))
-                }
-            }
-
-            let yoke_result = Yoke::try_attach_to_cart(
-                raw_rows_and_metadata,
-                |raw_rows_and_metadata_ref| -> Result<_, AttachError> {
-                    let CassRowsResultSharedData { raw_rows, metadata } = raw_rows_and_metadata_ref;
-
-                    let raw_row_result = raw_rows
-                        .rows_iter::<CassRawRow>()
-                        // unwrap: CassRawRow always passes the typecheck.
-                        .unwrap()
-                        .next()
-                        .ok_or(AttachError::NoRows)?;
-
-                    let row_result = raw_row_result
-                        .and_then(|raw_row| CassRow::from_raw_row_and_metadata(raw_row, metadata));
-
-                    let row = row_result
-                        .map_err(CassErrorResult::from)
-                        .map_err(AttachError::from)?;
-
-                    Ok(CassRowWrapper(row))
-                },
-            );
-
-            match yoke_result {
-                Ok(yoke) => Ok(Some(Self(yoke))),
-                Err(AttachError::NoRows) => Ok(None),
-                Err(AttachError::CassErrorResult(err)) => Err(err),
-            }
-        }
-
-        pub(super) fn row(&self) -> &CassRow<'_> {
-            &self.0.get().0
-        }
     }
 }
 
@@ -1124,13 +1154,12 @@ pub unsafe extern "C" fn cass_result_first_row(
         return RefFFI::null();
     };
 
-    let CassResultKind::Rows(CassRowsResult { first_row, .. }) = &result.kind else {
+    let CassResultKind::Rows(cass_rows_result) = &result.kind else {
         return RefFFI::null();
     };
 
-    first_row
-        .as_ref()
-        .map(RowWithSelfBorrowedResultData::row)
+    cass_rows_result
+        .first_row()
         .map(RefFFI::as_ptr)
         .unwrap_or(RefFFI::null())
 }
@@ -1189,7 +1218,6 @@ mod tests {
     };
     use std::{ffi::c_char, ptr::addr_of_mut, sync::Arc};
 
-    use super::row_with_self_borrowed_result_data::RowWithSelfBorrowedResultData;
     use super::{
         CassResult, CassResultKind, CassResultMetadata, CassRowsResult, CassRowsResultSharedData,
         cass_result_column_count, cass_result_column_type,
@@ -1202,7 +1230,7 @@ mod tests {
     const FIRST_COLUMN_NAME: &str = "bigint_col";
     const SECOND_COLUMN_NAME: &str = "varint_col";
     const THIRD_COLUMN_NAME: &str = "list_double_col";
-    fn create_cass_rows_result() -> CassResult {
+    fn create_cass_rows_result() -> Arc<CassResult> {
         let metadata = Arc::new(CassResultMetadata::from_column_specs(ColumnSpecs::new(&[
             col_spec(FIRST_COLUMN_NAME, ColumnType::Native(NativeType::BigInt)),
             col_spec(SECOND_COLUMN_NAME, ColumnType::Native(NativeType::Varint)),
@@ -1216,21 +1244,32 @@ mod tests {
         ])));
 
         let raw_rows = DeserializedMetadataAndRawRows::mock_empty();
-        let shared_data = Arc::new(CassRowsResultSharedData { raw_rows, metadata });
-        let first_row = RowWithSelfBorrowedResultData::first_from_raw_rows_and_metadata(
-            Arc::clone(&shared_data),
-        )
-        .unwrap();
+        let shared_data = CassRowsResultSharedData { raw_rows, metadata };
 
-        CassResult {
+        // Two-phase construction, same as from_result_payload.
+        let mut result_arc = Arc::new(CassResult {
             tracing_id: None,
             paging_state_response: PagingStateResponse::NoMorePages,
             kind: CassResultKind::Rows(CassRowsResult {
                 shared_data,
-                first_row,
+                first_row: None,
             }),
             coordinator: None,
+        });
+
+        {
+            let result_mut =
+                Arc::get_mut(&mut result_arc).expect("sole owner of freshly created Arc");
+            let CassResultKind::Rows(ref mut rows_result) = result_mut.kind else {
+                unreachable!("We just created this with Rows variant");
+            };
+            // SAFETY: shared_data is at its final address inside the Arc.
+            unsafe {
+                rows_result.init_first_row().unwrap();
+            }
         }
+
+        result_arc
     }
 
     unsafe fn cass_result_column_name_rust_str(
@@ -1253,7 +1292,7 @@ mod tests {
 
     #[test]
     fn rows_cass_result_api_test() {
-        let result = Arc::new(create_cass_rows_result());
+        let result = create_cass_rows_result();
 
         unsafe {
             let result_ptr = ArcFFI::as_ptr(&result);
