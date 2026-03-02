@@ -60,26 +60,65 @@
 extern "C" {
 #endif
 
+/**
+ * @ingroup BasicTypes
+ */
 typedef enum { cass_false = 0, cass_true = 1 } cass_bool_t;
 
+/**
+ * @ingroup BasicTypes
+ */
 typedef float cass_float_t;
+/**
+ * @ingroup BasicTypes
+ */
 typedef double cass_double_t;
 
+/**
+ * @ingroup BasicTypes
+ */
 typedef int8_t cass_int8_t;
+/**
+ * @ingroup BasicTypes
+ */
 typedef uint8_t cass_uint8_t;
 
+/**
+ * @ingroup BasicTypes
+ */
 typedef int16_t cass_int16_t;
+/**
+ * @ingroup BasicTypes
+ */
 typedef uint16_t cass_uint16_t;
 
+/**
+ * @ingroup BasicTypes
+ */
 typedef int32_t cass_int32_t;
+/**
+ * @ingroup BasicTypes
+ */
 typedef uint32_t cass_uint32_t;
 
+/**
+ * @ingroup BasicTypes
+ */
 typedef int64_t cass_int64_t;
+/**
+ * @ingroup BasicTypes
+ */
 typedef uint64_t cass_uint64_t;
 
 #define CASS_UINT64_MAX 18446744073709551615ULL
 
+/**
+ * @ingroup BasicTypes
+ */
 typedef cass_uint8_t cass_byte_t;
+/**
+ * @ingroup BasicTypes
+ */
 typedef cass_uint64_t cass_duration_t;
 
 /**
@@ -435,6 +474,9 @@ typedef struct CassSpeculativeExecutionMetrics_ {
   cass_double_t percentage; /**< Fraction of requests that are aborted speculative retries */
 } CassSpeculativeExecutionMetrics;
 
+/**
+ * @ingroup CassConsistency
+ */
 typedef enum CassConsistency_ {
   CASS_CONSISTENCY_UNKNOWN      = 0xFFFF,
   CASS_CONSISTENCY_ANY          = 0x0000,
@@ -468,6 +510,9 @@ typedef enum CassConsistency_ {
 #define CASS_CONSISTENCY_MAP CASS_CONSISTENCY_MAPPING /* Deprecated */
 /* @endcond */
 
+/**
+ * @ingroup CassError
+ */
 typedef enum CassWriteType_ {
   CASS_WRITE_TYPE_UNKNOWN,
   CASS_WRITE_TYPE_SIMPLE,
@@ -494,6 +539,9 @@ typedef enum CassWriteType_ {
 #define CASS_WRITE_TYPE_MAP CASS_WRITE_TYPE_MAPPING /* Deprecated */
 /* @endcond */
 
+/**
+ * @memberof CassColumnMeta
+ */
 typedef enum CassColumnType_ {
   CASS_COLUMN_TYPE_REGULAR,
   CASS_COLUMN_TYPE_PARTITION_KEY,
@@ -502,6 +550,9 @@ typedef enum CassColumnType_ {
   CASS_COLUMN_TYPE_COMPACT_VALUE
 } CassColumnType;
 
+/**
+ * @memberof CassIndexMeta
+ */
 typedef enum CassIndexType_ {
   CASS_INDEX_TYPE_UNKNOWN,
   CASS_INDEX_TYPE_KEYS,
@@ -538,6 +589,9 @@ typedef enum CassIndexType_ {
   XX(CASS_VALUE_TYPE_UDT,  0x0030, "", "") \
   XX(CASS_VALUE_TYPE_TUPLE,  0x0031, "tuple", "org.apache.cassandra.db.marshal.TupleType")
 
+/**
+ * @ingroup CassValueType
+ */
 typedef enum CassValueType_ {
   CASS_VALUE_TYPE_UNKNOWN = 0xFFFF,
 #define XX_VALUE_TYPE(name, type, cql, klass) name = type,
@@ -548,24 +602,36 @@ typedef enum CassValueType_ {
   /* @endcond */
 } CassValueType;
 
+/**
+ * @ingroup Miscellaneous
+ */
 typedef enum CassClusteringOrder_ {
   CASS_CLUSTERING_ORDER_NONE,
   CASS_CLUSTERING_ORDER_ASC,
   CASS_CLUSTERING_ORDER_DESC
 } CassClusteringOrder;
 
+/**
+ * @memberof CassCollection
+ */
 typedef enum CassCollectionType_ {
   CASS_COLLECTION_TYPE_LIST = CASS_VALUE_TYPE_LIST,
   CASS_COLLECTION_TYPE_MAP  = CASS_VALUE_TYPE_MAP,
   CASS_COLLECTION_TYPE_SET  = CASS_VALUE_TYPE_SET
 } CassCollectionType;
 
+/**
+ * @memberof CassBatch
+ */
 typedef enum CassBatchType_ {
   CASS_BATCH_TYPE_LOGGED   = 0x00,
   CASS_BATCH_TYPE_UNLOGGED = 0x01,
   CASS_BATCH_TYPE_COUNTER  = 0x02
 } CassBatchType;
 
+/**
+ * @memberof CassIterator
+ */
 typedef enum CassIteratorType_ {
   CASS_ITERATOR_TYPE_RESULT,
   CASS_ITERATOR_TYPE_ROW,
@@ -597,6 +663,9 @@ typedef enum CassIteratorType_ {
 #define CASS_LOG_LEVEL_MAP CASS_LOG_LEVEL_MAPPING /* Deprecated */
 /* @endcond */
 
+/**
+ * @ingroup Logging
+ */
 typedef enum CassLogLevel_ {
 #define XX_LOG(log_level, _) log_level,
   CASS_LOG_LEVEL_MAPPING(XX_LOG)
@@ -606,6 +675,9 @@ typedef enum CassLogLevel_ {
   /* @endcond */
 } CassLogLevel;
 
+/**
+ * @memberof CassSsl
+ */
 typedef enum CassSslVerifyFlags_ {
   CASS_SSL_VERIFY_NONE              = 0x00,
   CASS_SSL_VERIFY_PEER_CERT         = 0x01,
@@ -613,6 +685,9 @@ typedef enum CassSslVerifyFlags_ {
   CASS_SSL_VERIFY_PEER_IDENTITY_DNS = 0x04
 } CassSslVerifyFlags;
 
+/**
+ * @ingroup Miscellaneous
+ */
 typedef enum CassProtocolVersion_ {
   CASS_PROTOCOL_VERSION_V1    = 0x01, /**< Deprecated */
   CASS_PROTOCOL_VERSION_V2    = 0x02, /**< Deprecated */
@@ -625,6 +700,9 @@ typedef enum CassProtocolVersion_ {
                                            driver with DataStax Enterprise */
 } CassProtocolVersion;
 
+/**
+ * @ingroup CassError
+ */
 typedef enum  CassErrorSource_ {
   CASS_ERROR_SOURCE_NONE,
   CASS_ERROR_SOURCE_LIB,
@@ -701,6 +779,9 @@ typedef enum  CassErrorSource_ {
 
 #define CASS_ERROR(source, code) ((source << 24) | code)
 
+/**
+ * @ingroup CassError
+ */
 typedef enum CassError_ {
   CASS_OK = 0,
 #define XX_ERROR(source, name, code, _) name = CASS_ERROR(source, code),
@@ -714,7 +795,9 @@ typedef enum CassError_ {
 /**
  * A callback that's notified when the future is set.
  *
- * @param[in] message
+ * @memberof CassFuture
+ *
+ * @param[in] future
  * @param[in] data user defined data provided when the callback
  * was registered.
  *
@@ -730,6 +813,8 @@ typedef void (*CassFutureCallback)(CassFuture* future,
 
 /**
  * A log message.
+ *
+ * @ingroup Logging
  */
 typedef struct CassLogMessage_ {
   /**
@@ -746,6 +831,8 @@ typedef struct CassLogMessage_ {
 /**
  * A callback that's used to handle logging.
  *
+ * @ingroup Logging
+ *
  * @param[in] message
  * @param[in] data user defined data provided when the callback
  * was registered.
@@ -759,6 +846,8 @@ typedef void (*CassLogCallback)(const CassLogMessage* message,
  * A custom malloc function. This function should allocate "size" bytes and
  * return a pointer to that memory
  *
+ * @ingroup CustomAllocator
+ *
  * @param[in] size The size of the memory to allocate
  *
  * @see CassFreeFunction
@@ -770,6 +859,8 @@ typedef void* (*CassMallocFunction)(size_t size);
  * A custom realloc function. This function attempts to change the size of the
  * memory pointed to by "ptr". If the memory cannot be resized then new memory
  * should be allocated and contain the contents of the original memory at "ptr".
+ *
+ * @ingroup CustomAllocator
  *
  * @param[in] ptr A pointer to the original memory. If NULL it should behave the
  * same as "CassMallocFunction"
@@ -785,6 +876,8 @@ typedef void* (*CassReallocFunction)(void* ptr, size_t size);
  * A custom free function. This function deallocates the memory pointed to by
  * "ptr" that was previously allocated by a "CassMallocFunction" or
  * "CassReallocFunction" function.
+ *
+ * @ingroup CustomAllocator
  *
  * @param[in] ptr A pointer to memory that should be deallocated. If NULL then
  * this will perform no operation.
@@ -805,6 +898,8 @@ typedef struct CassAuthenticator_ CassAuthenticator;
 /**
  * A callback used to initiate an authentication exchange.
  *
+ * @memberof CassAuthenticatorCallbacks
+ *
  * Use cass_authenticator_set_response() to set the response token.
  *
  * Use cass_authenticator_set_error() if an error occurred during
@@ -819,6 +914,8 @@ typedef void (*CassAuthenticatorInitialCallback)(CassAuthenticator* auth,
 /**
  * A callback used when an authentication challenge initiated
  * by the server.
+ *
+ * @memberof CassAuthenticatorCallbacks
  *
  * Use cass_authenticator_set_response() to set the response token.
  *
@@ -838,6 +935,8 @@ typedef void (*CassAuthenticatorChallengeCallback)(CassAuthenticator* auth,
  * A callback used to indicate the success of the authentication
  * exchange.
  *
+ * @memberof CassAuthenticatorCallbacks
+ *
  * Use cass_authenticator_set_error() if an error occurred while evaluating
  * the success token.
  *
@@ -855,6 +954,8 @@ typedef void (*CassAuthenticatorSuccessCallback)(CassAuthenticator* auth,
  * the process of the authentication exchange. This is called after
  * the termination of the exchange regardless of the outcome.
  *
+ * @memberof CassAuthenticatorCallbacks
+ *
  * @param[in] auth
  * @param[in] data
  */
@@ -863,6 +964,8 @@ typedef void (*CassAuthenticatorCleanupCallback)(CassAuthenticator* auth,
 
 /**
  * A callback used to cleanup resources.
+ *
+ * @memberof CassAuthenticatorCallbacks
  *
  * @param[in] data
  */
@@ -878,6 +981,9 @@ typedef struct CassAuthenticatorCallbacks_ {
   CassAuthenticatorCleanupCallback cleanup_callback;
 } CassAuthenticatorCallbacks;
 
+/**
+ * @ingroup Miscellaneous
+ */
 typedef enum CassHostListenerEvent_ {
   CASS_HOST_LISTENER_EVENT_UP,
   CASS_HOST_LISTENER_EVENT_DOWN,
@@ -888,6 +994,8 @@ typedef enum CassHostListenerEvent_ {
 /**
  * A callback used to indicate the host state for a node in the cluster.
  *
+ * @ingroup Miscellaneous
+ *
  * @param[in] event
  * @param[in] address
  * @param[in] data
@@ -897,11 +1005,56 @@ typedef void(*CassHostListenerCallback)(CassHostListenerEvent event,
                                         const CassInet address,
                                         void* data);
 
+/**
+ * @ingroup Miscellaneous
+ */
 typedef enum CassCompressionType_ {
   CASS_COMPRESSION_LZ4,
   CASS_COMPRESSION_SNAPPY,
   CASS_COMPRESSION_NONE
 } CassCompressionType;
+
+/**
+ * @defgroup BasicTypes Basic types
+ *
+ * Primitive type aliases used throughout the driver API.
+ */
+
+/**
+ * @defgroup Logging Logging
+ *
+ * Functions for configuring logging in the driver.
+ */
+
+/**
+ * @defgroup CassError CassError
+ *
+ * Error codes and related types.
+ */
+
+/**
+ * @defgroup CassConsistency CassConsistency
+ *
+ * Consistency levels for queries.
+ */
+
+/**
+ * @defgroup CassValueType CassValueType
+ *
+ * Data type representations for values.
+ */
+
+/**
+ * @defgroup CustomAllocator Custom allocator
+ *
+ * Custom memory allocation functions.
+ */
+
+/**
+ * @defgroup Miscellaneous Miscellaneous
+ *
+ * Utility and miscellaneous functions.
+ */
 
 /***********************************************************************************
  *
@@ -1102,6 +1255,8 @@ cass_execution_profile_set_load_balance_rack_aware(CassExecProfile* profile,
  * @param[in] profile
  * @param[in] local_dc
  * @param[in] local_dc_length
+ * @param[in] local_rack
+ * @param[in] local_rack_length
  * @return same cass_execution_profile_set_load_balance_rack_aware()
  *
  * @see cass_execution_profile_set_load_balance_rack_aware()
@@ -1987,7 +2142,6 @@ cass_cluster_set_credentials(CassCluster* cluster,
  * @param[in] username_length
  * @param[in] password
  * @param[in] password_length
- * @return same as cass_cluster_set_credentials()
  *
  * @see cass_cluster_set_credentials();
  */
@@ -2094,6 +2248,8 @@ cass_cluster_set_load_balance_rack_aware(CassCluster* cluster,
  * @param[in] cluster
  * @param[in] local_dc
  * @param[in] local_dc_length
+ * @param[in] local_rack
+ * @param[in] local_rack_length
  * @return same as cass_cluster_set_load_balance_dc_aware()
  *
  * @see cass_cluster_set_load_balance_dc_aware()
@@ -2234,7 +2390,6 @@ cass_cluster_set_whitelist_filtering(CassCluster* cluster,
  * @param[in] cluster
  * @param[in] hosts
  * @param[in] hosts_length
- * @return same as cass_cluster_set_whitelist_filtering()
  *
  * @see cass_cluster_set_whitelist_filtering()
  */
@@ -2276,7 +2431,6 @@ cass_cluster_set_blacklist_filtering(CassCluster* cluster,
  * @param[in] cluster
  * @param[in] hosts
  * @param[in] hosts_length
- * @return same as cass_cluster_set_blacklist_filtering()
  *
  * @see cass_cluster_set_blacklist_filtering()
  */
@@ -2310,7 +2464,6 @@ cass_cluster_set_whitelist_dc_filtering(CassCluster* cluster,
  * @param[in] cluster
  * @param[in] dcs
  * @param[in] dcs_length
- * @return same as cass_cluster_set_whitelist_dc_filtering()
  *
  * @see cass_cluster_set_whitelist_dc_filtering()
  */
@@ -2344,7 +2497,6 @@ cass_cluster_set_blacklist_dc_filtering(CassCluster* cluster,
  * @param[in] cluster
  * @param[in] dcs
  * @param[in] dcs_length
- * @return same as cass_cluster_set_blacklist_dc_filtering()
  *
  * @see cass_cluster_set_blacklist_dc_filtering()
  */
@@ -4163,7 +4315,6 @@ cass_ssl_add_trusted_cert_n(CassSsl* ssl,
  *
  * @param[in] ssl
  * @param[in] flags
- * @return CASS_OK if successful, otherwise an error occurred
  *
  * @see cass_cluster_set_use_hostname_resolution()
  */
@@ -6221,7 +6372,7 @@ cass_batch_set_custom_payload(CassBatch* batch,
 /**
  * Sets whether the batch should use tracing.
  *
- * @public @memberof CassStatement
+ * @public @memberof CassBatch
  *
  * @param[in] batch
  * @param[in] enabled
@@ -6350,6 +6501,8 @@ cass_data_type_free(CassDataType* data_type);
 /**
  * Gets the value type of the specified data type.
  *
+ * @public @memberof CassDataType
+ *
  * @param[in] data_type
  * @return The value type
  */
@@ -6358,6 +6511,8 @@ cass_data_type_type(const CassDataType* data_type);
 
 /**
  * Gets whether a data type is frozen.
+ *
+ * @public @memberof CassDataType
  *
  * @param[in] data_type
  * @return cass_true if the data type is frozen, otherwise cass_false.
@@ -6369,6 +6524,8 @@ cass_data_type_is_frozen(const CassDataType* data_type);
  * Gets the type name of a UDT data type.
  *
  * <b>Note:</b> Only valid for UDT data types.
+ *
+ * @public @memberof CassDataType
  *
  * @param[in] data_type
  * @param[out] type_name
@@ -6384,6 +6541,8 @@ cass_data_type_type_name(const CassDataType* data_type,
  * Sets the type name of a UDT data type.
  *
  * <b>Note:</b> Only valid for UDT data types.
+ *
+ * @public @memberof CassDataType
  *
  * @param[in] data_type
  * @param[in] type_name
@@ -6414,6 +6573,8 @@ cass_data_type_set_type_name_n(CassDataType* data_type,
  *
  * <b>Note:</b> Only valid for UDT data types.
  *
+ * @public @memberof CassDataType
+ *
  * @param[in] data_type
  * @param[out] keyspace
  * @param[out] keyspace_length
@@ -6428,6 +6589,8 @@ cass_data_type_keyspace(const CassDataType* data_type,
  * Sets the keyspace of a UDT data type.
  *
  * <b>Note:</b> Only valid for UDT data types.
+ *
+ * @public @memberof CassDataType
  *
  * @param[in] data_type
  * @param[in] keyspace
@@ -6458,6 +6621,8 @@ cass_data_type_set_keyspace_n(CassDataType* data_type,
  *
  * <b>Note:</b> Only valid for custom data types.
  *
+ * @public @memberof CassDataType
+ *
  * @param[in] data_type
  * @param[out] class_name
  * @param[out] class_name_length
@@ -6472,6 +6637,8 @@ cass_data_type_class_name(const CassDataType* data_type,
  * Sets the class name of a custom data type.
  *
  * <b>Note:</b> Only valid for custom data types.
+ *
+ * @public @memberof CassDataType
  *
  * @param[in] data_type
  * @param[in] class_name
@@ -6503,6 +6670,8 @@ cass_data_type_set_class_name_n(CassDataType* data_type,
  *
  * <b>Note:</b> Only valid for UDT, tuple and collection data types.
  *
+ * @public @memberof CassDataType
+ *
  * @param[in] data_type
  * @return Returns the number of sub-data types
  */
@@ -6516,20 +6685,12 @@ CASS_EXPORT CASS_DEPRECATED(size_t
 cass_data_sub_type_count(const CassDataType* data_type));
 
 /**
- * Gets the sub-data type count of a UDT (user defined type), tuple
- * or collection.
- *
- * <b>Note:</b> Only valid for UDT, tuple and collection data types.
- *
- * @param[in] data_type
- * @return Returns the number of sub-data types
- */
-
-/**
  * Gets the sub-data type of a UDT (user defined type), tuple or collection at
  * the specified index.
  *
  * <b>Note:</b> Only valid for UDT, tuple and collection data types.
+ *
+ * @public @memberof CassDataType
  *
  * @param[in] data_type
  * @param[in] index
@@ -6545,6 +6706,8 @@ cass_data_type_sub_data_type(const CassDataType* data_type,
  * Gets the sub-data type of a UDT (user defined type) at the specified index.
  *
  * <b>Note:</b> Only valid for UDT data types.
+ *
+ * @public @memberof CassDataType
  *
  * @param[in] data_type
  * @param[in] name
@@ -6579,6 +6742,8 @@ cass_data_type_sub_data_type_by_name_n(const CassDataType* data_type,
  *
  * <b>Note:</b> Only valid for UDT data types.
  *
+ * @public @memberof CassDataType
+ *
  * @param[in] data_type
  * @param[in] index
  * @param[out] name
@@ -6596,6 +6761,8 @@ cass_data_type_sub_type_name(const CassDataType* data_type,
  *
  * <b>Note:</b> Only valid for tuple and collection data types.
  *
+ * @public @memberof CassDataType
+ *
  * @param[in] data_type
  * @param[in] sub_data_type
  * @return CASS_OK if successful, otherwise an error occurred.
@@ -6608,6 +6775,8 @@ cass_data_type_add_sub_type(CassDataType* data_type,
  * Adds a sub-data type to a UDT (user defined type).
  *
  * <b>Note:</b> Only valid for UDT data types.
+ *
+ * @public @memberof CassDataType
  *
  * @param[in] data_type
  * @param[in] name
@@ -6624,6 +6793,8 @@ cass_data_type_add_sub_type_by_name(CassDataType* data_type,
  * parameters.
  *
  * <b>Note:</b> Only valid for UDT data types.
+ *
+ * @public @memberof CassDataType
  *
  * @param[in] data_type
  * @param[in] name
@@ -6642,6 +6813,8 @@ cass_data_type_add_sub_type_by_name_n(CassDataType* data_type,
  *
  * <b>Note:</b> Only valid for tuple and collection data types.
  *
+ * @public @memberof CassDataType
+ *
  * @param[in] data_type
  * @param[in] sub_value_type
  * @return CASS_OK if successful, otherwise an error occurred.
@@ -6655,6 +6828,8 @@ cass_data_type_add_sub_value_type(CassDataType* data_type,
  * Adds a sub-data type to a UDT (user defined type) using a value type.
  *
  * <b>Note:</b> Only valid for UDT data types.
+ *
+ * @public @memberof CassDataType
  *
  * @param[in] data_type
  * @param[in] name
@@ -6671,6 +6846,8 @@ cass_data_type_add_sub_value_type_by_name(CassDataType* data_type,
  * parameters.
  *
  * <b>Note:</b> Only valid for UDT data types.
+ *
+ * @public @memberof CassDataType
  *
  * @param[in] data_type
  * @param[in] name
@@ -6732,6 +6909,8 @@ cass_collection_free(CassCollection* collection);
 
 /**
  * Gets the data type of a collection.
+ *
+ * @public @memberof CassCollection
  *
  * @param[in] collection
  * @return Returns a reference to the data type of the collection. Do not free
@@ -7041,6 +7220,8 @@ cass_tuple_free(CassTuple* tuple);
 
 /**
  * Gets the data type of a tuple.
+ *
+ * @public @memberof CassTuple
  *
  * @param[in] tuple
  * @return Returns a reference to the data type of the tuple. Do not free
@@ -7384,6 +7565,8 @@ cass_user_type_free(CassUserType* user_type);
 
 /**
  * Gets the data type of a user defined type.
+ *
+ * @public @memberof CassUserType
  *
  * @param[in] user_type
  * @return Returns a reference to the data type of the user defined type.
@@ -9805,6 +9988,8 @@ cass_timestamp_gen_monotonic_new();
  * Same as cass_timestamp_gen_monotonic_new(), but with settings for controlling
  * warnings about clock skew.
  *
+ * @public @memberof CassTimestampGen
+ *
  * @param warning_threshold_us The amount of clock skew, in microseconds, that
  * must be detected before a warning is triggered. A threshold less than 0 can
  * be used to disable warnings.
@@ -10050,6 +10235,8 @@ cass_custom_payload_remove_n(CassCustomPayload* payload,
 /**
  * Gets the string for a consistency.
  *
+ * @ingroup CassConsistency
+ *
  * @param[in] consistency
  * @return A null-terminated string for the consistency.
  * Example: "ALL", "ONE", "QUORUM", etc.
@@ -10064,6 +10251,8 @@ cass_consistency_string(CassConsistency consistency);
  ***********************************************************************************/
 /**
  * Gets the string for a write type.
+ *
+ * @ingroup CassError
  *
  * @param[in] write_type
  * @return A null-terminated string for the write type.
@@ -10081,6 +10270,8 @@ cass_write_type_string(CassWriteType write_type);
 /**
  * Gets a description for an error code.
  *
+ * @ingroup CassError
+ *
  * @param[in] error
  * @return A null-terminated string describing the error.
  */
@@ -10096,6 +10287,8 @@ cass_error_desc(CassError error);
 /**
  * Sets the log level.
  *
+ * @ingroup Logging
+ *
  * <b>Note:</b> This needs to be done before any call that might log, such as
  * any of the cass_cluster_*() or cass_ssl_*() functions.
  *
@@ -10108,6 +10301,8 @@ cass_log_set_level(CassLogLevel log_level);
 
 /**
  * Sets a callback for handling logging events.
+ *
+ * @ingroup Logging
  *
  * <b>Note:</b> This needs to be done before any call that might log, such as
  * any of the cass_cluster_*() or cass_ssl_*() functions.
@@ -10125,6 +10320,8 @@ cass_log_set_callback(CassLogCallback callback,
 /**
  * Analogous getter - useful for restoring logger to previous values.
  *
+ * @ingroup Logging
+ *
  * @param[out] callback_out Current logging callback. Must point to a valid memory area.
  * @param[out] data_out Current Logger instance. Must point to a valid memory area.
  */
@@ -10133,6 +10330,8 @@ cass_log_get_callback_and_data(CassLogCallback* callback_out, void** data_out);
 
 /**
  * Gets the string for a log level.
+ *
+ * @ingroup Logging
  *
  * @param[in] log_level
  * @return A null-terminated string for the log level.
@@ -10224,6 +10423,8 @@ cass_inet_from_string_n(const char* str,
  * represents the number of days since the Epoch (1970-01-01) with the Epoch centered at
  * the value 2^31.
  *
+ * @ingroup Miscellaneous
+ *
  * @param[in] epoch_secs
  * @return the number of days since the date -5877641-06-23
  */
@@ -10234,6 +10435,8 @@ cass_date_from_epoch(cass_int64_t epoch_secs);
  * Converts a unix timestamp (in seconds) to the Cassandra "time" type. The "time" type
  * represents the number of nanoseconds since midnight (range 0 to 86399999999999).
  *
+ * @ingroup Miscellaneous
+ *
  * @param[in] epoch_secs
  * @return nanoseconds since midnight
  */
@@ -10242,6 +10445,8 @@ cass_time_from_epoch(cass_int64_t epoch_secs);
 
 /**
  * Combines the Cassandra "date" and "time" types to Epoch time in seconds.
+ *
+ * @ingroup Miscellaneous
  *
  * @param[in] date
  * @param[in] time
@@ -10260,6 +10465,8 @@ cass_date_time_to_epoch(cass_uint32_t date,
 
 /**
  * Set custom allocation functions.
+ *
+ * @ingroup CustomAllocator
  *
  * <b>Warning:</b> This function is not yet implemented.
  *
