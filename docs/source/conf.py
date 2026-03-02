@@ -3,6 +3,7 @@ import os
 import re
 import sys
 import warnings
+import xml.etree.ElementTree as ET
 from datetime import date
 
 from sphinx_scylladb_theme.utils import multiversion_regex_builder
@@ -125,10 +126,29 @@ def _generate_structs(outdir, structs, project):
             )
 
 
+def _generate_groups(outdir, groups, project):
+    """Write structs docs in the designated outdir folder"""
+    for obj in groups:
+        with open(outdir / f"group.{obj}.rst", "w") as t_file:
+            t_file.write(
+                obj
+                + "\n"
+                + "=" * len(obj)
+                + "\n\n"
+                + ".. doxygengroup:: "
+                + obj
+                + "\n  :project: "
+                + breathe_default_project
+                + "\n  :content-only:"
+            )
+
+
 def _generate_doxygen_rst(xmldir, outdir):
     """Autogenerate doxygen docs in the designated outdir folder"""
     structs = []
-    files = os.listdir(os.path.join(os.path.dirname(__file__), xmldir))
+    groups = []
+    xml_path = os.path.join(os.path.dirname(__file__), xmldir)
+    files = os.listdir(xml_path)
     for file_name in files:
         if "struct" in file_name and "__" not in file_name:
             structs.append(
@@ -138,7 +158,15 @@ def _generate_doxygen_rst(xmldir, outdir):
                 .title()
                 .replace(" ", "")
             )
+        elif file_name.startswith("group__") and file_name.endswith(".xml"):
+            tree = ET.parse(os.path.join(xml_path, file_name))
+            root = tree.getroot()
+            compoundname = root.find(".//compoundname")
+            if compoundname is not None and compoundname.text:
+                group_name = compoundname.text
+                groups.append(group_name)
     _generate_structs(outdir, structs, breathe_default_project)
+    _generate_groups(outdir, groups, breathe_default_project)
 
 
 def generate_doxygen(app):
