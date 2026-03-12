@@ -99,6 +99,7 @@ smv_released_pattern = r"^tags/.*$"
 smv_outputdir_format = "{ref.name}"
 # -- Options for HTML output ----------------------------------------
 
+html_static_path = ["_static"]
 
 # -- Options for Doxygen (API Reference)
 breathe_projects = {"API": "../../doxygen/xml/"}
@@ -228,6 +229,8 @@ def setup(sphinx):
         category=UserWarning,
         message=r".*Container node skipped.*",
     )
+
+    sphinx.add_css_file("custom.css")
 
     # Autogenerate API Reference
     sphinx.connect("builder-inited", generate_doxygen)

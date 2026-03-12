@@ -1,0 +1,7 @@
+/* Fix missing spaces in C/C++ API signatures.
+   The theme hides <span class="w"> whitespace elements, collapsing
+   spaces between types, pointers, and parameter names. */
+.sig.sig-object.c .w,
+.sig.sig-object.cpp .w {
+    display: inline !important;
+}
