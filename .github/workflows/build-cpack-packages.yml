@@ -79,21 +79,14 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
 
       - name: Build and test RPM packages
-        run: |
-          source "$HOME/.cargo/env"
-          make test-package-rpm-native SCYLLA_HOST=scylla SKIP_DOCKER_COMPOSE=1
+        run: make test-package-rpm-native SCYLLA_HOST=scylla SKIP_DOCKER_COMPOSE=1
 
       - name: Collect artifacts
         if: inputs.save-artifacts
-        run: |
-          source "$HOME/.cargo/env"
-          make collect-package-artifacts
+        run: make collect-package-artifacts
 
       - uses: actions/upload-artifact@v4
         if: inputs.save-artifacts
@@ -108,10 +101,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
 
       - name: Install GNU make
         run: brew install make
