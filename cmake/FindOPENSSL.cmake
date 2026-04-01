@@ -386,23 +386,23 @@ set(OPENSSL_LIBRARIES ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} )
 
 if (OPENSSL_VERSION)
   if(CMAKE_VERSION VERSION_LESS "2.8.0")
-    find_package_handle_standard_args(OpenSSL
+    find_package_handle_standard_args(OPENSSL
         REQUIRED_VARS
         OPENSSL_FOUND
         OPENSSL_LIBRARIES
         OPENSSL_INCLUDE_DIR
         )
     if(OPENSSL_FOUND)
-      set(openssl_name "OpenSSL")
+      set(OPENSSL_NAME "OpenSSL")
       if(LIBRESSL_FOUND)
-        set(openssl_name "LibreSSL")
+        set(OPENSSL_NAME "LibreSSL")
       endif()
-      message(STATUS "Found ${openssl_name}: ${OPENSSL_LIBRARIES} (found version ${OPENSSL_VERSION})")
+      message(STATUS "Found ${OPENSSL_NAME}: ${OPENSSL_LIBRARIES} (found version ${OPENSSL_VERSION})")
     else()
       message(FATAL_ERROR "Could NOT find OpenSSL, try to set the path to OpenSSL root folder in the system variable OPENSSL_ROOT_DIR")
     endif()
   else()
-    find_package_handle_standard_args(OpenSSL
+    find_package_handle_standard_args(OPENSSL
       REQUIRED_VARS
         OPENSSL_SSL_LIBRARY
         OPENSSL_CRYPTO_LIBRARY
@@ -414,7 +414,7 @@ if (OPENSSL_VERSION)
     )
   endif()
 else ()
-  find_package_handle_standard_args(OpenSSL "Could NOT find OpenSSL, try to set the path to OpenSSL root folder in the system variable OPENSSL_ROOT_DIR"
+  find_package_handle_standard_args(OPENSSL "Could NOT find OpenSSL, try to set the path to OpenSSL root folder in the system variable OPENSSL_ROOT_DIR"
     OPENSSL_SSL_LIBRARY
     OPENSSL_CRYPTO_LIBRARY
     OPENSSL_INCLUDE_DIR
