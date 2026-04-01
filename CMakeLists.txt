@@ -11,7 +11,25 @@ list(APPEND CMAKE_MODULE_PATH ${CASS_ROOT_DIR}/cmake)
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-enable_language(Rust)
+# Locate the Rust toolchain (cargo, rustc, etc.) and make it available for
+# the Cargo-based build in CMakeCargo.cmake.
+#
+# Older CMake versions (< 4.0) do not recognise Rust as a built-in language,
+# so enable_language(Rust) simply loads our custom cmake/ modules -- no
+# special flags are needed.
+#
+# CMake 4.0+ ships experimental built-in Rust support behind a feature gate
+# (CMAKE_EXPERIMENTAL_RUST) whose UUID changes with every release.  Rather
+# than chasing per-version UUIDs we skip enable_language(Rust) on those
+# builds and call the custom modules directly -- the result is identical
+# because the project never uses CMake's native Rust compilation rules;
+# all real Rust compilation is driven by Cargo through CMakeCargo.cmake.
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0")
+  find_package(Rust REQUIRED)
+  include(CMakeRustInformation)
+else()
+  enable_language(Rust)
+endif()
 include(CMakeCargo)
 
 #---------------
