@@ -86,7 +86,7 @@ if(CASS_USE_OPENSSL)
   if(WIN32 AND OPENSSL_VERSION) # Store the current version of OpenSSL to prevent corruption
     set(SAVED_OPENSSL_VERSION ${OPENSSL_VERSION})
   endif()
-  find_package(OpenSSL)
+  find_package(OPENSSL)
   if(WIN32 AND NOT OPENSSL_FOUND)
     message(STATUS "Unable to Locate OpenSSL: Third party build step will be performed")
     if(SAVED_OPENSSL_VERSION)
