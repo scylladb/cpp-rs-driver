@@ -309,7 +309,7 @@ ifeq ($(OS_TYPE),windows)
 			if ($$opensslSslLibPath -and $$opensslCryptoLibPath) { \
 				$$opensslSslLibName = [System.IO.Path]::GetFileNameWithoutExtension($$opensslSslLibPath); \
 				$$opensslCryptoLibName = [System.IO.Path]::GetFileNameWithoutExtension($$opensslCryptoLibPath); \
-				$$env:OPENSSL_LIBS = \"$$opensslSslLibName`:`$$opensslCryptoLibName\"; \
+				$$env:OPENSSL_LIBS = [string]::Join(':', @($$opensslSslLibName, $$opensslCryptoLibName)); \
 			} \
 		}; \
 		cmake --build build-static --config Release; \
@@ -430,7 +430,7 @@ ifeq ($(OS_TYPE),windows)
 			if ($$opensslSslLibPath -and $$opensslCryptoLibPath) { \
 				$$opensslSslLibName = [System.IO.Path]::GetFileNameWithoutExtension($$opensslSslLibPath); \
 				$$opensslCryptoLibName = [System.IO.Path]::GetFileNameWithoutExtension($$opensslCryptoLibPath); \
-				$$env:OPENSSL_LIBS = \"$$opensslSslLibName`:`$$opensslCryptoLibName\"; \
+				$$env:OPENSSL_LIBS = [string]::Join(':', @($$opensslSslLibName, $$opensslCryptoLibName)); \
 			} \
 		}; \
 		cmake --build build --config $(CMAKE_BUILD_TYPE); \
