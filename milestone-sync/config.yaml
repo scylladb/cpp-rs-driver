@@ -1,0 +1,7 @@
+# Milestone-sync config for scylladb/cpp-rs-driver.
+Project: "DRIVER"
+Issue Type: "Epic"
+Summary Prefix: "cpp-rs-driver:"
+Scylla Components: "Driver - cpp-rs-driver"
+Assignee: "Wojciech Przytuła"
+Team: "Drivers Team"
