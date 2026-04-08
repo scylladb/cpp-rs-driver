@@ -67,6 +67,11 @@ endif()
 #------------------------
 
 if(CASS_USE_OPENSSL)
+  set(SCYLLA_OPENSSL_EXTERNAL_PROJECT OFF CACHE BOOL
+    "Whether Scylla builds OpenSSL via ExternalProject" FORCE)
+  set(SCYLLA_OPENSSL_EXTERNAL_TARGET "" CACHE STRING
+    "Name of the ExternalProject target that builds OpenSSL" FORCE)
+
   if(NOT WIN32)
     set(_OPENSSL_ROOT_PATHS "${PROJECT_SOURCE_DIR}/lib/openssl/")
     set(_OPENSSL_ROOT_HINTS ${OPENSSL_ROOT_DIR} $ENV{OPENSSL_ROOT_DIR})
@@ -148,4 +153,3 @@ if(CASS_USE_BOOST_ATOMIC)
     add_definitions(-Wno-missing-field-initializers)
   endif()
 endif()
-

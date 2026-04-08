@@ -193,10 +193,11 @@ endif
 FULL_RUSTFLAGS := --cfg scylla_unstable --cfg cpp_integration_testing
 
 CURRENT_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
-BUILD_DIR := "${CURRENT_DIR}build"
+BUILD_DIR := $(CURRENT_DIR)build
 INTEGRATION_TEST_BIN := ${BUILD_DIR}/cassandra-integration-tests
 CMAKE_FLAGS ?=
 CMAKE_BUILD_TYPE ?= Release
+OPENSSL_WIN_VERSION ?= 1.1.1u
 
 ifeq ($(OS_TYPE),macos)
   CMAKE_INSTALL_PREFIX ?= /usr/local
@@ -213,7 +214,7 @@ else
 endif
 
 clean:
-	rm -rf "${BUILD_DIR}"
+	rm -rf "${BUILD_DIR}" "${STATIC_BUILD_DIR}"
 
 update-apt-cache-if-needed:
 	@# It searches for a file that is at most one day old.
@@ -273,6 +274,55 @@ build-integration-test-bin-if-missing:
 	@mkdir "${BUILD_DIR}" >/dev/null 2>&1 || true
 	@cd "${BUILD_DIR}"
 	cmake -DCASS_BUILD_INTEGRATION_TESTS=ON -DCMAKE_BUILD_TYPE=Release .. && (make -j 4 || make)
+
+STATIC_BUILD_DIR := $(CURRENT_DIR)build-static
+
+build-static-integration-test-bin:
+ifeq ($(OS_TYPE),windows)
+	$(MAKE) .package-build-prepare-windows
+	cmake -S . -B build-static -G "Visual Studio 17 2022" -A x64 -DCASS_BUILD_INTEGRATION_TESTS=ON -DCASS_USE_STATIC_LIBS=ON -DCMAKE_BUILD_TYPE=Release -DOPENSSL_VERSION=$(OPENSSL_WIN_VERSION)
+	@pwsh -NoProfile -Command "\
+		$$useExternalOpenSSL = ((Select-String -Path 'build-static\\CMakeCache.txt' -Pattern '^SCYLLA_OPENSSL_EXTERNAL_PROJECT:BOOL=' -ErrorAction SilentlyContinue | Select-Object -First 1).Line -split '=', 2)[1]; \
+		$$externalOpenSSLTarget = ((Select-String -Path 'build-static\\CMakeCache.txt' -Pattern '^SCYLLA_OPENSSL_EXTERNAL_TARGET:STRING=' -ErrorAction SilentlyContinue | Select-Object -First 1).Line -split '=', 2)[1]; \
+		if ($$useExternalOpenSSL -eq 'ON' -and $$externalOpenSSLTarget) { \
+			cmake --build build-static --config Release --target $$externalOpenSSLTarget; \
+			if ($$LASTEXITCODE -ne 0) { exit $$LASTEXITCODE } \
+		}; \
+		$$opensslIncDir = ((Select-String -Path 'build-static\\CMakeCache.txt' -Pattern '^OPENSSL_INCLUDE_DIR:PATH=' | Select-Object -First 1).Line -split '=', 2)[1]; \
+		$$opensslSslLibPath = ((Select-String -Path 'build-static\\CMakeCache.txt' -Pattern '^OPENSSL_SSL_LIBRARY(_RELEASE)?:FILEPATH=' -ErrorAction SilentlyContinue | Select-Object -First 1).Line -split '=', 2)[1]; \
+		$$opensslCryptoLibPath = ((Select-String -Path 'build-static\\CMakeCache.txt' -Pattern '^OPENSSL_CRYPTO_LIBRARY(_RELEASE)?:FILEPATH=' -ErrorAction SilentlyContinue | Select-Object -First 1).Line -split '=', 2)[1]; \
+		if ($$opensslIncDir) { \
+			$$env:OPENSSL_DIR = (Split-Path $$opensslIncDir -Parent); \
+			$$env:OPENSSL_INCLUDE_DIR = $$opensslIncDir; \
+			if (-not $$opensslSslLibPath) { \
+				$$opensslSslLibPath = (Get-ChildItem -Path $$env:OPENSSL_DIR -Recurse -Include 'libssl*.lib','ssleay32*.lib' -File -ErrorAction SilentlyContinue | Select-Object -First 1).FullName; \
+			} \
+			if (-not $$opensslCryptoLibPath) { \
+				$$opensslCryptoLibPath = (Get-ChildItem -Path $$env:OPENSSL_DIR -Recurse -Include 'libcrypto*.lib','libeay32*.lib' -File -ErrorAction SilentlyContinue | Select-Object -First 1).FullName; \
+			} \
+			$$opensslLibPath = if ($$opensslSslLibPath) { $$opensslSslLibPath } elseif ($$opensslCryptoLibPath) { $$opensslCryptoLibPath } else { '' }; \
+			if ($$opensslLibPath) { \
+				$$env:OPENSSL_LIB_DIR = Split-Path $$opensslLibPath -Parent; \
+			} else { \
+				$$env:OPENSSL_LIB_DIR = Join-Path $$env:OPENSSL_DIR 'lib'; \
+			} \
+			if ($$opensslSslLibPath -and $$opensslCryptoLibPath) { \
+				$$opensslSslLibName = [System.IO.Path]::GetFileNameWithoutExtension($$opensslSslLibPath); \
+				$$opensslCryptoLibName = [System.IO.Path]::GetFileNameWithoutExtension($$opensslCryptoLibPath); \
+				$$env:OPENSSL_LIBS = \"$$opensslSslLibName`:`$$opensslCryptoLibName\"; \
+			} \
+		}; \
+		cmake --build build-static --config Release; \
+		if ($$LASTEXITCODE -ne 0) { exit $$LASTEXITCODE } \
+	"
+	build-static\Release\cassandra-integration-tests.exe --gtest_list_tests > NUL
+else
+	@echo "Building integration test binary with STATIC linking to ${STATIC_BUILD_DIR}"
+	@mkdir "${STATIC_BUILD_DIR}" >/dev/null 2>&1 || true
+	@cd "${STATIC_BUILD_DIR}"
+	cmake -DCASS_BUILD_INTEGRATION_TESTS=ON -DCASS_USE_STATIC_LIBS=ON -DCMAKE_BUILD_TYPE=Release .. && (make -j 4 || make)
+	"${STATIC_BUILD_DIR}/cassandra-integration-tests" --gtest_list_tests > /dev/null
+endif
 
 build-examples:
 	@echo "Building examples to ${EXAMPLES_DIR}"
@@ -345,14 +395,47 @@ endif
 
 .package-configure: .package-build-prepare
 ifeq ($(OS_TYPE),windows)
-	cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) -DOPENSSL_VERSION=1.1.1u $(CMAKE_FLAGS)
+	cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) -DOPENSSL_VERSION=$(OPENSSL_WIN_VERSION) $(CMAKE_FLAGS)
 else
 	cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) -DCMAKE_INSTALL_PREFIX=$(CMAKE_INSTALL_PREFIX) $(CMAKE_FLAGS)
 endif
 
 build-driver: .package-configure
 ifeq ($(OS_TYPE),windows)
-	@pwsh -NoProfile -Command "$$opensslVersion = ((Select-String -Path 'build\\CMakeCache.txt' -Pattern '^OPENSSL_VERSION:STRING=' | Select-Object -First 1).Line -split '=', 2)[1]; $$opensslTarget = \"openssl-$${opensslVersion}-library\"; cmake --build build --config $(CMAKE_BUILD_TYPE) --target $$opensslTarget; $$env:OPENSSL_DIR = (Resolve-Path 'build\\libs\\openssl').Path; $$env:OPENSSL_INCLUDE_DIR = \"$$env:OPENSSL_DIR\\include\"; $$env:OPENSSL_LIB_DIR = \"$$env:OPENSSL_DIR\\lib\"; cmake --build build --config $(CMAKE_BUILD_TYPE)"
+	@pwsh -NoProfile -Command "\
+		$$useExternalOpenSSL = ((Select-String -Path 'build\\CMakeCache.txt' -Pattern '^SCYLLA_OPENSSL_EXTERNAL_PROJECT:BOOL=' -ErrorAction SilentlyContinue | Select-Object -First 1).Line -split '=', 2)[1]; \
+		$$externalOpenSSLTarget = ((Select-String -Path 'build\\CMakeCache.txt' -Pattern '^SCYLLA_OPENSSL_EXTERNAL_TARGET:STRING=' -ErrorAction SilentlyContinue | Select-Object -First 1).Line -split '=', 2)[1]; \
+		if ($$useExternalOpenSSL -eq 'ON' -and $$externalOpenSSLTarget) { \
+			cmake --build build --config $(CMAKE_BUILD_TYPE) --target $$externalOpenSSLTarget; \
+			if ($$LASTEXITCODE -ne 0) { exit $$LASTEXITCODE } \
+		}; \
+		$$opensslIncDir = ((Select-String -Path 'build\\CMakeCache.txt' -Pattern '^OPENSSL_INCLUDE_DIR:PATH=' -ErrorAction SilentlyContinue | Select-Object -First 1).Line -split '=', 2)[1]; \
+		$$opensslSslLibPath = ((Select-String -Path 'build\\CMakeCache.txt' -Pattern '^OPENSSL_SSL_LIBRARY(_RELEASE)?:FILEPATH=' -ErrorAction SilentlyContinue | Select-Object -First 1).Line -split '=', 2)[1]; \
+		$$opensslCryptoLibPath = ((Select-String -Path 'build\\CMakeCache.txt' -Pattern '^OPENSSL_CRYPTO_LIBRARY(_RELEASE)?:FILEPATH=' -ErrorAction SilentlyContinue | Select-Object -First 1).Line -split '=', 2)[1]; \
+		if ($$opensslIncDir) { \
+			$$env:OPENSSL_DIR = (Split-Path $$opensslIncDir -Parent); \
+			$$env:OPENSSL_INCLUDE_DIR = $$opensslIncDir; \
+			if (-not $$opensslSslLibPath) { \
+				$$opensslSslLibPath = (Get-ChildItem -Path $$env:OPENSSL_DIR -Recurse -Include 'libssl*.lib','ssleay32*.lib' -File -ErrorAction SilentlyContinue | Select-Object -First 1).FullName; \
+			} \
+			if (-not $$opensslCryptoLibPath) { \
+				$$opensslCryptoLibPath = (Get-ChildItem -Path $$env:OPENSSL_DIR -Recurse -Include 'libcrypto*.lib','libeay32*.lib' -File -ErrorAction SilentlyContinue | Select-Object -First 1).FullName; \
+			} \
+			$$opensslLibPath = if ($$opensslSslLibPath) { $$opensslSslLibPath } elseif ($$opensslCryptoLibPath) { $$opensslCryptoLibPath } else { '' }; \
+			if ($$opensslLibPath) { \
+				$$env:OPENSSL_LIB_DIR = Split-Path $$opensslLibPath -Parent; \
+			} else { \
+				$$env:OPENSSL_LIB_DIR = Join-Path $$env:OPENSSL_DIR 'lib'; \
+			} \
+			if ($$opensslSslLibPath -and $$opensslCryptoLibPath) { \
+				$$opensslSslLibName = [System.IO.Path]::GetFileNameWithoutExtension($$opensslSslLibPath); \
+				$$opensslCryptoLibName = [System.IO.Path]::GetFileNameWithoutExtension($$opensslCryptoLibPath); \
+				$$env:OPENSSL_LIBS = \"$$opensslSslLibName`:`$$opensslCryptoLibName\"; \
+			} \
+		}; \
+		cmake --build build --config $(CMAKE_BUILD_TYPE); \
+		if ($$LASTEXITCODE -ne 0) { exit $$LASTEXITCODE } \
+	"
 else
 	cmake --build build --config $(CMAKE_BUILD_TYPE)
 endif
@@ -524,15 +607,20 @@ endif
 # =============================================================================
 
 SMOKE_TEST_DIR := packaging/smoke-test-app
+SCYLLA_SMOKE_BUILD_STATIC ?= OFF
+SMOKE_TEST_CMAKE_FLAGS :=
+ifeq ($(SCYLLA_SMOKE_BUILD_STATIC),ON)
+SMOKE_TEST_CMAKE_FLAGS += -DSCYLLA_SMOKE_BUILD_STATIC=ON
+endif
 
 # DEB package testing (Ubuntu/Debian)
 test-package-deb: build-package
 	@echo "=== Testing DEB packages ==="
 	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-dev-deb
 	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-deb
-	$(MAKE) -C $(SMOKE_TEST_DIR) build-package CPACK_GENERATORS=DEB
-	$(MAKE) -C $(SMOKE_TEST_DIR) install-app-deb
-	$(MAKE) -C $(SMOKE_TEST_DIR) test-app-package
+	$(MAKE) -C $(SMOKE_TEST_DIR) build-package CPACK_GENERATORS=DEB SCYLLA_SMOKE_BUILD_STATIC=$(SCYLLA_SMOKE_BUILD_STATIC) CMAKE_FLAGS="$(SMOKE_TEST_CMAKE_FLAGS)"
+	$(MAKE) -C $(SMOKE_TEST_DIR) install-app-deb SCYLLA_SMOKE_BUILD_STATIC=$(SCYLLA_SMOKE_BUILD_STATIC)
+	$(MAKE) -C $(SMOKE_TEST_DIR) test-app-package SCYLLA_SMOKE_BUILD_STATIC=$(SCYLLA_SMOKE_BUILD_STATIC)
 	@echo "=== DEB package test completed successfully ==="
 	$(MAKE) -C $(SMOKE_TEST_DIR) remove-app-deb || true
 	$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-deb || true
@@ -549,7 +637,7 @@ test-package-rpm: build-package
 		fedora:latest \
 		bash -c ' \
 			set -euo pipefail; \
-			dnf -y install make cmake gcc-c++ findutils rpm-build; \
+			dnf -y install make cmake gcc-c++ findutils rpm-build zlib-devel; \
 			$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-dev-rpm; \
 			$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-rpm; \
 			pc_file=$$(find /usr -name "scylla-cpp-driver.pc" 2>/dev/null | head -1); \
@@ -561,14 +649,22 @@ test-package-rpm: build-package
 			if [ -n "$$lib_dir" ]; then \
 				export LD_LIBRARY_PATH="$${lib_dir}:$${LD_LIBRARY_PATH:-}"; \
 			fi; \
-			$(MAKE) -C $(SMOKE_TEST_DIR) build-package CPACK_GENERATORS=RPM; \
+			$(MAKE) -C $(SMOKE_TEST_DIR) build-package CPACK_GENERATORS=RPM SCYLLA_SMOKE_BUILD_STATIC=$(SCYLLA_SMOKE_BUILD_STATIC) CMAKE_FLAGS="$(SMOKE_TEST_CMAKE_FLAGS)"; \
 			$(MAKE) -C $(SMOKE_TEST_DIR) install-app-rpm; \
 			smoke_bin=$$(find /usr -name "scylla-cpp-driver-smoke-test" -type f 2>/dev/null | head -1); \
 			if [ -z "$$smoke_bin" ]; then \
 				echo "ERROR: smoke-test binary not found"; \
 				exit 1; \
 			fi; \
-			"$$smoke_bin" 127.0.0.1 \
+			"$$smoke_bin" 127.0.0.1; \
+			if [ "$(SCYLLA_SMOKE_BUILD_STATIC)" = "ON" ]; then \
+				smoke_static_bin=$$(find /usr -name "scylla-cpp-driver-smoke-test-static" -type f 2>/dev/null | head -1); \
+				if [ -z "$$smoke_static_bin" ]; then \
+					echo "ERROR: static smoke-test binary not found"; \
+					exit 1; \
+				fi; \
+				"$$smoke_static_bin" 127.0.0.1; \
+			fi \
 		'
 	@echo "=== RPM package test completed successfully ==="
 	docker compose -f $(SMOKE_TEST_DIR)/docker-compose.yml down --remove-orphans || true
@@ -582,9 +678,9 @@ test-package-rpm-native: build-package
 	@echo "=== Testing RPM packages (native) ==="
 	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-dev-rpm
 	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-rpm
-	$(MAKE) -C $(SMOKE_TEST_DIR) build-package CPACK_GENERATORS=RPM
+	$(MAKE) -C $(SMOKE_TEST_DIR) build-package CPACK_GENERATORS=RPM SCYLLA_SMOKE_BUILD_STATIC=$(SCYLLA_SMOKE_BUILD_STATIC) CMAKE_FLAGS="$(SMOKE_TEST_CMAKE_FLAGS)"
 	$(MAKE) -C $(SMOKE_TEST_DIR) install-app-rpm
-	$(MAKE) -C $(SMOKE_TEST_DIR) test-app-package SCYLLA_HOST=$(SCYLLA_HOST) SKIP_DOCKER_COMPOSE=$(SKIP_DOCKER_COMPOSE)
+	$(MAKE) -C $(SMOKE_TEST_DIR) test-app-package SCYLLA_HOST=$(SCYLLA_HOST) SKIP_DOCKER_COMPOSE=$(SKIP_DOCKER_COMPOSE) SCYLLA_SMOKE_BUILD_STATIC=$(SCYLLA_SMOKE_BUILD_STATIC)
 	@echo "=== RPM package test completed successfully ==="
 	$(MAKE) -C $(SMOKE_TEST_DIR) remove-app-rpm || true
 	$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-rpm || true
@@ -595,9 +691,9 @@ test-package-pkg: build-package
 	@echo "=== Testing PKG packages ==="
 	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-dev-pkg
 	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-pkg
-	$(MAKE) -C $(SMOKE_TEST_DIR) build-package CPACK_GENERATORS=productbuild
+	$(MAKE) -C $(SMOKE_TEST_DIR) build-package CPACK_GENERATORS=productbuild SCYLLA_SMOKE_BUILD_STATIC=$(SCYLLA_SMOKE_BUILD_STATIC) CMAKE_FLAGS="$(SMOKE_TEST_CMAKE_FLAGS)"
 	$(MAKE) -C $(SMOKE_TEST_DIR) install-app-pkg
-	$(MAKE) -C $(SMOKE_TEST_DIR) test-app-package
+	$(MAKE) -C $(SMOKE_TEST_DIR) test-app-package SCYLLA_SMOKE_BUILD_STATIC=$(SCYLLA_SMOKE_BUILD_STATIC)
 	@echo "=== PKG package test completed successfully ==="
 	$(MAKE) -C $(SMOKE_TEST_DIR) remove-app-pkg || true
 	$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-pkg || true
@@ -608,9 +704,9 @@ test-package-dmg: build-package
 	@echo "=== Testing DMG packages ==="
 	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-dev-dmg
 	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-dmg
-	$(MAKE) -C $(SMOKE_TEST_DIR) build-package CPACK_GENERATORS=DragNDrop
+	$(MAKE) -C $(SMOKE_TEST_DIR) build-package CPACK_GENERATORS=DragNDrop SCYLLA_SMOKE_BUILD_STATIC=$(SCYLLA_SMOKE_BUILD_STATIC) CMAKE_FLAGS="$(SMOKE_TEST_CMAKE_FLAGS)"
 	$(MAKE) -C $(SMOKE_TEST_DIR) install-app-dmg
-	$(MAKE) -C $(SMOKE_TEST_DIR) test-app-package
+	$(MAKE) -C $(SMOKE_TEST_DIR) test-app-package SCYLLA_SMOKE_BUILD_STATIC=$(SCYLLA_SMOKE_BUILD_STATIC)
 	@echo "=== DMG package test completed successfully ==="
 	$(MAKE) -C $(SMOKE_TEST_DIR) remove-app-dmg || true
 	$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-dmg || true
@@ -621,9 +717,9 @@ test-package-msi: .windows-setup-wix build-package
 	@echo "=== Testing MSI packages ==="
 	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-dev
 	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver
-	$(MAKE) -C $(SMOKE_TEST_DIR) build-package
+	$(MAKE) -C $(SMOKE_TEST_DIR) build-package SCYLLA_SMOKE_BUILD_STATIC=$(SCYLLA_SMOKE_BUILD_STATIC) CMAKE_FLAGS="$(SMOKE_TEST_CMAKE_FLAGS)"
 	$(MAKE) -C $(SMOKE_TEST_DIR) install-app
-	$(MAKE) -C $(SMOKE_TEST_DIR) test-app-package
+	$(MAKE) -C $(SMOKE_TEST_DIR) test-app-package SCYLLA_SMOKE_BUILD_STATIC=$(SCYLLA_SMOKE_BUILD_STATIC)
 	@echo "=== MSI package test completed successfully ==="
 
 # Combined Linux package testing (DEB + RPM)

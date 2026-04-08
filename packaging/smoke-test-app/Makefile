@@ -11,6 +11,7 @@ INSTALL_TARGET ?= /
 DRIVER_BUILD_DIR ?= ${MAKEFILE_PATH}/../../build
 DRIVER_INSTALL_PATH ?= C:/Program Files/ScyllaDB/Scylla CPP Driver
 SMOKE_TEST_INSTALL_PATH ?= C:/Program Files/ScyllaDB/Scylla CPP Driver Smoke Test
+SCYLLA_SMOKE_BUILD_STATIC ?= OFF
 
 CMAKE_GENERATOR_FLAG :=
 ifneq ($(strip $(CMAKE_GENERATOR)),)
@@ -343,6 +344,7 @@ remove-driver-dmg:
 
 remove-app-dmg:
 	sudo rm -f /usr/local/bin/scylla-cpp-driver-smoke-test 2>/dev/null || true
+	sudo rm -f /usr/local/bin/scylla-cpp-driver-smoke-test-static 2>/dev/null || true
 
 remove-app-msi:
 	@pwsh.exe -NoProfile -Command "\$$ErrorActionPreference = 'Stop'; \$$productName = 'Scylla CPP Driver Smoke Test'; \$$product = Get-CimInstance -ClassName Win32_Product | Where-Object { \$$_.Name -like \"*\$$productName*\" }; if (\$$product) { \$$product | ForEach-Object { \$$_.Uninstall() | Out-Null }; Write-Host \"Uninstalled \$$productName\" } else { Write-Host \"\$$productName not found - nothing to uninstall\" }"
@@ -379,35 +381,62 @@ SKIP_DOCKER_COMPOSE ?=
 
 ifeq ($(OS_TYPE),windows)
 test-app-package: .prepare-for-test
-	@pwsh.exe -NoProfile -Command "\$$ErrorActionPreference = 'Stop'; \$$composeFile = '${MAKEFILE_PATH}/../../tests/examples_cluster/docker-compose.yml'; function Cleanup { docker compose -f \$$composeFile down --remove-orphans 2>\$$null | Out-Null }; try { \$$dockerService = Get-Service -Name docker -ErrorAction SilentlyContinue; if (\$$dockerService -and \$$dockerService.Status -ne 'Running') { Start-Service docker }; docker compose -f \$$composeFile up -d --wait; \$$smokePath = '$(SMOKE_TEST_INSTALL_PATH)\bin\scylla-cpp-driver-smoke-test.exe'; if (-not (Test-Path \$$smokePath)) { throw 'Smoke-test binary not found at \$$smokePath' }; & \$$smokePath 172.43.0.2 } finally { Cleanup }"
+	@pwsh.exe -NoProfile -Command "\
+		\$$ErrorActionPreference = 'Stop'; \
+		\$$composeFile = '${MAKEFILE_PATH}/../../tests/examples_cluster/docker-compose.yml'; \
+		\$$smokePaths = @('$(SMOKE_TEST_INSTALL_PATH)\bin\scylla-cpp-driver-smoke-test.exe'); \
+		if ('$(SCYLLA_SMOKE_BUILD_STATIC)' -eq 'ON') { \
+			\$$smokePaths += '$(SMOKE_TEST_INSTALL_PATH)\bin\scylla-cpp-driver-smoke-test-static.exe'; \
+		}; \
+		function Cleanup { docker compose -f \$$composeFile down --remove-orphans 2>\$$null | Out-Null }; \
+		try { \
+			\$$dockerService = Get-Service -Name docker -ErrorAction SilentlyContinue; \
+			if (\$$dockerService -and \$$dockerService.Status -ne 'Running') { Start-Service docker }; \
+			docker compose -f \$$composeFile up -d --wait; \
+			foreach (\$$smokePath in \$$smokePaths) { \
+				if (-not (Test-Path \$$smokePath)) { throw \"Smoke-test binary not found at \$$smokePath\" }; \
+				& \$$smokePath 172.43.0.2; \
+			} \
+		} finally { Cleanup }"
 else
 test-app-package: .prepare-for-test
-	@smoke_bin="$$(command -v scylla-cpp-driver-smoke-test || true)";\
-	if [ -z "$$smoke_bin" ] && [ "$(OS_TYPE)" = "macos" ] && command -v pkgutil >/dev/null 2>&1; then\
-		pkg_id="com.scylladb.cpp-rs-driver.smoke-app";\
-		pkg_ids="$$pkg_id $$(pkgutil --pkgs 2>/dev/null | awk '/scylla/ && /smoke/ {print}')";\
-		for candidate in $$pkg_ids; do\
-			pkg_path="$$(pkgutil --files "$$candidate" 2>/dev/null | awk '/scylla-cpp-driver-smoke-test$$/ {print "/"$$0; exit}')";\
-			if [ -n "$$pkg_path" ] && [ -x "$$pkg_path" ]; then\
-				smoke_bin="$$pkg_path";\
-				break;\
-			fi;\
-		done;\
-	fi;\
-	if [ -z "$$smoke_bin" ] && [ "$(OS_TYPE)" = "macos" ]; then\
-		for candidate in /usr/local/bin/scylla-cpp-driver-smoke-test /opt/homebrew/bin/scylla-cpp-driver-smoke-test /usr/bin/scylla-cpp-driver-smoke-test /usr/local/sbin/scylla-cpp-driver-smoke-test /opt/homebrew/sbin/scylla-cpp-driver-smoke-test; do\
-			if [ -x "$$candidate" ]; then\
-				smoke_bin="$$candidate";\
-				break;\
-			fi;\
-		done;\
-	fi;\
-	if [ -z "$$smoke_bin" ]; then\
-		echo "scylla-cpp-driver-smoke-test not found in PATH";\
-		exit 1;\
+	@resolve_smoke_binary() {\
+		binary_name="$$1";\
+		smoke_bin="$$(command -v "$$binary_name" || true)";\
+		if [ -z "$$smoke_bin" ] && [ "$(OS_TYPE)" = "macos" ] && command -v pkgutil >/dev/null 2>&1; then\
+			pkg_id="com.scylladb.cpp-rs-driver.smoke-app";\
+			pkg_ids="$$pkg_id $$(pkgutil --pkgs 2>/dev/null | awk '/scylla/ && /smoke/ {print}')";\
+			for candidate in $$pkg_ids; do\
+				pkg_path="$$(pkgutil --files "$$candidate" 2>/dev/null | awk -v binary_name="$$binary_name" '$$0 ~ binary_name "$$" {print "/"$$0; exit}')";\
+				if [ -n "$$pkg_path" ] && [ -x "$$pkg_path" ]; then\
+					smoke_bin="$$pkg_path";\
+					break;\
+				fi;\
+			done;\
+		fi;\
+		if [ -z "$$smoke_bin" ] && [ "$(OS_TYPE)" = "macos" ]; then\
+			for candidate_dir in /usr/local/bin /opt/homebrew/bin /usr/bin /usr/local/sbin /opt/homebrew/sbin; do\
+				candidate="$$candidate_dir/$$binary_name";\
+				if [ -x "$$candidate" ]; then\
+					smoke_bin="$$candidate";\
+					break;\
+				fi;\
+			done;\
+		fi;\
+		if [ -z "$$smoke_bin" ]; then\
+			echo "$$binary_name not found in PATH";\
+			exit 1;\
+		fi;\
+		printf '%s\n' "$$smoke_bin";\
+	};\
+	smoke_bins=("$$(resolve_smoke_binary scylla-cpp-driver-smoke-test)");\
+	if [ "$(SCYLLA_SMOKE_BUILD_STATIC)" = "ON" ]; then\
+		smoke_bins+=("$$(resolve_smoke_binary scylla-cpp-driver-smoke-test-static)");\
 	fi;\
 	if [ -n "$(SKIP_DOCKER_COMPOSE)" ]; then\
-		"$$smoke_bin" $(SCYLLA_HOST);\
+		for smoke_bin in "$${smoke_bins[@]}"; do\
+			"$$smoke_bin" $(SCYLLA_HOST);\
+		done;\
 	else\
 		dc="";\
 		if docker compose version >/dev/null 2>&1; then\
@@ -425,6 +454,8 @@ test-app-package: .prepare-for-test
 		};\
 		trap cleanup EXIT;\
 		sudo $$dc -f ${MAKEFILE_PATH}/docker-compose.yml up -d --wait;\
-		"$$smoke_bin" $(SCYLLA_HOST);\
+		for smoke_bin in "$${smoke_bins[@]}"; do\
+			"$$smoke_bin" $(SCYLLA_HOST);\
+		done;\
 	fi
 endif

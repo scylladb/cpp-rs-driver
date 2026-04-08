@@ -108,10 +108,11 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 add_executable(scylla-cpp-driver-smoke-test
   src/smoke_test.c)
+target_include_directories(scylla-cpp-driver-smoke-test PRIVATE
+  ${SCYLLA_CPP_DRIVER_INCLUDE_DIRS})
 
 set(_smoke_link_target "PkgConfig::SCYLLA_CPP_DRIVER")
 set(_smoke_use_static TRUE)
-set(_smoke_extra_link_libraries "")
 if(WIN32)
   set(_smoke_use_static FALSE)
 else()
@@ -144,9 +145,6 @@ if(_smoke_use_static)
     message(STATUS
       "scylla-cpp-driver shared library not found; linking smoke test statically")
     set(_smoke_link_target "PkgConfig::SCYLLA_CPP_DRIVER_STATIC")
-    if(NOT WIN32)
-      list(APPEND _smoke_extra_link_libraries m)
-    endif()
   else()
     message(FATAL_ERROR
       "scylla-cpp-driver shared library not found and static package metadata unavailable; cannot link smoke test")
@@ -160,9 +158,7 @@ unset(_smoke_shared_patterns)
 unset(_smoke_use_static)
 
 target_link_libraries(scylla-cpp-driver-smoke-test PRIVATE
-  ${_smoke_link_target}
-  ${_smoke_extra_link_libraries})
-unset(_smoke_extra_link_libraries)
+  ${_smoke_link_target})
 unset(_smoke_link_target)
 
 if(APPLE)
@@ -190,6 +186,17 @@ if(SCYLLA_SMOKE_BUILD_STATIC)
   if(NOT PKG_CONFIG_EXECUTABLE)
     message(FATAL_ERROR "pkg-config executable not available for static linkage")
   endif()
+
+  execute_process(
+    COMMAND ${PKG_CONFIG_EXECUTABLE} --cflags scylla-cpp-driver_static
+    OUTPUT_VARIABLE _smoke_static_cflags_output
+    RESULT_VARIABLE _smoke_static_cflags_result
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+  if(NOT _smoke_static_cflags_result EQUAL 0)
+    message(FATAL_ERROR
+      "Unable to resolve static compile flags from scylla-cpp-driver_static pkg-config metadata")
+  endif()
+
   execute_process(
     COMMAND ${PKG_CONFIG_EXECUTABLE} --libs --static scylla-cpp-driver_static
     OUTPUT_VARIABLE _smoke_static_libs_output
@@ -199,14 +206,88 @@ if(SCYLLA_SMOKE_BUILD_STATIC)
     message(FATAL_ERROR
       "Unable to resolve static link flags from scylla-cpp-driver_static pkg-config metadata")
   endif()
-  separate_arguments(_smoke_static_link_libraries UNIX_COMMAND "${_smoke_static_libs_output}")
-  if(NOT WIN32)
-    list(APPEND _smoke_static_link_libraries m)
+
+  set(_smoke_static_cflags "")
+  if(NOT _smoke_static_cflags_output STREQUAL "")
+    separate_arguments(_smoke_static_cflags UNIX_COMMAND "${_smoke_static_cflags_output}")
+  endif()
+  separate_arguments(_smoke_static_link_items UNIX_COMMAND "${_smoke_static_libs_output}")
+
+  set(_smoke_static_include_dirs "")
+  set(_smoke_static_compile_options "")
+  foreach(_smoke_static_cflag IN LISTS _smoke_static_cflags)
+    if(_smoke_static_cflag MATCHES "^-I(.+)")
+      list(APPEND _smoke_static_include_dirs "${CMAKE_MATCH_1}")
+    else()
+      list(APPEND _smoke_static_compile_options "${_smoke_static_cflag}")
+    endif()
+  endforeach()
+  if(NOT _smoke_static_include_dirs)
+    set(_smoke_static_include_dirs ${SCYLLA_CPP_DRIVER_STATIC_INCLUDE_DIRS})
+  endif()
+  if(NOT _smoke_static_include_dirs)
+    set(_smoke_static_include_dirs ${SCYLLA_CPP_DRIVER_INCLUDE_DIRS})
+  endif()
+
+  set(_smoke_static_link_directories "")
+  set(_smoke_static_link_libraries "")
+  set(_smoke_static_link_options "")
+  set(_smoke_expect_framework_name OFF)
+  foreach(_smoke_static_link_item IN LISTS _smoke_static_link_items)
+    if(_smoke_expect_framework_name)
+      list(APPEND _smoke_static_link_options
+        "SHELL:-framework ${_smoke_static_link_item}")
+      set(_smoke_expect_framework_name OFF)
+    elseif(_smoke_static_link_item STREQUAL "-framework")
+      set(_smoke_expect_framework_name ON)
+    elseif(_smoke_static_link_item MATCHES "^-L(.+)")
+      list(APPEND _smoke_static_link_directories "${CMAKE_MATCH_1}")
+    elseif(_smoke_static_link_item MATCHES "^-l.+")
+      list(APPEND _smoke_static_link_libraries "${_smoke_static_link_item}")
+    elseif(_smoke_static_link_item MATCHES "^-")
+      list(APPEND _smoke_static_link_options "${_smoke_static_link_item}")
+    else()
+      list(APPEND _smoke_static_link_libraries "${_smoke_static_link_item}")
+    endif()
+  endforeach()
+  if(_smoke_expect_framework_name)
+    message(FATAL_ERROR
+      "Incomplete -framework flag sequence in scylla-cpp-driver_static pkg-config metadata")
+  endif()
+
+  if(_smoke_static_include_dirs)
+    target_include_directories(scylla-cpp-driver-smoke-test-static PRIVATE
+      ${_smoke_static_include_dirs})
+  endif()
+  if(_smoke_static_compile_options)
+    target_compile_options(scylla-cpp-driver-smoke-test-static PRIVATE
+      ${_smoke_static_compile_options})
+  endif()
+  if(_smoke_static_link_directories)
+    target_link_directories(scylla-cpp-driver-smoke-test-static PRIVATE
+      ${_smoke_static_link_directories})
+  endif()
+  if(_smoke_static_link_options)
+    target_link_options(scylla-cpp-driver-smoke-test-static PRIVATE
+      ${_smoke_static_link_options})
   endif()
   target_link_libraries(scylla-cpp-driver-smoke-test-static PRIVATE
     ${_smoke_static_link_libraries})
+
+  unset(_smoke_expect_framework_name)
+  unset(_smoke_static_cflag)
+  unset(_smoke_static_cflags)
+  unset(_smoke_static_cflags_output)
+  unset(_smoke_static_cflags_result)
+  unset(_smoke_static_compile_options)
+  unset(_smoke_static_include_dirs)
   unset(_smoke_static_libs_output)
+  unset(_smoke_static_libs_result)
+  unset(_smoke_static_link_directories)
+  unset(_smoke_static_link_item)
+  unset(_smoke_static_link_items)
   unset(_smoke_static_link_libraries)
+  unset(_smoke_static_link_options)
 endif()
 
 set(SMOKE_APP_COMPONENT_NAME "")
