@@ -26,10 +26,6 @@ CASS_EXPORT const CassValue*
 cass_aggregate_meta_init_cond(const CassAggregateMeta* aggregate_meta) {
   throw std::runtime_error("UNIMPLEMENTED cass_aggregate_meta_init_cond\n");
 }
-CASS_EXPORT void cass_aggregate_meta_name(const CassAggregateMeta* aggregate_meta,
-                                          const char** name, size_t* name_length) {
-  throw std::runtime_error("UNIMPLEMENTED cass_aggregate_meta_name\n");
-}
 CASS_EXPORT const CassDataType*
 cass_aggregate_meta_return_type(const CassAggregateMeta* aggregate_meta) {
   throw std::runtime_error("UNIMPLEMENTED cass_aggregate_meta_return_type\n");
@@ -47,11 +43,6 @@ CASS_EXPORT void cass_authenticator_set_error(CassAuthenticator* auth, const cha
 }
 CASS_EXPORT CassError cass_batch_set_keyspace(CassBatch* batch, const char* keyspace) {
   throw std::runtime_error("UNIMPLEMENTED cass_batch_set_keyspace\n");
-}
-CASS_EXPORT CassError cass_cluster_set_authenticator_callbacks(
-    CassCluster* cluster, const CassAuthenticatorCallbacks* exchange_callbacks,
-    CassAuthenticatorDataCleanupCallback cleanup_callback, void* data) {
-  throw std::runtime_error("UNIMPLEMENTED cass_cluster_set_authenticator_callbacks\n");
 }
 CASS_EXPORT CassError cass_cluster_set_cloud_secure_connection_bundle_no_ssl_lib_init(
     CassCluster* cluster, const char* path) {
@@ -117,10 +108,6 @@ CASS_EXPORT void cass_function_meta_language(const CassFunctionMeta* function_me
                                              const char** language, size_t* language_length) {
   throw std::runtime_error("UNIMPLEMENTED cass_function_meta_language\n");
 }
-CASS_EXPORT void cass_function_meta_name(const CassFunctionMeta* function_meta, const char** name,
-                                         size_t* name_length) {
-  throw std::runtime_error("UNIMPLEMENTED cass_function_meta_name\n");
-}
 CASS_EXPORT const CassDataType*
 cass_function_meta_return_type(const CassFunctionMeta* function_meta) {
   throw std::runtime_error("UNIMPLEMENTED cass_function_meta_return_type\n");
@@ -129,19 +116,9 @@ CASS_EXPORT const CassValue* cass_index_meta_field_by_name(const CassIndexMeta* 
                                                            const char* name) {
   throw std::runtime_error("UNIMPLEMENTED cass_index_meta_field_by_name\n");
 }
-CASS_EXPORT const CassAggregateMeta*
-cass_keyspace_meta_aggregate_by_name(const CassKeyspaceMeta* keyspace_meta, const char* name,
-                                     const char* arguments) {
-  throw std::runtime_error("UNIMPLEMENTED cass_keyspace_meta_aggregate_by_name\n");
-}
 CASS_EXPORT const CassValue* cass_keyspace_meta_field_by_name(const CassKeyspaceMeta* keyspace_meta,
                                                               const char* name) {
   throw std::runtime_error("UNIMPLEMENTED cass_keyspace_meta_field_by_name\n");
-}
-CASS_EXPORT const CassFunctionMeta*
-cass_keyspace_meta_function_by_name(const CassKeyspaceMeta* keyspace_meta, const char* name,
-                                    const char* arguments) {
-  throw std::runtime_error("UNIMPLEMENTED cass_keyspace_meta_function_by_name\n");
 }
 CASS_EXPORT cass_bool_t cass_keyspace_meta_is_virtual(const CassKeyspaceMeta* keyspace_meta) {
   throw std::runtime_error("UNIMPLEMENTED cass_keyspace_meta_is_virtual\n");
@@ -151,16 +128,10 @@ cass_materialized_view_meta_field_by_name(const CassMaterializedViewMeta* view_m
                                           const char* name) {
   throw std::runtime_error("UNIMPLEMENTED cass_materialized_view_meta_field_by_name\n");
 }
-CASS_EXPORT CassVersion cass_schema_meta_version(const CassSchemaMeta* schema_meta) {
-  throw std::runtime_error("UNIMPLEMENTED cass_schema_meta_version\n");
-}
 CASS_EXPORT void
 cass_session_get_speculative_execution_metrics(const CassSession* session,
                                                CassSpeculativeExecutionMetrics* output) {
   throw std::runtime_error("UNIMPLEMENTED cass_session_get_speculative_execution_metrics\n");
-}
-CASS_EXPORT CassError cass_statement_add_key_index(CassStatement* statement, size_t index) {
-  throw std::runtime_error("UNIMPLEMENTED cass_statement_add_key_index\n");
 }
 CASS_EXPORT CassError cass_statement_bind_custom(CassStatement* statement, size_t index,
                                                  const char* class_name, const cass_byte_t* value,
@@ -176,9 +147,6 @@ CASS_EXPORT CassError cass_statement_bind_custom_by_name(CassStatement* statemen
 CASS_EXPORT CassError cass_statement_set_custom_payload(CassStatement* statement,
                                                         const CassCustomPayload* payload) {
   throw std::runtime_error("UNIMPLEMENTED cass_statement_set_custom_payload\n");
-}
-CASS_EXPORT CassError cass_statement_set_keyspace(CassStatement* statement, const char* keyspace) {
-  throw std::runtime_error("UNIMPLEMENTED cass_statement_set_keyspace\n");
 }
 CASS_EXPORT CassClusteringOrder
 cass_table_meta_clustering_key_order(const CassTableMeta* table_meta, size_t index) {
