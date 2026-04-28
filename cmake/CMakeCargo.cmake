@@ -21,8 +21,8 @@
 #                          .a output      .so output
 #                                │              │
 #              ┌─────────────────▼──┐  ┌────────▼─────────────────────┐
-#              │ scylla_cpp_driver  │  │ scylla_cpp_driver_shared     │
-#              │ _target            │  │ _target                      │
+#              │ scylla_cpp_driver  │  │ scylla_cpp_driver            │
+#              │ _staticlib_target  │  │ _cdylib_target               │
 #              │ (custom target,    │  │ (custom target, ALL)         │
 #              │  ALL)              │  │                              │
 #              └─────────────────┬──┘  └────────┬─────────────────────┘
@@ -78,12 +78,12 @@
 #  (1)   cargo build (custom command)     Runs `cargo build`, produces raw
 #                                         .a and .so in target/<triple>/<profile>/
 #
-#  (2)   _target / _shared_target         Custom targets that depend on the raw
-#         (custom targets, ALL)           artifacts; give the build system a
-#                                         named handle to order on.
+#  (2)   _staticlib_target /              Custom targets that depend on the raw
+#         _cdylib_target                  artifacts; give the build system a
+#         (custom targets, ALL)           named handle to order on.
 #
-#  (3)   scylla_cpp_driver /              IMPORTED targets wrapping the raw cargo
-#         scylla_cpp_driver_shared        output paths. Exist solely so that
+#  (3)   scylla_cpp_driver_staticlib /   IMPORTED targets wrapping the raw cargo
+#         scylla_cpp_driver_cdylib       output paths. Exist solely so that
 #         (IMPORTED libraries)            create_copy can use $<TARGET_FILE:…>
 #                                         generator expressions to get the path.
 #
@@ -109,14 +109,14 @@
 # Cargo.toml for both output types to be produced.
 #
 # Created targets (using underscored crate name):
-#   <crate_name>                —  STATIC IMPORTED library
-#   <crate_name>_shared         —  SHARED IMPORTED library  (only if SHARED)
+#   <crate_name>_staticlib      —  STATIC IMPORTED library
+#   <crate_name>_cdylib         —  SHARED IMPORTED library  (only if SHARED)
 #
 # Auxiliary targets (used internally for dependency ordering):
-#   <crate_name>_target         —  custom target that drives the cargo build
-#                                  (depends on the static lib output)
-#   <crate_name>_shared_target  —  custom target that depends on the shared
-#                                  lib output (only if SHARED)
+#   <crate_name>_staticlib_target  —  custom target that drives the cargo build
+#                                     (depends on the static lib output)
+#   <crate_name>_cdylib_target     —  custom target that depends on the shared
+#                                     lib output (only if SHARED)
 #
 # The caller controls Rust compiler flags via CMAKE_Rust_FLAGS (passed as
 # RUSTFLAGS) and the build profile via CMAKE_BUILD_TYPE.
@@ -236,19 +236,19 @@ function(cargo_build)
   )
 
   # Static library — always created.
-  add_custom_target(${CARGO_NAME}_target ALL DEPENDS ${LIB_FILE})
-  add_library(${CARGO_NAME} STATIC IMPORTED GLOBAL)
-  add_dependencies(${CARGO_NAME} ${CARGO_NAME}_target)
-  set_target_properties(${CARGO_NAME} PROPERTIES IMPORTED_LOCATION ${LIB_FILE})
+  add_custom_target(${CARGO_NAME}_staticlib_target ALL DEPENDS ${LIB_FILE})
+  add_library(${CARGO_NAME}_staticlib STATIC IMPORTED GLOBAL)
+  add_dependencies(${CARGO_NAME}_staticlib ${CARGO_NAME}_staticlib_target)
+  set_target_properties(${CARGO_NAME}_staticlib PROPERTIES IMPORTED_LOCATION ${LIB_FILE})
 
   # Shared library — only when SHARED was requested.
   if(CARGO_SHARED)
-    add_custom_target(${CARGO_NAME}_shared_target ALL DEPENDS ${LIB_FILE_SHARED})
-    add_library(${CARGO_NAME}_shared SHARED IMPORTED GLOBAL)
-    add_dependencies(${CARGO_NAME}_shared ${CARGO_NAME}_shared_target)
-    set_target_properties(${CARGO_NAME}_shared PROPERTIES IMPORTED_LOCATION ${LIB_FILE_SHARED})
+    add_custom_target(${CARGO_NAME}_cdylib_target ALL DEPENDS ${LIB_FILE_SHARED})
+    add_library(${CARGO_NAME}_cdylib SHARED IMPORTED GLOBAL)
+    add_dependencies(${CARGO_NAME}_cdylib ${CARGO_NAME}_cdylib_target)
+    set_target_properties(${CARGO_NAME}_cdylib PROPERTIES IMPORTED_LOCATION ${LIB_FILE_SHARED})
     if(WIN32)
-      set_target_properties(${CARGO_NAME}_shared PROPERTIES IMPORTED_IMPLIB ${LIB_FILE_SHARED_IMPLIB})
+      set_target_properties(${CARGO_NAME}_cdylib PROPERTIES IMPORTED_IMPLIB ${LIB_FILE_SHARED_IMPLIB})
     endif()
   endif()
 endfunction()
