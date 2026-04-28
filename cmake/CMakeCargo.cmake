@@ -1,3 +1,104 @@
+# ============================================================================
+# Dependency diagram  —  full picture (Linux names for concreteness)
+# ============================================================================
+#
+# This diagram shows how cargo_build() (this file) and the caller
+# (scylla-rust-wrapper/CMakeLists.txt) cooperate to produce the final
+# library artifacts. Arrows point from dependee to depender (i.e. A → B
+# means "B depends on A").
+#
+#                        ┌──────────────────────────────┐
+#                        │         cargo build           │
+#                        │  (add_custom_command)          │
+#                        │                                │
+#                        │  DEPENDS: all *.rs sources     │
+#                        │  OUTPUT:                       │
+#                        │    .../<profile>/               │
+#                        │      libscylla_cpp_driver.a    │
+#                        │      libscylla_cpp_driver.so   │
+#                        └───────┬──────────────┬─────────┘
+#                                │              │
+#                          .a output      .so output
+#                                │              │
+#              ┌─────────────────▼──┐  ┌────────▼─────────────────────┐
+#              │ scylla_cpp_driver  │  │ scylla_cpp_driver_shared     │
+#              │ _target            │  │ _target                      │
+#              │ (custom target,    │  │ (custom target, ALL)         │
+#              │  ALL)              │  │                              │
+#              └─────────────────┬──┘  └────────┬─────────────────────┘
+#                                │              │
+#              ┌─────────────────▼──┐  ┌────────▼─────────────────────┐
+#              │ scylla_cpp_driver  │  │ scylla_cpp_driver_shared     │
+#              │ (STATIC IMPORTED)  │  │ (SHARED IMPORTED)            │
+#              │                    │  │                              │
+#              │ IMPORTED_LOCATION: │  │ IMPORTED_LOCATION:           │
+#              │  .../<profile>/    │  │  .../<profile>/              │
+#              │  libscylla_cpp_    │  │  libscylla_cpp_              │
+#              │  driver.a          │  │  driver.so                   │
+#              └─────────────────┬──┘  └────────┬─────────────────────┘
+#                                │              │
+#                 $<TARGET_FILE:…>    $<TARGET_FILE:…>
+#               (generator expr       (generator expr
+#                used by               used by
+#                create_copy)          create_copy)
+#                                │              │
+#              ┌─────────────────▼──┐  ┌────────▼─────────────────────┐
+#              │ libscylla-cpp-     │  │ libscylla-cpp-               │
+#              │ driver_static.a    │  │ driver.so.X.Y.Z              │
+#              │ _copy              │  │ _copy                        │
+#              │ (custom target,    │  │ (custom target, ALL)         │
+#              │  ALL)              │  │                              │
+#              │                    │  │                              │
+#              │ Copies + renames   │  │ Copies + renames             │
+#              │ into build/        │  │ into build/                  │
+#              └─────────────────┬──┘  └────────┬─────────────────────┘
+#                                │              │
+#              ┌─────────────────▼──┐  ┌────────▼─────────────────────┐
+#              │ scylla-cpp-driver  │  │ scylla-cpp-driver            │
+#              │ _static            │  │ (SHARED IMPORTED)            │
+#              │ (STATIC IMPORTED)  │  │                              │
+#              │                    │  │ IMPORTED_LOCATION:           │
+#              │ IMPORTED_LOCATION: │  │  build/libscylla-cpp-        │
+#              │  build/libscylla-  │  │  driver.so.X.Y.Z            │
+#              │  cpp-driver_       │  │                              │
+#              │  static.a          │  │ + symlinks:                  │
+#              └─────────────────┬──┘  │  .so.X  →  .so.X.Y.Z       │
+#                                │     │  .so    →  .so.X.Y.Z       │
+#                                │     └────────┬─────────────────────┘
+#                                │              │
+#                                ▼              ▼
+#                         tests, examples, install
+#
+# ============================================================================
+# Target layers  —  summary
+# ============================================================================
+#
+# Layer  What                             Purpose
+# ─────  ────────────────────────────     ────────────────────────────────────
+#  (1)   cargo build (custom command)     Runs `cargo build`, produces raw
+#                                         .a and .so in target/<triple>/<profile>/
+#
+#  (2)   _target / _shared_target         Custom targets that depend on the raw
+#         (custom targets, ALL)           artifacts; give the build system a
+#                                         named handle to order on.
+#
+#  (3)   scylla_cpp_driver /              IMPORTED targets wrapping the raw cargo
+#         scylla_cpp_driver_shared        output paths. Exist solely so that
+#         (IMPORTED libraries)            create_copy can use $<TARGET_FILE:…>
+#                                         generator expressions to get the path.
+#
+#  (4)   _copy targets                    Copy + rename from Cargo's underscore
+#         (custom targets, ALL)           naming (libscylla_cpp_driver.so) to
+#                                         conventional C library naming
+#                                         (libscylla-cpp-driver.so.X.Y.Z) in
+#                                         the build root.
+#
+#  (5)   scylla-cpp-driver_static /       Final IMPORTED targets pointing at the
+#         scylla-cpp-driver               renamed copies. These are what the
+#         (IMPORTED libraries)            rest of the build system links against.
+#
+# ============================================================================
+
 # cargo_build(NAME <crate_name> [SHARED])
 #
 # Invokes `cargo build` as a custom command and creates CMake IMPORTED library
