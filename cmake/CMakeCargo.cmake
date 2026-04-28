@@ -74,7 +74,7 @@ function(cargo_build)
     elseif(${LIB_BUILD_TYPE} STREQUAL "relwithdebinfo")
         list(APPEND CARGO_ARGS "--profile" "relwithdebinfo")
     elseif(${LIB_BUILD_TYPE} STREQUAL "debug")
-        list(APPEND CARGO_CARGS "--profile" "dev")
+        list(APPEND CARGO_ARGS "--profile" "dev")
     endif()
 
     file(GLOB_RECURSE LIB_SOURCES "*.rs")
