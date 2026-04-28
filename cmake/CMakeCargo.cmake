@@ -7,67 +7,64 @@
 # library artifacts. Arrows point from dependee to depender (i.e. A → B
 # means "B depends on A").
 #
-#                        ┌──────────────────────────────┐
-#                        │         cargo build           │
-#                        │  (add_custom_command)          │
-#                        │                                │
-#                        │  DEPENDS: all *.rs sources     │
-#                        │  OUTPUT:                       │
-#                        │    .../<profile>/               │
-#                        │      libscylla_cpp_driver.a    │
-#                        │      libscylla_cpp_driver.so   │
-#                        └───────┬──────────────┬─────────┘
-#                                │              │
-#                          .a output      .so output
-#                                │              │
-#              ┌─────────────────▼──┐  ┌────────▼─────────────────────┐
-#              │ scylla_cpp_driver  │  │ scylla_cpp_driver            │
-#              │ _staticlib_target  │  │ _cdylib_target               │
-#              │ (custom target,    │  │ (custom target, ALL)         │
-#              │  ALL)              │  │                              │
-#              └─────────────────┬──┘  └────────┬─────────────────────┘
-#                                │              │
-#              ┌─────────────────▼──┐  ┌────────▼─────────────────────┐
-#              │ scylla_cpp_driver  │  │ scylla_cpp_driver_shared     │
-#              │ (STATIC IMPORTED)  │  │ (SHARED IMPORTED)            │
-#              │                    │  │                              │
-#              │ IMPORTED_LOCATION: │  │ IMPORTED_LOCATION:           │
-#              │  .../<profile>/    │  │  .../<profile>/              │
-#              │  libscylla_cpp_    │  │  libscylla_cpp_              │
-#              │  driver.a          │  │  driver.so                   │
-#              └─────────────────┬──┘  └────────┬─────────────────────┘
-#                                │              │
-#                 $<TARGET_FILE:…>    $<TARGET_FILE:…>
-#               (generator expr       (generator expr
-#                used by               used by
-#                create_copy)          create_copy)
-#                                │              │
-#              ┌─────────────────▼──┐  ┌────────▼─────────────────────┐
-#              │ libscylla-cpp-     │  │ libscylla-cpp-               │
-#              │ driver_static.a    │  │ driver.so.X.Y.Z              │
-#              │ _copy              │  │ _copy                        │
-#              │ (custom target,    │  │ (custom target, ALL)         │
-#              │  ALL)              │  │                              │
-#              │                    │  │                              │
-#              │ Copies + renames   │  │ Copies + renames             │
-#              │ into build/        │  │ into build/                  │
-#              └─────────────────┬──┘  └────────┬─────────────────────┘
-#                                │              │
-#              ┌─────────────────▼──┐  ┌────────▼─────────────────────┐
-#              │ scylla-cpp-driver  │  │ scylla-cpp-driver            │
-#              │ _static            │  │ (SHARED IMPORTED)            │
-#              │ (STATIC IMPORTED)  │  │                              │
-#              │                    │  │ IMPORTED_LOCATION:           │
-#              │ IMPORTED_LOCATION: │  │  build/libscylla-cpp-        │
-#              │  build/libscylla-  │  │  driver.so.X.Y.Z            │
-#              │  cpp-driver_       │  │                              │
-#              │  static.a          │  │ + symlinks:                  │
-#              └─────────────────┬──┘  │  .so.X  →  .so.X.Y.Z       │
-#                                │     │  .so    →  .so.X.Y.Z       │
-#                                │     └────────┬─────────────────────┘
-#                                │              │
-#                                ▼              ▼
-#                         tests, examples, install
+# Each crate type (staticlib, cdylib) is built by a separate
+# cargo_build() invocation using `cargo rustc --crate-type`. Both
+# invocations share the same CARGO_TARGET_DIR, so intermediate Rust
+# compilation artifacts are reused when feature flags match.
+#
+#    ┌──────────────────────────┐     ┌──────────────────────────────┐
+#    │ cargo rustc              │     │ cargo rustc                  │
+#    │  --crate-type staticlib  │     │  --crate-type cdylib         │
+#    │ (add_custom_command)     │     │ (add_custom_command)         │
+#    │                          │     │                              │
+#    │ OUTPUT:                  │     │ OUTPUT:                      │
+#    │  .../<profile>/          │     │  .../<profile>/              │
+#    │  libscylla_cpp_driver.a  │     │  libscylla_cpp_driver.so     │
+#    └────────────┬─────────────┘     └──────────────┬───────────────┘
+#                 │                                  │
+#    ┌────────────▼─────────────┐     ┌──────────────▼───────────────┐
+#    │ scylla_cpp_driver        │     │ scylla_cpp_driver            │
+#    │ _staticlib_target        │     │ _cdylib_target               │
+#    │ (custom target, ALL)     │     │ (custom target, ALL)         │
+#    └────────────┬─────────────┘     └──────────────┬───────────────┘
+#                 │                                  │
+#    ┌────────────▼─────────────┐     ┌──────────────▼───────────────┐
+#    │ scylla_cpp_driver        │     │ scylla_cpp_driver            │
+#    │ _staticlib               │     │ _cdylib                      │
+#    │ (STATIC IMPORTED)        │     │ (SHARED IMPORTED)            │
+#    │                          │     │                              │
+#    │ IMPORTED_LOCATION:       │     │ IMPORTED_LOCATION:           │
+#    │  .../<profile>/          │     │  .../<profile>/              │
+#    │  libscylla_cpp_driver.a  │     │  libscylla_cpp_driver.so     │
+#    └────────────┬─────────────┘     └──────────────┬───────────────┘
+#                 │                                  │
+#      $<TARGET_FILE:…>                   $<TARGET_FILE:…>
+#      (used by create_copy)              (used by create_copy)
+#                 │                                  │
+#    ┌────────────▼─────────────┐     ┌──────────────▼───────────────┐
+#    │ libscylla-cpp-driver     │     │ libscylla-cpp-driver         │
+#    │ _static.a_copy           │     │ .so.X.Y.Z_copy              │
+#    │ (custom target, ALL)     │     │ (custom target, ALL)         │
+#    │                          │     │                              │
+#    │ Copies + renames         │     │ Copies + renames             │
+#    │ into build/              │     │ into build/                  │
+#    └────────────┬─────────────┘     └──────────────┬───────────────┘
+#                 │                                  │
+#    ┌────────────▼─────────────┐     ┌──────────────▼───────────────┐
+#    │ scylla-cpp-driver_static │     │ scylla-cpp-driver            │
+#    │ (STATIC IMPORTED)        │     │ (SHARED IMPORTED)            │
+#    │                          │     │                              │
+#    │ IMPORTED_LOCATION:       │     │ IMPORTED_LOCATION:           │
+#    │  build/libscylla-cpp-    │     │  build/libscylla-cpp-        │
+#    │  driver_static.a         │     │  driver.so.X.Y.Z            │
+#    └────────────┬─────────────┘     │                              │
+#                 │                   │ + symlinks:                  │
+#                 │                   │  .so.X  →  .so.X.Y.Z       │
+#                 │                   │  .so    →  .so.X.Y.Z       │
+#                 │                   └──────────────┬───────────────┘
+#                 │                                  │
+#                 ▼                                  ▼
+#          tests, examples, install
 #
 # ============================================================================
 # Target layers  —  summary
@@ -75,10 +72,11 @@
 #
 # Layer  What                             Purpose
 # ─────  ────────────────────────────     ────────────────────────────────────
-#  (1)   cargo build (custom command)     Runs `cargo build`, produces raw
-#                                         .a and .so in target/<triple>/<profile>/
+#  (1)   cargo rustc --crate-type …      Separate custom command per crate
+#         (custom commands)               type. Shares intermediate artifacts
+#                                         via a common CARGO_TARGET_DIR.
 #
-#  (2)   _staticlib_target /              Custom targets that depend on the raw
+#  (2)   _staticlib_target /             Custom targets that depend on the raw
 #         _cdylib_target                  artifacts; give the build system a
 #         (custom targets, ALL)           named handle to order on.
 #
@@ -99,30 +97,32 @@
 #
 # ============================================================================
 
-# cargo_build(NAME <crate_name> [SHARED])
+# cargo_build(NAME <crate_name> CRATE_TYPE <type> [FEATURES <feature> ...])
 #
-# Invokes `cargo build` as a custom command and creates CMake IMPORTED library
-# targets for the resulting artifacts. Always produces a static library;
-# optionally also produces a shared library when SHARED is specified.
+# Invokes `cargo rustc --crate-type <type>` as a custom command and creates
+# an IMPORTED library target wrapping the resulting artifact. The caller is
+# responsible for copying/renaming the artifact and creating a final IMPORTED
+# library target that the rest of the build system links against.
 #
-# The crate must declare `crate-type = ["staticlib", "cdylib"]` in its
-# Cargo.toml for both output types to be produced.
+# Each crate type should be built by a separate cargo_build() call. Multiple
+# calls with the same NAME share CARGO_TARGET_DIR, so Rust intermediate
+# compilation artifacts are reused when feature flags match.
 #
-# Created targets (using underscored crate name):
-#   <crate_name>_staticlib      —  STATIC IMPORTED library
-#   <crate_name>_cdylib         —  SHARED IMPORTED library  (only if SHARED)
+# The crate must declare the requested crate-type in its Cargo.toml.
 #
-# Auxiliary targets (used internally for dependency ordering):
-#   <crate_name>_staticlib_target  —  custom target that drives the cargo build
-#                                     (depends on the static lib output)
-#   <crate_name>_cdylib_target     —  custom target that depends on the shared
-#                                     lib output (only if SHARED)
+# Created targets:
+#   <crate_name>_<crate_type>          —  IMPORTED library (STATIC or SHARED)
+#   <crate_name>_<crate_type>_target   —  custom target driving the cargo build
 #
 # The caller controls Rust compiler flags via CMAKE_Rust_FLAGS (passed as
 # RUSTFLAGS) and the build profile via CMAKE_BUILD_TYPE.
 function(cargo_build)
-  cmake_parse_arguments(CARGO "SHARED" "NAME" "" ${ARGN})
+  cmake_parse_arguments(CARGO "" "NAME;CRATE_TYPE" "FEATURES" ${ARGN})
   string(REPLACE "-" "_" LIB_NAME ${CARGO_NAME})
+
+  if(NOT CARGO_CRATE_TYPE)
+    message(FATAL_ERROR "cargo_build: CRATE_TYPE is required")
+  endif()
 
   # ── 1. Resolve the Rust target triple ──────────────────────────────────
   #
@@ -169,31 +169,38 @@ function(cargo_build)
     set(LIB_BUILD_TYPE "debug")
   endif()
 
-  # ── 3. Compute expected output paths ───────────────────────────────────
+  # ── 3. Compute expected output path ────────────────────────────────────
   #
   # Cargo places artifacts at:
   #   <CARGO_TARGET_DIR>/<triple>/<profile>/lib<name>.a      (staticlib)
   #   <CARGO_TARGET_DIR>/<triple>/<profile>/lib<name>.so     (cdylib)
-  #
-  # We list all expected outputs so the custom command's OUTPUT list is
-  # complete — this lets the build system know which files the command
-  # produces and avoids unnecessary re-runs.
 
-  set(LIB_FILE "${CARGO_TARGET_DIR}/${LIB_TARGET}/${LIB_BUILD_TYPE}/${CMAKE_STATIC_LIBRARY_PREFIX}${LIB_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}")
-  set(LIB_OUTPUTS ${LIB_FILE})
-  if(CARGO_SHARED)
-    set(LIB_FILE_SHARED "${CARGO_TARGET_DIR}/${LIB_TARGET}/${LIB_BUILD_TYPE}/${CMAKE_SHARED_LIBRARY_PREFIX}${LIB_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX}")
-    list(APPEND LIB_OUTPUTS ${LIB_FILE_SHARED})
+  set(LIB_OUTPUT_DIR "${CARGO_TARGET_DIR}/${LIB_TARGET}/${LIB_BUILD_TYPE}")
+
+  if(CARGO_CRATE_TYPE STREQUAL "staticlib")
+    set(LIB_FILE "${LIB_OUTPUT_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}${LIB_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}")
+    set(LIB_OUTPUTS ${LIB_FILE})
+  elseif(CARGO_CRATE_TYPE STREQUAL "cdylib")
+    set(LIB_FILE "${LIB_OUTPUT_DIR}/${CMAKE_SHARED_LIBRARY_PREFIX}${LIB_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX}")
+    set(LIB_OUTPUTS ${LIB_FILE})
     # On Windows, shared libraries also produce an import library (.lib).
     if(WIN32)
-      set(LIB_FILE_SHARED_IMPLIB "${LIB_FILE_SHARED}${CMAKE_IMPORT_LIBRARY_SUFFIX}")
-      list(APPEND LIB_OUTPUTS ${LIB_FILE_SHARED_IMPLIB})
+      set(LIB_FILE_IMPLIB "${LIB_FILE}${CMAKE_IMPORT_LIBRARY_SUFFIX}")
+      list(APPEND LIB_OUTPUTS ${LIB_FILE_IMPLIB})
     endif()
+  else()
+    message(FATAL_ERROR "cargo_build: unsupported CRATE_TYPE '${CARGO_CRATE_TYPE}' (expected 'staticlib' or 'cdylib')")
   endif()
 
   # ── 4. Assemble the cargo command line ─────────────────────────────────
+  #
+  # We use `cargo rustc --crate-type <type>` instead of `cargo build` so
+  # that each invocation produces only the requested artifact type.
+  # Multiple invocations share the same CARGO_TARGET_DIR, so intermediate
+  # Rust compilation artifacts are reused when feature flags match.
 
-  set(CARGO_ARGS "build")
+
+  set(CARGO_ARGS "rustc" "--crate-type" "${CARGO_CRATE_TYPE}")
   list(APPEND CARGO_ARGS "--target" ${LIB_TARGET})
   if (CMAKE_VERBOSE_MAKEFILE)
     list(APPEND CARGO_ARGS "--verbose")
@@ -207,15 +214,19 @@ function(cargo_build)
     list(APPEND CARGO_ARGS "--profile" "dev")
   endif()
 
-  # ── 5. Register the custom command and targets ─────────────────────────
+  if(CARGO_FEATURES)
+    list(JOIN CARGO_FEATURES "," CARGO_FEATURES_STR)
+    list(APPEND CARGO_ARGS "--features" "${CARGO_FEATURES_STR}")
+  endif()
+
+  # ── 5. Register the custom command and target ──────────────────────────
   #
-  # The custom command runs `cargo build` whenever any .rs source file
-  # changes. The custom targets provide named handles that other CMake
+  # The custom command runs `cargo rustc` whenever any .rs source file
+  # changes. The custom target provides a named handle that other CMake
   # targets can depend on.
   #
-  # We then wrap the raw cargo outputs in IMPORTED library targets so the
-  # rest of the CMake build can link against them using standard
-  # target_link_libraries() calls.
+  # We then wrap the raw cargo output in an IMPORTED library target so
+  # the caller can use $<TARGET_FILE:…> to obtain the artifact path.
 
   # Glob all Rust sources so the command re-runs when any of them change.
   file(GLOB_RECURSE LIB_SOURCES "*.rs")
@@ -232,23 +243,20 @@ function(cargo_build)
     COMMAND ${CARGO_ENV_COMMAND} ${CARGO_EXECUTABLE} ARGS ${CARGO_ARGS}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     DEPENDS ${LIB_SOURCES}
-    COMMENT "running cargo"
+    COMMENT "running cargo rustc --crate-type ${CARGO_CRATE_TYPE}"
   )
 
-  # Static library — always created.
-  add_custom_target(${CARGO_NAME}_staticlib_target ALL DEPENDS ${LIB_FILE})
-  add_library(${CARGO_NAME}_staticlib STATIC IMPORTED GLOBAL)
-  add_dependencies(${CARGO_NAME}_staticlib ${CARGO_NAME}_staticlib_target)
-  set_target_properties(${CARGO_NAME}_staticlib PROPERTIES IMPORTED_LOCATION ${LIB_FILE})
+  add_custom_target(${CARGO_NAME}_${CARGO_CRATE_TYPE}_target ALL DEPENDS ${LIB_FILE})
 
-  # Shared library — only when SHARED was requested.
-  if(CARGO_SHARED)
-    add_custom_target(${CARGO_NAME}_cdylib_target ALL DEPENDS ${LIB_FILE_SHARED})
-    add_library(${CARGO_NAME}_cdylib SHARED IMPORTED GLOBAL)
-    add_dependencies(${CARGO_NAME}_cdylib ${CARGO_NAME}_cdylib_target)
-    set_target_properties(${CARGO_NAME}_cdylib PROPERTIES IMPORTED_LOCATION ${LIB_FILE_SHARED})
-    if(WIN32)
-      set_target_properties(${CARGO_NAME}_cdylib PROPERTIES IMPORTED_IMPLIB ${LIB_FILE_SHARED_IMPLIB})
-    endif()
+  if(CARGO_CRATE_TYPE STREQUAL "staticlib")
+    add_library(${CARGO_NAME}_${CARGO_CRATE_TYPE} STATIC IMPORTED GLOBAL)
+  else()
+    add_library(${CARGO_NAME}_${CARGO_CRATE_TYPE} SHARED IMPORTED GLOBAL)
+  endif()
+  add_dependencies(${CARGO_NAME}_${CARGO_CRATE_TYPE} ${CARGO_NAME}_${CARGO_CRATE_TYPE}_target)
+  set_target_properties(${CARGO_NAME}_${CARGO_CRATE_TYPE} PROPERTIES IMPORTED_LOCATION ${LIB_FILE})
+
+  if(CARGO_CRATE_TYPE STREQUAL "cdylib" AND WIN32)
+    set_target_properties(${CARGO_NAME}_${CARGO_CRATE_TYPE} PROPERTIES IMPORTED_IMPLIB ${LIB_FILE_IMPLIB})
   endif()
 endfunction()
