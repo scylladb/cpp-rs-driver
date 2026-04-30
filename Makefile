@@ -624,32 +624,119 @@ endif
 # Usage:
 #   make test-package              # Test default package format(s) for current OS
 #   make test-package-deb          # Test DEB packages (Linux)
+#   make build-package-deb-static-smoke-app  # Build and install the DEB static smoke app
+#   make run-package-deb-static-smoke        # Run the installed DEB static smoke app tests
+#   make test-package-deb-static-smoke       # Build, run, and clean up the DEB static smoke app
 #   make test-package-rpm          # Test RPM packages (Linux, uses Fedora container via Docker)
 #   make test-package-rpm-native   # Test RPM packages (native Fedora, for CI runners)
+#   make build-package-rpm-native-static-smoke-app  # Build and install the native RPM static smoke app
+#   make run-package-rpm-native-static-smoke        # Run the installed native RPM static smoke app tests
+#   make test-package-rpm-native-static-smoke       # Build, run, and clean up the native RPM static smoke app
 #   make test-package-pkg          # Test PKG packages (macOS)
 #   make test-package-dmg          # Test DMG packages (macOS)
+#   make build-package-pkg-static-smoke-app  # Build and install the PKG static smoke app
+#   make run-package-pkg-static-smoke        # Run the installed PKG static smoke app tests
+#   make build-package-dmg-static-smoke-app  # Build and install the DMG static smoke app
+#   make run-package-dmg-static-smoke        # Run the installed DMG static smoke app tests
+#   make test-package-macos-static-smoke     # Build, run, and clean up the macOS static smoke apps
 #   make test-package-msi          # Test MSI packages (Windows)
+#   make build-package-windows-static-smoke-app  # Build and install the Windows static smoke app
+#   make run-package-windows-static-smoke        # Run the installed Windows static smoke app tests
+#   make test-package-windows-static-smoke       # Build, run, and clean up the Windows static smoke app
 # =============================================================================
 
 SMOKE_TEST_DIR := packaging/smoke-test-app
+SMOKE_TEST_MAKE := $(MAKE) -C $(SMOKE_TEST_DIR)
 SCYLLA_SMOKE_BUILD_STATIC ?= OFF
+SCYLLA_SMOKE_ONLY_STATIC ?= OFF
 SMOKE_TEST_CMAKE_FLAGS :=
 ifeq ($(SCYLLA_SMOKE_BUILD_STATIC),ON)
 SMOKE_TEST_CMAKE_FLAGS += -DSCYLLA_SMOKE_BUILD_STATIC=ON
 endif
+SMOKE_TEST_STATIC_CMAKE_FLAGS := -DSCYLLA_SMOKE_BUILD_STATIC=ON
+SMOKE_TEST_BUILD_FLAGS := SCYLLA_SMOKE_BUILD_STATIC=$(SCYLLA_SMOKE_BUILD_STATIC)
+SMOKE_TEST_RUN_FLAGS := $(SMOKE_TEST_BUILD_FLAGS) SCYLLA_SMOKE_ONLY_STATIC=$(SCYLLA_SMOKE_ONLY_STATIC)
+SMOKE_TEST_STATIC_BUILD_FLAGS := SCYLLA_SMOKE_BUILD_STATIC=ON
+SMOKE_TEST_STATIC_RUN_FLAGS := $(SMOKE_TEST_STATIC_BUILD_FLAGS) SCYLLA_SMOKE_ONLY_STATIC=ON
+
+define smoke_test_build_package
+	$(SMOKE_TEST_MAKE) build-package CPACK_GENERATORS=$(1) $(SMOKE_TEST_BUILD_FLAGS) CMAKE_FLAGS="$(SMOKE_TEST_CMAKE_FLAGS)"
+endef
+
+define smoke_test_build_package_static
+	$(SMOKE_TEST_MAKE) build-package CPACK_GENERATORS=$(1) $(SMOKE_TEST_STATIC_BUILD_FLAGS) CMAKE_FLAGS="$(SMOKE_TEST_STATIC_CMAKE_FLAGS)"
+endef
+
+define smoke_test_run_package
+	$(SMOKE_TEST_MAKE) test-app-package $(1) $(SMOKE_TEST_RUN_FLAGS)
+endef
+
+define smoke_test_run_package_static
+	$(SMOKE_TEST_MAKE) test-app-package $(1) $(SMOKE_TEST_STATIC_RUN_FLAGS)
+endef
+
+define smoke_test_cleanup_deb
+	$(SMOKE_TEST_MAKE) remove-app-deb || true
+	$(SMOKE_TEST_MAKE) remove-driver-deb || true
+	$(SMOKE_TEST_MAKE) remove-driver-dev-deb || true
+endef
+
+define smoke_test_cleanup_rpm
+	$(SMOKE_TEST_MAKE) remove-app-rpm || true
+	$(SMOKE_TEST_MAKE) remove-driver-rpm || true
+	$(SMOKE_TEST_MAKE) remove-driver-dev-rpm || true
+endef
+
+define smoke_test_cleanup_pkg
+	$(SMOKE_TEST_MAKE) remove-app-pkg || true
+	$(SMOKE_TEST_MAKE) remove-driver-pkg || true
+	$(SMOKE_TEST_MAKE) remove-driver-dev-pkg || true
+endef
+
+define smoke_test_cleanup_dmg
+	$(SMOKE_TEST_MAKE) remove-app-dmg || true
+	$(SMOKE_TEST_MAKE) remove-driver-dmg || true
+	$(SMOKE_TEST_MAKE) remove-driver-dev-dmg || true
+endef
+
+define smoke_test_cleanup_msi
+	$(SMOKE_TEST_MAKE) remove-app || true
+	$(SMOKE_TEST_MAKE) remove-driver || true
+	$(SMOKE_TEST_MAKE) remove-driver-dev || true
+endef
 
 # DEB package testing (Ubuntu/Debian)
 test-package-deb: build-package
 	@echo "=== Testing DEB packages ==="
-	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-dev-deb
-	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-deb
-	$(MAKE) -C $(SMOKE_TEST_DIR) build-package CPACK_GENERATORS=DEB SCYLLA_SMOKE_BUILD_STATIC=$(SCYLLA_SMOKE_BUILD_STATIC) CMAKE_FLAGS="$(SMOKE_TEST_CMAKE_FLAGS)"
-	$(MAKE) -C $(SMOKE_TEST_DIR) install-app-deb SCYLLA_SMOKE_BUILD_STATIC=$(SCYLLA_SMOKE_BUILD_STATIC)
-	$(MAKE) -C $(SMOKE_TEST_DIR) test-app-package SCYLLA_SMOKE_BUILD_STATIC=$(SCYLLA_SMOKE_BUILD_STATIC)
+	$(SMOKE_TEST_MAKE) install-driver-dev-deb
+	$(SMOKE_TEST_MAKE) install-driver-deb
+	$(call smoke_test_build_package,DEB)
+	$(SMOKE_TEST_MAKE) install-app-deb
+	$(call smoke_test_run_package,)
 	@echo "=== DEB package test completed successfully ==="
-	$(MAKE) -C $(SMOKE_TEST_DIR) remove-app-deb || true
-	$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-deb || true
-	$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-dev-deb || true
+	$(SMOKE_TEST_MAKE) remove-app-deb || true
+	$(SMOKE_TEST_MAKE) remove-driver-deb || true
+	$(SMOKE_TEST_MAKE) remove-driver-dev-deb || true
+
+build-package-deb-static-smoke-app:
+	@echo "=== Building DEB static smoke app ==="
+	$(SMOKE_TEST_MAKE) install-driver-dev-deb
+	$(SMOKE_TEST_MAKE) install-driver-deb
+	$(call smoke_test_build_package_static,DEB)
+	$(SMOKE_TEST_MAKE) install-app-deb
+
+run-package-deb-static-smoke:
+	@echo "=== Running DEB static smoke test ==="
+	$(call smoke_test_run_package_static,)
+
+cleanup-package-deb-static-smoke:
+	$(call smoke_test_cleanup_deb)
+
+test-package-deb-static-smoke:
+	$(MAKE) build-package-deb-static-smoke-app
+	$(MAKE) run-package-deb-static-smoke
+	@echo "=== DEB static smoke test completed successfully ==="
+	$(MAKE) cleanup-package-deb-static-smoke
 
 # RPM package testing (runs in Fedora container for compatibility)
 test-package-rpm: build-package
@@ -663,8 +750,8 @@ test-package-rpm: build-package
 		bash -c ' \
 			set -euo pipefail; \
 			dnf -y install make cmake gcc-c++ findutils rpm-build zlib-devel; \
-			$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-dev-rpm; \
-			$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-rpm; \
+			$(SMOKE_TEST_MAKE) install-driver-dev-rpm; \
+			$(SMOKE_TEST_MAKE) install-driver-rpm; \
 			pc_file=$$(find /usr -name "scylla-cpp-driver.pc" 2>/dev/null | head -1); \
 			if [ -n "$$pc_file" ]; then \
 				pc_dir=$$(dirname "$$pc_file"); \
@@ -674,8 +761,8 @@ test-package-rpm: build-package
 			if [ -n "$$lib_dir" ]; then \
 				export LD_LIBRARY_PATH="$${lib_dir}:$${LD_LIBRARY_PATH:-}"; \
 			fi; \
-			$(MAKE) -C $(SMOKE_TEST_DIR) build-package CPACK_GENERATORS=RPM SCYLLA_SMOKE_BUILD_STATIC=$(SCYLLA_SMOKE_BUILD_STATIC) CMAKE_FLAGS="$(SMOKE_TEST_CMAKE_FLAGS)"; \
-			$(MAKE) -C $(SMOKE_TEST_DIR) install-app-rpm; \
+			$(call smoke_test_build_package,RPM); \
+			$(SMOKE_TEST_MAKE) install-app-rpm; \
 			smoke_bin=$$(find /usr -name "scylla-cpp-driver-smoke-test" -type f 2>/dev/null | head -1); \
 			if [ -z "$$smoke_bin" ]; then \
 				echo "ERROR: smoke-test binary not found"; \
@@ -701,51 +788,131 @@ SCYLLA_HOST ?= 127.0.0.1
 SKIP_DOCKER_COMPOSE ?=
 test-package-rpm-native: build-package
 	@echo "=== Testing RPM packages (native) ==="
-	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-dev-rpm
-	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-rpm
-	$(MAKE) -C $(SMOKE_TEST_DIR) build-package CPACK_GENERATORS=RPM SCYLLA_SMOKE_BUILD_STATIC=$(SCYLLA_SMOKE_BUILD_STATIC) CMAKE_FLAGS="$(SMOKE_TEST_CMAKE_FLAGS)"
-	$(MAKE) -C $(SMOKE_TEST_DIR) install-app-rpm
-	$(MAKE) -C $(SMOKE_TEST_DIR) test-app-package SCYLLA_HOST=$(SCYLLA_HOST) SKIP_DOCKER_COMPOSE=$(SKIP_DOCKER_COMPOSE) SCYLLA_SMOKE_BUILD_STATIC=$(SCYLLA_SMOKE_BUILD_STATIC)
+	$(SMOKE_TEST_MAKE) install-driver-dev-rpm
+	$(SMOKE_TEST_MAKE) install-driver-rpm
+	$(call smoke_test_build_package,RPM)
+	$(SMOKE_TEST_MAKE) install-app-rpm
+	$(call smoke_test_run_package,SCYLLA_HOST=$(SCYLLA_HOST) SKIP_DOCKER_COMPOSE=$(SKIP_DOCKER_COMPOSE))
 	@echo "=== RPM package test completed successfully ==="
-	$(MAKE) -C $(SMOKE_TEST_DIR) remove-app-rpm || true
-	$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-rpm || true
-	$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-dev-rpm || true
+	$(SMOKE_TEST_MAKE) remove-app-rpm || true
+	$(SMOKE_TEST_MAKE) remove-driver-rpm || true
+	$(SMOKE_TEST_MAKE) remove-driver-dev-rpm || true
+
+build-package-rpm-native-static-smoke-app:
+	@echo "=== Building RPM packages (native static smoke app) ==="
+	$(SMOKE_TEST_MAKE) install-driver-dev-rpm
+	$(SMOKE_TEST_MAKE) install-driver-rpm
+	$(call smoke_test_build_package_static,RPM)
+	$(SMOKE_TEST_MAKE) install-app-rpm
+
+run-package-rpm-native-static-smoke:
+	@echo "=== Running RPM packages (native static smoke test) ==="
+	$(call smoke_test_run_package_static,SCYLLA_HOST=$(SCYLLA_HOST) SKIP_DOCKER_COMPOSE=$(SKIP_DOCKER_COMPOSE))
+
+cleanup-package-rpm-native-static-smoke:
+	$(call smoke_test_cleanup_rpm)
+
+test-package-rpm-native-static-smoke:
+	$(MAKE) build-package-rpm-native-static-smoke-app
+	$(MAKE) run-package-rpm-native-static-smoke
+	@echo "=== RPM native static smoke test completed successfully ==="
+	$(MAKE) cleanup-package-rpm-native-static-smoke
 
 # macOS PKG package testing
 test-package-pkg: build-package
 	@echo "=== Testing PKG packages ==="
-	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-dev-pkg
-	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-pkg
-	$(MAKE) -C $(SMOKE_TEST_DIR) build-package CPACK_GENERATORS=productbuild SCYLLA_SMOKE_BUILD_STATIC=$(SCYLLA_SMOKE_BUILD_STATIC) CMAKE_FLAGS="$(SMOKE_TEST_CMAKE_FLAGS)"
-	$(MAKE) -C $(SMOKE_TEST_DIR) install-app-pkg
-	$(MAKE) -C $(SMOKE_TEST_DIR) test-app-package SCYLLA_SMOKE_BUILD_STATIC=$(SCYLLA_SMOKE_BUILD_STATIC)
+	$(SMOKE_TEST_MAKE) install-driver-dev-pkg
+	$(SMOKE_TEST_MAKE) install-driver-pkg
+	$(call smoke_test_build_package,productbuild)
+	$(SMOKE_TEST_MAKE) install-app-pkg
+	$(call smoke_test_run_package,)
 	@echo "=== PKG package test completed successfully ==="
-	$(MAKE) -C $(SMOKE_TEST_DIR) remove-app-pkg || true
-	$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-pkg || true
-	$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-dev-pkg || true
+	$(SMOKE_TEST_MAKE) remove-app-pkg || true
+	$(SMOKE_TEST_MAKE) remove-driver-pkg || true
+	$(SMOKE_TEST_MAKE) remove-driver-dev-pkg || true
+
+build-package-pkg-static-smoke-app:
+	@echo "=== Building PKG static smoke app ==="
+	$(SMOKE_TEST_MAKE) install-driver-dev-pkg
+	$(SMOKE_TEST_MAKE) install-driver-pkg
+	$(call smoke_test_build_package_static,productbuild)
+	$(SMOKE_TEST_MAKE) install-app-pkg
+
+run-package-pkg-static-smoke:
+	@echo "=== Running PKG static smoke test ==="
+	$(call smoke_test_run_package_static,)
+
+cleanup-package-pkg-static-smoke:
+	$(call smoke_test_cleanup_pkg)
+
+test-package-pkg-static-smoke:
+	$(MAKE) build-package-pkg-static-smoke-app
+	$(MAKE) run-package-pkg-static-smoke
+	@echo "=== PKG static smoke test completed successfully ==="
+	$(MAKE) cleanup-package-pkg-static-smoke
 
 # macOS DMG package testing
 test-package-dmg: build-package
 	@echo "=== Testing DMG packages ==="
-	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-dev-dmg
-	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-dmg
-	$(MAKE) -C $(SMOKE_TEST_DIR) build-package CPACK_GENERATORS=DragNDrop SCYLLA_SMOKE_BUILD_STATIC=$(SCYLLA_SMOKE_BUILD_STATIC) CMAKE_FLAGS="$(SMOKE_TEST_CMAKE_FLAGS)"
-	$(MAKE) -C $(SMOKE_TEST_DIR) install-app-dmg
-	$(MAKE) -C $(SMOKE_TEST_DIR) test-app-package SCYLLA_SMOKE_BUILD_STATIC=$(SCYLLA_SMOKE_BUILD_STATIC)
+	$(SMOKE_TEST_MAKE) install-driver-dev-dmg
+	$(SMOKE_TEST_MAKE) install-driver-dmg
+	$(call smoke_test_build_package,DragNDrop)
+	$(SMOKE_TEST_MAKE) install-app-dmg
+	$(call smoke_test_run_package,)
 	@echo "=== DMG package test completed successfully ==="
-	$(MAKE) -C $(SMOKE_TEST_DIR) remove-app-dmg || true
-	$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-dmg || true
-	$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-dev-dmg || true
+	$(SMOKE_TEST_MAKE) remove-app-dmg || true
+	$(SMOKE_TEST_MAKE) remove-driver-dmg || true
+	$(SMOKE_TEST_MAKE) remove-driver-dev-dmg || true
+
+build-package-dmg-static-smoke-app:
+	@echo "=== Building DMG static smoke app ==="
+	$(SMOKE_TEST_MAKE) install-driver-dev-dmg
+	$(SMOKE_TEST_MAKE) install-driver-dmg
+	$(call smoke_test_build_package_static,DragNDrop)
+	$(SMOKE_TEST_MAKE) install-app-dmg
+
+run-package-dmg-static-smoke:
+	@echo "=== Running DMG static smoke test ==="
+	$(call smoke_test_run_package_static,)
+
+cleanup-package-dmg-static-smoke:
+	$(call smoke_test_cleanup_dmg)
+
+test-package-dmg-static-smoke:
+	$(MAKE) build-package-dmg-static-smoke-app
+	$(MAKE) run-package-dmg-static-smoke
+	@echo "=== DMG static smoke test completed successfully ==="
+	$(MAKE) cleanup-package-dmg-static-smoke
 
 # Windows MSI package testing
 test-package-msi: .windows-setup-wix build-package
 	@echo "=== Testing MSI packages ==="
-	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-dev
-	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver
-	$(MAKE) -C $(SMOKE_TEST_DIR) build-package SCYLLA_SMOKE_BUILD_STATIC=$(SCYLLA_SMOKE_BUILD_STATIC) CMAKE_FLAGS="$(SMOKE_TEST_CMAKE_FLAGS)"
-	$(MAKE) -C $(SMOKE_TEST_DIR) install-app
-	$(MAKE) -C $(SMOKE_TEST_DIR) test-app-package SCYLLA_SMOKE_BUILD_STATIC=$(SCYLLA_SMOKE_BUILD_STATIC)
+	$(SMOKE_TEST_MAKE) install-driver-dev
+	$(SMOKE_TEST_MAKE) install-driver
+	$(SMOKE_TEST_MAKE) build-package $(SMOKE_TEST_BUILD_FLAGS) CMAKE_FLAGS="$(SMOKE_TEST_CMAKE_FLAGS)"
+	$(SMOKE_TEST_MAKE) install-app
+	$(call smoke_test_run_package,)
 	@echo "=== MSI package test completed successfully ==="
+
+build-package-msi-static-smoke-app: .windows-setup-wix
+	@echo "=== Building MSI static smoke app ==="
+	$(SMOKE_TEST_MAKE) install-driver-dev
+	$(SMOKE_TEST_MAKE) install-driver
+	$(SMOKE_TEST_MAKE) build-package $(SMOKE_TEST_STATIC_BUILD_FLAGS) CMAKE_FLAGS="$(SMOKE_TEST_STATIC_CMAKE_FLAGS)"
+	$(SMOKE_TEST_MAKE) install-app
+
+run-package-msi-static-smoke:
+	@echo "=== Running MSI static smoke test ==="
+	$(call smoke_test_run_package_static,)
+
+cleanup-package-msi-static-smoke:
+	$(call smoke_test_cleanup_msi)
+
+test-package-msi-static-smoke:
+	$(MAKE) build-package-msi-static-smoke-app
+	$(MAKE) run-package-msi-static-smoke
+	@echo "=== MSI static smoke test completed successfully ==="
+	$(MAKE) cleanup-package-msi-static-smoke
 
 # Combined Linux package testing (DEB + RPM)
 test-package-linux:
@@ -756,11 +923,24 @@ test-package-linux:
 # Windows package testing (MSI)
 test-package-windows: test-package-msi
 
+build-package-windows-static-smoke-app: build-package-msi-static-smoke-app
+
+run-package-windows-static-smoke: run-package-msi-static-smoke
+
+cleanup-package-windows-static-smoke: cleanup-package-msi-static-smoke
+
+test-package-windows-static-smoke: test-package-msi-static-smoke
+
 # Combined macOS package testing (PKG + DMG)
 test-package-macos:
 	$(MAKE) test-package-pkg
 	rm -rf $(SMOKE_TEST_DIR)/build
 	$(MAKE) test-package-dmg
+
+test-package-macos-static-smoke:
+	$(MAKE) test-package-pkg-static-smoke
+	rm -rf $(SMOKE_TEST_DIR)/build
+	$(MAKE) test-package-dmg-static-smoke
 
 # OS-specific default test-package target
 ifeq ($(OS_TYPE),macos)

@@ -12,6 +12,7 @@ DRIVER_BUILD_DIR ?= ${MAKEFILE_PATH}/../../build
 DRIVER_INSTALL_PATH ?= C:/Program Files/ScyllaDB/Scylla CPP Driver
 SMOKE_TEST_INSTALL_PATH ?= C:/Program Files/ScyllaDB/Scylla CPP Driver Smoke Test
 SCYLLA_SMOKE_BUILD_STATIC ?= OFF
+SCYLLA_SMOKE_ONLY_STATIC ?= OFF
 
 CMAKE_GENERATOR_FLAG :=
 ifneq ($(strip $(CMAKE_GENERATOR)),)
@@ -384,9 +385,14 @@ test-app-package: .prepare-for-test
 	@pwsh.exe -NoProfile -Command "\
 		\$$ErrorActionPreference = 'Stop'; \
 		\$$composeFile = '${MAKEFILE_PATH}/../../tests/examples_cluster/docker-compose.yml'; \
-		\$$smokePaths = @('$(SMOKE_TEST_INSTALL_PATH)\bin\scylla-cpp-driver-smoke-test.exe'); \
+		\$$smokePaths = @(); \
+		if ('$(SCYLLA_SMOKE_ONLY_STATIC)' -ne 'ON') { \
+			\$$smokePaths += '$(SMOKE_TEST_INSTALL_PATH)\bin\scylla-cpp-driver-smoke-test.exe'; \
+		}; \
 		if ('$(SCYLLA_SMOKE_BUILD_STATIC)' -eq 'ON') { \
 			\$$smokePaths += '$(SMOKE_TEST_INSTALL_PATH)\bin\scylla-cpp-driver-smoke-test-static.exe'; \
+		} elseif ('$(SCYLLA_SMOKE_ONLY_STATIC)' -eq 'ON') { \
+			throw 'SCYLLA_SMOKE_ONLY_STATIC requires SCYLLA_SMOKE_BUILD_STATIC=ON'; \
 		}; \
 		function Cleanup { docker compose -f \$$composeFile down --remove-orphans 2>\$$null | Out-Null }; \
 		try { \
@@ -429,9 +435,15 @@ test-app-package: .prepare-for-test
 		fi;\
 		printf '%s\n' "$$smoke_bin";\
 	};\
-	smoke_bins=("$$(resolve_smoke_binary scylla-cpp-driver-smoke-test)");\
+	smoke_bins=();\
+	if [ "$(SCYLLA_SMOKE_ONLY_STATIC)" != "ON" ]; then\
+		smoke_bins+=("$$(resolve_smoke_binary scylla-cpp-driver-smoke-test)");\
+	fi;\
 	if [ "$(SCYLLA_SMOKE_BUILD_STATIC)" = "ON" ]; then\
 		smoke_bins+=("$$(resolve_smoke_binary scylla-cpp-driver-smoke-test-static)");\
+	elif [ "$(SCYLLA_SMOKE_ONLY_STATIC)" = "ON" ]; then\
+		echo "SCYLLA_SMOKE_ONLY_STATIC requires SCYLLA_SMOKE_BUILD_STATIC=ON";\
+		exit 1;\
 	fi;\
 	if [ -n "$(SKIP_DOCKER_COMPOSE)" ]; then\
 		for smoke_bin in "$${smoke_bins[@]}"; do\
