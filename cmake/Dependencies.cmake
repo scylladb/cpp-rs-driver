@@ -103,6 +103,9 @@ if(CASS_USE_OPENSSL)
     message(STATUS "${OPENSSL_NAME} version: v${OPENSSL_VERSION}")
   endif()
 
+  # Derive OPENSSL_LIB_DIR for passing to openssl-sys via environment.
+  get_filename_component(OPENSSL_LIB_DIR "${OPENSSL_SSL_LIBRARY}" DIRECTORY)
+
   set(CASS_INCLUDES ${CASS_INCLUDES} ${OPENSSL_INCLUDE_DIR})
   set(CASS_LIBS ${CASS_LIBS} ${OPENSSL_LIBRARIES})
 endif()
