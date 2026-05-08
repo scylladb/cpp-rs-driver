@@ -7,6 +7,6 @@ Name: scylla-cpp-rs-driver
 Description: ScyllaDB CPP RS Driver
 Version: @version@
 Requires.private: openssl
-Libs: -L${libdir} -lscylla-cpp-driver_static
+Libs: -L${libdir} -lscylla-cpp-driver_static @native_static_libs@
 Cflags: -I${includedir}
 URL: https://github.com/scylladb/cpp-rs-driver/

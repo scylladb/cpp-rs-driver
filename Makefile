@@ -256,7 +256,7 @@ install-java8-if-missing:
 	@sudo apt install -y openjdk-8-jre
 
 install-build-dependencies: update-apt-cache-if-needed
-	@sudo apt-get install -y libssl1.1 libuv1-dev libkrb5-dev libc6-dbg
+	@sudo apt-get install -y libssl1.1 libssl-dev libuv1-dev libkrb5-dev libc6-dbg
 
 # Alias for backward compatibility
 install-bin-dependencies: install-build-dependencies
