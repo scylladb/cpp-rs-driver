@@ -6,7 +6,7 @@ includedir=@includedir@
 Name: scylla-cpp-rs-driver
 Description: ScyllaDB CPP RS Driver
 Version: @version@
-Requires: openssl
+Requires.private: openssl
 Libs: -L${libdir} -lscylla-cpp-driver_static
 Cflags: -I${includedir}
 URL: https://github.com/scylladb/cpp-rs-driver/
