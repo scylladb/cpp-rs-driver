@@ -246,7 +246,7 @@ function(cargo_build)
     COMMENT "running cargo rustc --crate-type ${CARGO_CRATE_TYPE}"
   )
 
-  add_custom_target(${CARGO_NAME}_${CARGO_CRATE_TYPE}_target ALL DEPENDS ${LIB_FILE})
+  add_custom_target(${CARGO_NAME}_${CARGO_CRATE_TYPE}_target ALL DEPENDS ${LIB_OUTPUTS})
 
   if(CARGO_CRATE_TYPE STREQUAL "staticlib")
     add_library(${CARGO_NAME}_${CARGO_CRATE_TYPE} STATIC IMPORTED GLOBAL)
