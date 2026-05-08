@@ -57,7 +57,9 @@ else()
   set(CMAKE_Rust_FLAGS "${CMAKE_Rust_FLAGS_SONAME}")
 endif()
 if(CASS_BUILD_SHARED)
-  cargo_build(NAME scylla_cpp_driver CRATE_TYPE cdylib)
+  cargo_build(NAME scylla_cpp_driver CRATE_TYPE cdylib
+    ENV "OPENSSL_LIB_DIR=${OPENSSL_LIB_DIR}"
+        "OPENSSL_INCLUDE_DIR=${OPENSSL_INCLUDE_DIR}")
   create_copy($<TARGET_FILE:scylla_cpp_driver_cdylib> ${INSTALL_NAME_SHARED})
   add_library(scylla-cpp-driver SHARED IMPORTED GLOBAL)
   add_dependencies(scylla-cpp-driver ${INSTALL_NAME_SHARED}_copy)
@@ -75,7 +77,9 @@ if(CASS_BUILD_SHARED)
   endif()
 endif()
 if(CASS_BUILD_STATIC)
-  cargo_build(NAME scylla_cpp_driver CRATE_TYPE staticlib)
+  cargo_build(NAME scylla_cpp_driver CRATE_TYPE staticlib
+    ENV "OPENSSL_LIB_DIR=${OPENSSL_LIB_DIR}"
+        "OPENSSL_INCLUDE_DIR=${OPENSSL_INCLUDE_DIR}")
   create_copy($<TARGET_FILE:scylla_cpp_driver_staticlib> ${INSTALL_NAME_STATIC})
   add_library(scylla-cpp-driver_static STATIC IMPORTED GLOBAL)
   add_dependencies(scylla-cpp-driver_static ${INSTALL_NAME_STATIC}_copy)
