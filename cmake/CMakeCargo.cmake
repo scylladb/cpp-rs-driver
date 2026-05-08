@@ -62,6 +62,10 @@ function(cargo_build)
     endif()
 
     file(GLOB_RECURSE LIB_SOURCES "*.rs")
+    list(APPEND LIB_SOURCES
+        "${CMAKE_CURRENT_SOURCE_DIR}/Cargo.toml"
+        "${CMAKE_CURRENT_SOURCE_DIR}/Cargo.lock"
+    )
 
     set(CARGO_ENV_COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${CARGO_TARGET_DIR}" "RUSTFLAGS=${CMAKE_Rust_FLAGS}")
 
