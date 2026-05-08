@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Define library package type
-if(BUILD_SHARED_LIBS)
+if(CASS_BUILD_SHARED)
   set(PACKAGE_BUILD_TYPE "shared" CACHE STRING "Package build type" FORCE)
 else()
   set(PACKAGE_BUILD_TYPE "static" CACHE STRING "Package build type" FORCE)
