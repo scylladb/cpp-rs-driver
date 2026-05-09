@@ -1020,4 +1020,50 @@ mod tests {
             cass_statement_free(statement_raw);
         }
     }
+
+    #[test]
+    fn test_bind_string_null_pointer() {
+        unsafe {
+            let mut statement_raw = cass_statement_new(c"dummy".as_ptr(), 1);
+
+            // NULL pointer to cass_statement_bind_string produces empty string, not a crash.
+            assert_cass_error_eq!(
+                CassError::CASS_OK,
+                super::cass_statement_bind_string(statement_raw.borrow_mut(), 0, std::ptr::null())
+            );
+
+            cass_statement_free(statement_raw);
+        }
+    }
+
+    #[test]
+    fn test_bind_string_n_null_pointer() {
+        unsafe {
+            let mut statement_raw = cass_statement_new(c"dummy".as_ptr(), 1);
+
+            // NULL pointer with size 0 produces empty string.
+            assert_cass_error_eq!(
+                CassError::CASS_OK,
+                super::cass_statement_bind_string_n(
+                    statement_raw.borrow_mut(),
+                    0,
+                    std::ptr::null(),
+                    0
+                )
+            );
+
+            // NULL pointer with non-zero size is an error.
+            assert_cass_error_eq!(
+                CassError::CASS_ERROR_LIB_BAD_PARAMS,
+                super::cass_statement_bind_string_n(
+                    statement_raw.borrow_mut(),
+                    0,
+                    std::ptr::null(),
+                    5
+                )
+            );
+
+            cass_statement_free(statement_raw);
+        }
+    }
 }

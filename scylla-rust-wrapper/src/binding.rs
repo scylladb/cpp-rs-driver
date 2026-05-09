@@ -233,7 +233,13 @@ macro_rules! invoke_binder_maker_macro_with_type {
             $this,
             $consume_v,
             $fn,
-            |v| Ok(Some(Text(unsafe { ptr_to_cstr(v) }.unwrap().to_string()))),
+            |v: *const std::os::raw::c_char| {
+                // cpp-driver treats NULL as empty string (via SAFE_STRLEN).
+                if v.is_null() {
+                    return Ok(Some(Text(String::new())));
+                }
+                Ok(Some(Text(unsafe { ptr_to_cstr(v) }.unwrap().to_string())))
+            },
             [v @ *const std::os::raw::c_char]
         );
     };
@@ -242,7 +248,16 @@ macro_rules! invoke_binder_maker_macro_with_type {
             $this,
             $consume_v,
             $fn,
-            |v, n| Ok(Some(Text(unsafe { ptr_to_cstr_n(v, n) }.unwrap().to_string()))),
+            |v: *const std::os::raw::c_char, n| {
+                // cpp-driver treats NULL as empty string (via SAFE_STRLEN).
+                if v.is_null() {
+                    if n != 0 {
+                        return Err(CassError::CASS_ERROR_LIB_BAD_PARAMS);
+                    }
+                    return Ok(Some(Text(String::new())));
+                }
+                Ok(Some(Text(unsafe { ptr_to_cstr_n(v, n) }.unwrap().to_string())))
+            },
             [v @ *const std::os::raw::c_char, n @ size_t]
         );
     };
@@ -252,6 +267,13 @@ macro_rules! invoke_binder_maker_macro_with_type {
             $consume_v,
             $fn,
             |v, v_size| {
+                if (v as *const ()).is_null() {
+                    if v_size != 0 {
+                        return Err(CassError::CASS_ERROR_LIB_BAD_PARAMS);
+                    } else {
+                        return Ok(None);
+                    }
+                }
                 let v_vec = unsafe { std::slice::from_raw_parts(v, v_size as usize) }.to_vec();
                 Ok(Some(Blob(v_vec)))
             },
