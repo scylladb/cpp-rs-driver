@@ -88,7 +88,20 @@ macro_rules! make_name_binder {
                 tracing::error!("Provided null pointer to {}!", stringify!($fn_by_name));
                 return CassError::CASS_ERROR_LIB_BAD_PARAMS;
             };
+            // NULL or empty name is clearly a programmer error. The
+            // cpp-driver accidentally accepts both (treating NULL as
+            // an empty string via SAFE_STRLEN), but we purposefully
+            // diverge and return an error early instead of silently
+            // binding to a bogus empty-named parameter.
+            if name.is_null() {
+                tracing::error!("Provided null name pointer to {}!", stringify!($fn_by_name));
+                return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+            }
             let name = unsafe { ptr_to_cstr(name) }.unwrap();
+            if name.is_empty() {
+                tracing::error!("Provided empty name to {}!", stringify!($fn_by_name));
+                return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+            }
             match ($e)($($arg), *) {
                 Ok(v) => $consume_v(this, name, v),
                 Err(e) => e,
@@ -114,7 +127,20 @@ macro_rules! make_name_n_binder {
                 tracing::error!("Provided null pointer to {}!", stringify!($fn_by_name_n));
                 return CassError::CASS_ERROR_LIB_BAD_PARAMS;
             };
+            // NULL or empty name is clearly a programmer error. The
+            // cpp-driver accidentally accepts both (treating NULL as
+            // an empty string via SAFE_STRLEN), but we purposefully
+            // diverge and return an error early instead of silently
+            // binding to a bogus empty-named parameter.
+            if name.is_null() {
+                tracing::error!("Provided null name pointer to {}!", stringify!($fn_by_name_n));
+                return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+            }
             let name = unsafe { ptr_to_cstr_n(name, name_length) }.unwrap();
+            if name.is_empty() {
+                tracing::error!("Provided empty name to {}!", stringify!($fn_by_name_n));
+                return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+            }
             match ($e)($($arg), *) {
                 Ok(v) => $consume_v(this, name, v),
                 Err(e) => e,

@@ -1130,4 +1130,64 @@ mod tests {
             cass_statement_free(statement_raw);
         }
     }
+
+    #[test]
+    fn test_bind_by_name_null_name() {
+        unsafe {
+            let mut statement_raw = cass_statement_new(c"dummy".as_ptr(), 1);
+
+            // NULL name pointer should not crash — returns BAD_PARAMS.
+            assert_cass_error_eq!(
+                CassError::CASS_ERROR_LIB_BAD_PARAMS,
+                super::cass_statement_bind_int32_by_name(
+                    statement_raw.borrow_mut(),
+                    std::ptr::null(),
+                    42
+                )
+            );
+
+            // Same for the _n variant.
+            assert_cass_error_eq!(
+                CassError::CASS_ERROR_LIB_BAD_PARAMS,
+                super::cass_statement_bind_int32_by_name_n(
+                    statement_raw.borrow_mut(),
+                    std::ptr::null(),
+                    0,
+                    42
+                )
+            );
+
+            cass_statement_free(statement_raw);
+        }
+    }
+
+    #[test]
+    fn test_bind_by_name_empty_name() {
+        unsafe {
+            let mut statement_raw = cass_statement_new(c"dummy".as_ptr(), 1);
+
+            // Empty name is a programmer error — returns BAD_PARAMS.
+            assert_cass_error_eq!(
+                CassError::CASS_ERROR_LIB_BAD_PARAMS,
+                super::cass_statement_bind_int32_by_name(
+                    statement_raw.borrow_mut(),
+                    c"".as_ptr(),
+                    42
+                )
+            );
+
+            // Same for the _n variant with non-null pointer and length 0.
+            assert_cass_error_eq!(
+                CassError::CASS_ERROR_LIB_BAD_PARAMS,
+                super::cass_statement_bind_int32_by_name_n(
+                    statement_raw.borrow_mut(),
+                    c"x".as_ptr(),
+                    0,
+                    42
+                )
+            );
+
+            cass_statement_free(statement_raw);
+        }
+    }
 }
