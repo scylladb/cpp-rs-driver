@@ -1097,4 +1097,37 @@ mod tests {
             cass_statement_free(statement_raw);
         }
     }
+
+    #[test]
+    fn test_bind_decimal_null_pointer() {
+        unsafe {
+            let mut statement_raw = cass_statement_new(c"dummy".as_ptr(), 1);
+
+            // NULL pointer with size 0 produces empty varint decimal.
+            assert_cass_error_eq!(
+                CassError::CASS_OK,
+                super::cass_statement_bind_decimal(
+                    statement_raw.borrow_mut(),
+                    0,
+                    std::ptr::null(),
+                    0,
+                    0
+                )
+            );
+
+            // NULL pointer with non-zero size is an error.
+            assert_cass_error_eq!(
+                CassError::CASS_ERROR_LIB_BAD_PARAMS,
+                super::cass_statement_bind_decimal(
+                    statement_raw.borrow_mut(),
+                    0,
+                    std::ptr::null(),
+                    5,
+                    0
+                )
+            );
+
+            cass_statement_free(statement_raw);
+        }
+    }
 }
