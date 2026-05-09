@@ -125,6 +125,11 @@ jobs:
         with:
           path: ${{ env.INTEGRATION_TEST_BIN }}
           key: ${{ env.INTEGRATION_TEST_BIN_CACHE_KEY }}
+          # Otherwise the binary won't be present, and test workflows will attempt to build it,
+          # failing due to build dependencies not being installed in the test workflow.
+          # It's better to fail early; this is a transient error that can be fixed by re-running
+          # the build-lint-and-unit-test job.
+          fail-on-cache-miss: true
 
       - name: Prepare environment
         run: make update-rust-tooling prepare-integration-test
@@ -213,6 +218,11 @@ jobs:
         with:
           path: ${{ env.INTEGRATION_TEST_BIN }}
           key: ${{ env.INTEGRATION_TEST_BIN_CACHE_KEY }}
+          # Otherwise the binary won't be present, and test workflows will attempt to build it,
+          # failing due to build dependencies not being installed in the test workflow.
+          # It's better to fail early; this is a transient error that can be fixed by re-running
+          # the build-lint-and-unit-test job.
+          fail-on-cache-miss: true
 
       - name: Prepare environment
         run: make update-rust-tooling prepare-integration-test
