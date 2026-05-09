@@ -328,8 +328,15 @@ macro_rules! invoke_binder_maker_macro_with_type {
             $this,
             $consume_v,
             $fn,
-            |v, v_size, scale| {
+            |v: *const cass_byte_t, v_size, scale| {
                 use scylla::value::CqlDecimal;
+                if v.is_null() {
+                    if v_size != 0 {
+                        return Err(CassError::CASS_ERROR_LIB_BAD_PARAMS);
+                    }
+                    // cpp-driver treats NULL+0 as empty varint.
+                    return Ok(Some(Decimal(CqlDecimal::from_signed_be_bytes_slice_and_exponent(&[], scale))));
+                }
                 let varint = unsafe { std::slice::from_raw_parts(v, v_size as usize) };
                 Ok(Some(Decimal(CqlDecimal::from_signed_be_bytes_slice_and_exponent(varint, scale))))
             },
