@@ -90,7 +90,7 @@ set(OPENSSL_ROOT_DIR "${OPENSSL_INSTALL_DIR}" CACHE STRING "OpenSSL root directo
 
 # Determine if shared or static library should be built
 set(OPENSSL_CONFIGURE_COMPILER "no-asm no-ssl2")
-if(BUILD_SHARED_LIBS)
+if(CASS_BUILD_SHARED)
   set(OPENSSL_CONFIGURE_COMPILER "${OPENSSL_CONFIGURE_COMPILER} shared")
   set(OPENSSL_1_0_MAKEFILE "ms\\ntdll.mak")
   set(OPENSSL_1_1_MAKEFILE "makefile.shared")
@@ -276,7 +276,7 @@ if(OPENSSL_MAJOR_MINOR_VERSION STREQUAL "1.0")
     "  EXIT /B 1\r\n"
     ")\r\n")
 endif()
-if(NOT BUILD_SHARED_LIBS)
+if(NOT CASS_BUILD_SHARED)
   file(APPEND ${OPENSSL_CONFIGURE_SCRIPT}
     "perl -p -i\".backup\" -e \"s/\\/MT/\\/MD/g\" ${OPENSSL_MAKEFILE}\r\n"
     "IF NOT %ERRORLEVEL% EQU 0 (\r\n"
