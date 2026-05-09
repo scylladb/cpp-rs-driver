@@ -266,12 +266,13 @@ macro_rules! invoke_binder_maker_macro_with_type {
             $this,
             $consume_v,
             $fn,
-            |v, v_size| {
-                if (v as *const ()).is_null() {
+            |v: *const cass_byte_t, v_size| {
+                if v.is_null() {
                     if v_size != 0 {
                         return Err(CassError::CASS_ERROR_LIB_BAD_PARAMS);
                     } else {
-                        return Ok(None);
+                        // cpp-driver treats NULL+0 as empty blob, not CQL NULL.
+                        return Ok(Some(Blob(vec![])));
                     }
                 }
                 let v_vec = unsafe { std::slice::from_raw_parts(v, v_size as usize) }.to_vec();
