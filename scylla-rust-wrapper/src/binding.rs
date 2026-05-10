@@ -88,20 +88,26 @@ macro_rules! make_name_binder {
                 tracing::error!("Provided null pointer to {}!", stringify!($fn_by_name));
                 return CassError::CASS_ERROR_LIB_BAD_PARAMS;
             };
-            // NULL or empty name is clearly a programmer error. The
-            // cpp-driver accidentally accepts both (treating NULL as
-            // an empty string via SAFE_STRLEN), but we purposefully
-            // diverge and return an error early instead of silently
-            // binding to a bogus empty-named parameter.
-            if name.is_null() {
-                tracing::error!("Provided null name pointer to {}!", stringify!($fn_by_name));
-                return CassError::CASS_ERROR_LIB_BAD_PARAMS;
-            }
-            let name = unsafe { ptr_to_cstr(name) }.unwrap();
-            if name.is_empty() {
-                tracing::error!("Provided empty name to {}!", stringify!($fn_by_name));
-                return CassError::CASS_ERROR_LIB_BAD_PARAMS;
-            }
+            // NULL, non-UTF8, or empty name is clearly a programmer
+            // error. The cpp-driver accidentally accepts NULL (treating
+            // it as an empty string via SAFE_STRLEN), but we
+            // purposefully diverge and return an error early instead of
+            // silently binding to a bogus empty-named parameter.
+            let name = match unsafe { ptr_to_cstr(name) } {
+                Ok(name) if !name.is_empty() => name,
+                Ok(_) => {
+                    tracing::error!("Provided empty name to {}!", stringify!($fn_by_name));
+                    return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+                }
+                Err(PtrToStrError::NullPointer) => {
+                    tracing::error!("Provided null name pointer to {}!", stringify!($fn_by_name));
+                    return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+                }
+                Err(PtrToStrError::InvalidUtf8(_)) => {
+                    tracing::error!("Provided non-UTF8 name to {}!", stringify!($fn_by_name));
+                    return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+                }
+            };
             match ($e)($($arg), *) {
                 Ok(v) => $consume_v(this, name, v),
                 Err(e) => e,
@@ -127,20 +133,26 @@ macro_rules! make_name_n_binder {
                 tracing::error!("Provided null pointer to {}!", stringify!($fn_by_name_n));
                 return CassError::CASS_ERROR_LIB_BAD_PARAMS;
             };
-            // NULL or empty name is clearly a programmer error. The
-            // cpp-driver accidentally accepts both (treating NULL as
-            // an empty string via SAFE_STRLEN), but we purposefully
-            // diverge and return an error early instead of silently
-            // binding to a bogus empty-named parameter.
-            if name.is_null() {
-                tracing::error!("Provided null name pointer to {}!", stringify!($fn_by_name_n));
-                return CassError::CASS_ERROR_LIB_BAD_PARAMS;
-            }
-            let name = unsafe { ptr_to_cstr_n(name, name_length) }.unwrap();
-            if name.is_empty() {
-                tracing::error!("Provided empty name to {}!", stringify!($fn_by_name_n));
-                return CassError::CASS_ERROR_LIB_BAD_PARAMS;
-            }
+            // NULL, non-UTF8, or empty name is clearly a programmer
+            // error. The cpp-driver accidentally accepts NULL (treating
+            // it as an empty string via SAFE_STRLEN), but we
+            // purposefully diverge and return an error early instead of
+            // silently binding to a bogus empty-named parameter.
+            let name = match unsafe { ptr_to_cstr_n(name, name_length) } {
+                Ok(name) if !name.is_empty() => name,
+                Ok(_) => {
+                    tracing::error!("Provided empty name to {}!", stringify!($fn_by_name_n));
+                    return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+                }
+                Err(PtrToStrError::NullPointer) => {
+                    tracing::error!("Provided null name pointer to {}!", stringify!($fn_by_name_n));
+                    return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+                }
+                Err(PtrToStrError::InvalidUtf8(_)) => {
+                    tracing::error!("Provided non-UTF8 name to {}!", stringify!($fn_by_name_n));
+                    return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+                }
+            };
             match ($e)($($arg), *) {
                 Ok(v) => $consume_v(this, name, v),
                 Err(e) => e,
@@ -261,10 +273,11 @@ macro_rules! invoke_binder_maker_macro_with_type {
             $fn,
             |v: *const std::os::raw::c_char| {
                 // cpp-driver treats NULL as empty string (via SAFE_STRLEN).
-                if v.is_null() {
-                    return Ok(Some(Text(String::new())));
+                match unsafe { ptr_to_cstr(v) } {
+                    Ok(s) => Ok(Some(Text(s.to_string()))),
+                    Err(PtrToStrError::NullPointer) => Ok(Some(Text(String::new()))),
+                    Err(PtrToStrError::InvalidUtf8(_)) => Err(CassError::CASS_ERROR_LIB_BAD_PARAMS),
                 }
-                Ok(Some(Text(unsafe { ptr_to_cstr(v) }.unwrap().to_string())))
             },
             [v @ *const std::os::raw::c_char]
         );
@@ -276,13 +289,12 @@ macro_rules! invoke_binder_maker_macro_with_type {
             $fn,
             |v: *const std::os::raw::c_char, n| {
                 // cpp-driver treats NULL as empty string (via SAFE_STRLEN).
-                if v.is_null() {
-                    if n != 0 {
-                        return Err(CassError::CASS_ERROR_LIB_BAD_PARAMS);
-                    }
-                    return Ok(Some(Text(String::new())));
+                match unsafe { ptr_to_cstr_n(v, n) } {
+                    Ok(s) => Ok(Some(Text(s.to_string()))),
+                    Err(PtrToStrError::NullPointer) if n != 0 => Err(CassError::CASS_ERROR_LIB_BAD_PARAMS),
+                    Err(PtrToStrError::NullPointer) => Ok(Some(Text(String::new()))),
+                    Err(PtrToStrError::InvalidUtf8(_)) => Err(CassError::CASS_ERROR_LIB_BAD_PARAMS),
                 }
-                Ok(Some(Text(unsafe { ptr_to_cstr_n(v, n) }.unwrap().to_string())))
             },
             [v @ *const std::os::raw::c_char, n @ size_t]
         );

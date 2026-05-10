@@ -300,8 +300,15 @@ pub unsafe extern "C" fn cass_statement_new_n(
     parameter_count: size_t,
 ) -> CassOwnedExclusivePtr<CassStatement, CMut> {
     let query_str = match unsafe { ptr_to_cstr_n(query, query_length) } {
-        Some(v) => v,
-        None => return BoxFFI::null_mut(),
+        Ok(v) => v,
+        Err(PtrToStrError::NullPointer) => {
+            tracing::error!("Provided null query pointer to cass_statement_new(_n)!");
+            return BoxFFI::null_mut();
+        }
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!("Provided non-UTF8 query to cass_statement_new(_n)!");
+            return BoxFFI::null_mut();
+        }
     };
 
     let query = Statement::new(query_str.to_string());
@@ -500,9 +507,13 @@ pub unsafe extern "C" fn cass_statement_set_host_n(
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
     let host = match unsafe { ptr_to_cstr_n(host, host_length) } {
-        Some(v) => v,
-        None => {
-            tracing::error!("Provided null or non-utf8 host pointer to cass_statement_set_host_n!");
+        Ok(v) => v,
+        Err(PtrToStrError::NullPointer) => {
+            tracing::error!("Provided null host pointer to cass_statement_set_host_n!");
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!("Provided non-UTF8 host pointer to cass_statement_set_host_n!");
             return CassError::CASS_ERROR_LIB_BAD_PARAMS;
         }
     };

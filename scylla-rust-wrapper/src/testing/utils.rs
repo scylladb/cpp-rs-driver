@@ -50,7 +50,7 @@ macro_rules! assert_cass_future_error_message_eq {
         let mut ___message: *const c_char = ::std::ptr::null();
         let mut ___msg_len: size_t = 0;
         cass_future_error_message($cass_fut.borrow(), &mut ___message, &mut ___msg_len);
-        assert_eq!(ptr_to_cstr_n(___message, ___msg_len), $error_msg_opt);
+        assert_eq!(ptr_to_cstr_n(___message, ___msg_len).ok(), $error_msg_opt);
     };
 }
 pub(crate) use assert_cass_future_error_message_eq;
@@ -61,7 +61,7 @@ pub(crate) unsafe fn cass_future_wait_check_and_free(fut: CassOwnedSharedPtr<Cas
         let mut message: *const c_char = std::ptr::null();
         let mut message_len: size_t = 0;
         unsafe { cass_future_error_message(fut.borrow(), &mut message, &mut message_len) };
-        eprintln!("{:?}", unsafe { ptr_to_cstr_n(message, message_len) });
+        eprintln!("{:?}", unsafe { ptr_to_cstr_n(message, message_len).ok() });
     }
     unsafe {
         assert_cass_error_eq!(cass_future_error_code(fut.borrow()), CassError::CASS_OK);

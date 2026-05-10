@@ -5,22 +5,41 @@ use std::marker::PhantomData;
 use std::os::raw::c_char;
 use std::ptr::NonNull;
 use std::sync::{Arc, Weak};
+use thiserror::Error;
 
-pub unsafe fn ptr_to_cstr(ptr: *const c_char) -> Option<&'static str> {
-    if ptr.is_null() {
-        return None;
-    }
-    unsafe { CStr::from_ptr(ptr) }.to_str().ok()
+/// Error type for `ptr_to_cstr` and `ptr_to_cstr_n`, distinguishing
+/// a null pointer from invalid UTF-8 input.
+#[derive(Debug, Error)]
+pub enum PtrToStrError {
+    #[error("null string pointer")]
+    NullPointer,
+    #[error("invalid UTF-8: {0}")]
+    InvalidUtf8(std::str::Utf8Error),
 }
 
-pub unsafe fn ptr_to_cstr_n(ptr: *const c_char, size: size_t) -> Option<&'static str> {
+pub unsafe fn ptr_to_cstr(ptr: *const c_char) -> Result<&'static str, PtrToStrError> {
     if ptr.is_null() {
-        return None;
+        return Err(PtrToStrError::NullPointer);
     }
-    std::str::from_utf8(unsafe { std::slice::from_raw_parts(ptr as *const u8, size as usize) }).ok()
+    unsafe { CStr::from_ptr(ptr) }
+        .to_str()
+        .map_err(PtrToStrError::InvalidUtf8)
 }
 
-pub(crate) unsafe fn arr_to_cstr<const N: usize>(arr: &[c_char]) -> Option<&'static str> {
+pub unsafe fn ptr_to_cstr_n(
+    ptr: *const c_char,
+    size: size_t,
+) -> Result<&'static str, PtrToStrError> {
+    if ptr.is_null() {
+        return Err(PtrToStrError::NullPointer);
+    }
+    std::str::from_utf8(unsafe { std::slice::from_raw_parts(ptr as *const u8, size as usize) })
+        .map_err(PtrToStrError::InvalidUtf8)
+}
+
+pub(crate) unsafe fn arr_to_cstr<const N: usize>(
+    arr: &[c_char],
+) -> Result<&'static str, PtrToStrError> {
     let null_char = '\0' as c_char;
     let end_index = arr[..N].iter().position(|c| c == &null_char).unwrap_or(N);
     unsafe { ptr_to_cstr_n(arr.as_ptr(), end_index as size_t) }
