@@ -274,8 +274,17 @@ pub unsafe extern "C" fn cass_prepared_parameter_data_type_by_name_n(
         return ArcFFI::null();
     };
 
-    let parameter_name =
-        unsafe { ptr_to_cstr_n(name, name_length).expect("Prepared parameter name is not UTF-8") };
+    let parameter_name = match unsafe { ptr_to_cstr_n(name, name_length) } {
+        Ok(name) => name,
+        Err(PtrToStrError::NullPointer) => {
+            tracing::error!("Prepared parameter name pointer is null");
+            return ArcFFI::null();
+        }
+        Err(PtrToStrError::InvalidUtf8(err)) => {
+            tracing::error!("Prepared parameter name is not valid UTF-8. Error: {err}");
+            return ArcFFI::null();
+        }
+    };
 
     let data_type = prepared.get_variable_data_type_by_name(parameter_name);
     match data_type {

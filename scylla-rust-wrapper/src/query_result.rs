@@ -565,13 +565,7 @@ pub unsafe extern "C" fn cass_row_get_column_by_name<'result>(
     row: CassBorrowedSharedPtr<'result, CassRow<'result>, CConst>,
     name: *const c_char,
 ) -> CassBorrowedSharedPtr<'result, CassValue<'result>, CConst> {
-    let Some(name_str) = (unsafe { ptr_to_cstr(name) }) else {
-        tracing::error!("Provided null name pointer to cass_row_get_column_by_name!");
-        return RefFFI::null();
-    };
-    let name_length = name_str.len();
-
-    unsafe { cass_row_get_column_by_name_n(row, name, name_length as size_t) }
+    unsafe { cass_row_get_column_by_name_n(row, name, strlen(name)) }
 }
 
 #[unsafe(no_mangle)]
@@ -585,9 +579,16 @@ pub unsafe extern "C" fn cass_row_get_column_by_name_n<'result>(
         return RefFFI::null();
     };
 
-    let Some(name_str) = (unsafe { ptr_to_cstr_n(name, name_length) }) else {
-        tracing::error!("Provided null name pointer to cass_row_get_column_by_name_n!");
-        return RefFFI::null();
+    let name_str = match unsafe { ptr_to_cstr_n(name, name_length) } {
+        Ok(s) => s,
+        Err(PtrToStrError::NullPointer) => {
+            tracing::error!("Provided null name pointer to cass_row_get_column_by_name_n!");
+            return RefFFI::null();
+        }
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!("Provided non-UTF8 name to cass_row_get_column_by_name_n!");
+            return RefFFI::null();
+        }
     };
     let mut name_str = name_str;
     let mut is_case_sensitive = false;
@@ -1294,7 +1295,7 @@ mod tests {
             )
         };
         assert_eq!(CassError::CASS_OK, cass_err);
-        unsafe { ptr_to_cstr_n(name_ptr, name_length) }
+        unsafe { ptr_to_cstr_n(name_ptr, name_length).ok() }
     }
 
     #[test]

@@ -4,7 +4,9 @@ use crate::cass_host_listener_types::CassHostListenerCallback;
 use crate::config_value::MaybeUnsetConfig;
 use crate::cql_types::CassConsistency;
 use crate::cql_types::uuid::CassUuid;
-use crate::exec_profile::{CassExecProfile, ExecProfileName, exec_profile_builder_modify};
+use crate::exec_profile::{
+    CassExecProfile, EmptyProfileName, ExecProfileName, exec_profile_builder_modify,
+};
 use crate::host_listener::CCallbackBasedHostListener;
 use crate::load_balancing::{
     CassHostFilter, DcRestriction, LoadBalancingConfig, LoadBalancingKind,
@@ -427,15 +429,12 @@ where
 {
     // item_ptr is null if the user provided a null string.
     // null string is equivalent to empty string in this case - it clears the list.
-    let item_str = if item_ptr.is_null() {
-        None
-    } else {
-        match unsafe { ptr_to_cstr_n(item_ptr, item_length) } {
-            Some(h) => Some(h),
-            None => {
-                tracing::error!("Provided non-utf8 string representing a comma-delimited list");
-                return Err(CassError::CASS_ERROR_LIB_BAD_PARAMS);
-            }
+    let item_str = match unsafe { ptr_to_cstr_n(item_ptr, item_length) } {
+        Ok(h) => Some(h),
+        Err(PtrToStrError::NullPointer) => None,
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!("Provided non-UTF8 string representing a comma-delimited list");
+            return Err(CassError::CASS_ERROR_LIB_BAD_PARAMS);
         }
     };
 
@@ -481,9 +480,19 @@ pub unsafe extern "C" fn cass_cluster_set_application_name_n(
         tracing::error!("Provided null cluster pointer to cass_cluster_set_application_name_n!");
         return;
     };
-    let app_name = unsafe { ptr_to_cstr_n(app_name, app_name_len) }
-        .unwrap()
-        .to_string();
+    let app_name = match unsafe { ptr_to_cstr_n(app_name, app_name_len) } {
+        Ok(s) => s.to_string(),
+        Err(PtrToStrError::NullPointer) => {
+            tracing::error!(
+                "Provided null app name pointer to cass_cluster_set_application_name(_n)!"
+            );
+            return;
+        }
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!("Provided non-UTF8 app name to cass_cluster_set_application_name(_n)!");
+            return;
+        }
+    };
 
     cluster
         .session_builder
@@ -510,9 +519,21 @@ pub unsafe extern "C" fn cass_cluster_set_application_version_n(
         tracing::error!("Provided null cluster pointer to cass_cluster_set_application_version_n!");
         return;
     };
-    let app_version = unsafe { ptr_to_cstr_n(app_version, app_version_len) }
-        .unwrap()
-        .to_string();
+    let app_version = match unsafe { ptr_to_cstr_n(app_version, app_version_len) } {
+        Ok(s) => s.to_string(),
+        Err(PtrToStrError::NullPointer) => {
+            tracing::error!(
+                "Provided null app version pointer to cass_cluster_set_application_version(_n)!"
+            );
+            return;
+        }
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!(
+                "Provided non-UTF8 app version to cass_cluster_set_application_version(_n)!"
+            );
+            return;
+        }
+    };
 
     cluster
         .session_builder
@@ -862,20 +883,21 @@ pub unsafe extern "C" fn cass_cluster_set_local_address_n(
 
     // Semantics from cpp-driver - if pointer is null or length is 0, use the
     // arbitrary address (INADDR_ANY, or in6addr_any).
-    let local_addr: Option<IpAddr> = if ip.is_null() || ip_length == 0 {
+    let local_addr: Option<IpAddr> = if ip_length == 0 {
         None
     } else {
         // SAFETY: We assume that user provides valid pointer and length.
         match unsafe { ptr_to_cstr_n(ip, ip_length) } {
-            Some(ip_str) => match IpAddr::from_str(ip_str) {
+            Ok(ip_str) => match IpAddr::from_str(ip_str) {
                 Ok(addr) => Some(addr),
                 Err(err) => {
                     tracing::error!("Failed to parse ip address <{}>: {}", ip_str, err);
                     return CassError::CASS_ERROR_LIB_BAD_PARAMS;
                 }
             },
-            None => {
-                tracing::error!("Provided non-utf8 ip string to cass_cluster_set_local_address_n!");
+            Err(PtrToStrError::NullPointer) => None,
+            Err(PtrToStrError::InvalidUtf8(_)) => {
+                tracing::error!("Provided non-UTF8 ip string to cass_cluster_set_local_address_n!");
                 return CassError::CASS_ERROR_LIB_BAD_PARAMS;
             }
         }
@@ -956,9 +978,28 @@ pub unsafe extern "C" fn cass_cluster_set_credentials_n(
         tracing::error!("Provided null cluster pointer to cass_cluster_set_credentials_n!");
         return;
     };
-    // TODO: string error handling
-    let username = unsafe { ptr_to_cstr_n(username_raw, username_length) }.unwrap();
-    let password = unsafe { ptr_to_cstr_n(password_raw, password_length) }.unwrap();
+    let username = match unsafe { ptr_to_cstr_n(username_raw, username_length) } {
+        Ok(s) => s,
+        Err(PtrToStrError::NullPointer) => {
+            tracing::error!("Provided null username pointer to cass_cluster_set_credentials(_n)!");
+            return;
+        }
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!("Provided non-UTF8 username to cass_cluster_set_credentials(_n)!");
+            return;
+        }
+    };
+    let password = match unsafe { ptr_to_cstr_n(password_raw, password_length) } {
+        Ok(s) => s,
+        Err(PtrToStrError::NullPointer) => {
+            tracing::error!("Provided null password pointer to cass_cluster_set_credentials(_n)!");
+            return;
+        }
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!("Provided non-UTF8 password to cass_cluster_set_credentials(_n)!");
+            return;
+        }
+    };
 
     cluster.auth_username = Some(username.to_string());
     cluster.auth_password = Some(password.to_string());
@@ -1003,11 +1044,18 @@ pub(crate) unsafe fn set_load_balance_dc_aware_n(
     used_hosts_per_remote_dc: c_uint,
     allow_remote_dcs_for_local_cl: cass_bool_t,
 ) -> CassError {
-    let Some(local_dc) = (unsafe { ptr_to_cstr_n(local_dc_raw, local_dc_length) }) else {
-        tracing::error!(
-            "Provided null or non-UTF-8 local DC name to cass_*_set_load_balance_dc_aware(_n)!"
-        );
-        return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+    let local_dc = match unsafe { ptr_to_cstr_n(local_dc_raw, local_dc_length) } {
+        Ok(dc) => dc,
+        Err(PtrToStrError::NullPointer) => {
+            tracing::error!("Provided null local DC name to cass_*_set_load_balance_dc_aware(_n)!");
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!(
+                "Provided non-UTF8 local DC name to cass_*_set_load_balance_dc_aware(_n)!"
+            );
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
     };
 
     if local_dc_length == 0 {
@@ -1125,12 +1173,10 @@ pub(crate) unsafe fn set_load_balance_rack_aware_n(
         unsafe { ptr_to_cstr_n(local_dc_raw, local_dc_length) },
         unsafe { ptr_to_cstr_n(local_rack_raw, local_rack_length) },
     ) {
-        (Some(local_dc_str), Some(local_rack_str))
-            if local_dc_length > 0 && local_rack_length > 0 =>
-        {
+        (Ok(local_dc_str), Ok(local_rack_str)) if local_dc_length > 0 && local_rack_length > 0 => {
             (local_dc_str.to_owned(), local_rack_str.to_owned())
         }
-        // One of them either is a null pointer, is an empty string or is not a proper utf-8.
+        // One of them either is a null pointer, is an empty string or is not a proper UTF-8.
         _ => {
             tracing::error!(
                 "Provided local_dc or local_rack that is null, empty or non-UTF-8 to cass_*_set_load_balance_rack_aware(_n)!"
@@ -1603,16 +1649,28 @@ pub unsafe extern "C" fn cass_cluster_set_execution_profile_n(
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
-    let name = if let Some(name) =
-        unsafe { ptr_to_cstr_n(name, name_length) }.and_then(|name| name.to_owned().try_into().ok())
-    {
-        name
-    } else {
-        // Got NULL or empty string, which is invalid name for a profile.
-        tracing::error!(
-            "Provided null or empty profile name to cass_cluster_set_execution_profile(_n)!"
-        );
-        return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+    let name = match unsafe { ptr_to_cstr_n(name, name_length) } {
+        Ok(name) => match name.to_owned().try_into() {
+            Ok(name) => name,
+            Err(EmptyProfileName) => {
+                tracing::error!(
+                    "Provided empty profile name to cass_cluster_set_execution_profile(_n)!"
+                );
+                return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+            }
+        },
+        Err(PtrToStrError::NullPointer) => {
+            tracing::error!(
+                "Provided null profile name to cass_cluster_set_execution_profile(_n)!"
+            );
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!(
+                "Provided non-UTF8 profile name to cass_cluster_set_execution_profile(_n)!"
+            );
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
     };
 
     cluster.execution_profile_map.insert(name, profile.clone());
