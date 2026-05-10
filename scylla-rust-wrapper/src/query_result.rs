@@ -565,7 +565,10 @@ pub unsafe extern "C" fn cass_row_get_column_by_name<'result>(
     row: CassBorrowedSharedPtr<'result, CassRow<'result>, CConst>,
     name: *const c_char,
 ) -> CassBorrowedSharedPtr<'result, CassValue<'result>, CConst> {
-    let name_str = unsafe { ptr_to_cstr(name) }.unwrap();
+    let Some(name_str) = (unsafe { ptr_to_cstr(name) }) else {
+        tracing::error!("Provided null name pointer to cass_row_get_column_by_name!");
+        return RefFFI::null();
+    };
     let name_length = name_str.len();
 
     unsafe { cass_row_get_column_by_name_n(row, name, name_length as size_t) }
@@ -582,7 +585,11 @@ pub unsafe extern "C" fn cass_row_get_column_by_name_n<'result>(
         return RefFFI::null();
     };
 
-    let mut name_str = unsafe { ptr_to_cstr_n(name, name_length).unwrap() };
+    let Some(name_str) = (unsafe { ptr_to_cstr_n(name, name_length) }) else {
+        tracing::error!("Provided null name pointer to cass_row_get_column_by_name_n!");
+        return RefFFI::null();
+    };
+    let mut name_str = name_str;
     let mut is_case_sensitive = false;
 
     if name_str.starts_with('\"') && name_str.ends_with('\"') {
@@ -1207,7 +1214,7 @@ mod tests {
     use scylla::response::query_result::ColumnSpecs;
 
     use crate::argconv::{CConst, CassBorrowedSharedPtr, ptr_to_cstr_n};
-    use crate::cql_types::data_type::{CassDataType, CassDataTypeInner};
+    use crate::cql_types::data_type::{CassColumnSpec, CassDataType, CassDataTypeInner};
     use crate::{
         argconv::{ArcFFI, RefFFI},
         cass_error::CassError,
@@ -1406,6 +1413,53 @@ mod tests {
                 );
                 assert_eq!(CassError::CASS_ERROR_LIB_BAD_PARAMS, cass_err);
             }
+        }
+    }
+
+    #[test]
+    fn test_cass_row_get_column_by_name_null_and_empty() {
+        let metadata = CassResultMetadata {
+            col_specs: vec![CassColumnSpec {
+                name: FIRST_COLUMN_NAME.to_owned(),
+                data_type: Arc::new(CassDataType::new(CassDataTypeInner::Value(
+                    CassValueType::CASS_VALUE_TYPE_BIGINT,
+                ))),
+            }],
+        };
+        let row = super::CassRow {
+            columns: Vec::new(),
+            result_metadata: &metadata,
+        };
+        let row_ptr = RefFFI::as_ptr(&row);
+
+        unsafe {
+            // -- non-_n variant --
+            // NULL name: caught by ptr_to_cstr before touching the row.
+            let value = super::cass_row_get_column_by_name(row_ptr.borrow(), std::ptr::null());
+            assert!(RefFFI::is_null(&value));
+
+            // Empty name: no column has an empty name, so returns null.
+            let value = super::cass_row_get_column_by_name(row_ptr.borrow(), c"".as_ptr());
+            assert!(RefFFI::is_null(&value));
+
+            // Nonexistent name: returns null.
+            let value =
+                super::cass_row_get_column_by_name(row_ptr.borrow(), c"no_such_col".as_ptr());
+            assert!(RefFFI::is_null(&value));
+
+            // -- _n variant (needs a real row to reach name checking) --
+            // NULL name: caught by ptr_to_cstr_n.
+            let value = super::cass_row_get_column_by_name_n(row_ptr.borrow(), std::ptr::null(), 0);
+            assert!(RefFFI::is_null(&value));
+
+            // Empty name (zero length): no match, returns null.
+            let value = super::cass_row_get_column_by_name_n(row_ptr.borrow(), c"x".as_ptr(), 0);
+            assert!(RefFFI::is_null(&value));
+
+            // Nonexistent name: returns null.
+            let value =
+                super::cass_row_get_column_by_name_n(row_ptr.borrow(), c"no_such_col".as_ptr(), 11);
+            assert!(RefFFI::is_null(&value));
         }
     }
 }
