@@ -7,6 +7,9 @@ use std::ptr::NonNull;
 use std::sync::{Arc, Weak};
 
 pub unsafe fn ptr_to_cstr(ptr: *const c_char) -> Option<&'static str> {
+    if ptr.is_null() {
+        return None;
+    }
     unsafe { CStr::from_ptr(ptr) }.to_str().ok()
 }
 
