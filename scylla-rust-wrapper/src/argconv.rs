@@ -7,7 +7,7 @@ use std::ptr::NonNull;
 use std::sync::{Arc, Weak};
 use thiserror::Error;
 
-/// Error type for `ptr_to_cstr` and `ptr_to_cstr_n`, distinguishing
+/// Error type for C string pointer conversions, distinguishing
 /// a null pointer from invalid UTF-8 input.
 #[derive(Debug, Error)]
 pub enum PtrToStrError {
@@ -37,12 +37,13 @@ pub unsafe fn ptr_to_cstr_n(
         .map_err(PtrToStrError::InvalidUtf8)
 }
 
-pub(crate) unsafe fn arr_to_cstr<const N: usize>(
-    arr: &[c_char],
-) -> Result<&'static str, PtrToStrError> {
+pub(crate) unsafe fn arr_to_cstr<const N: usize>(arr: &[c_char]) -> Result<&str, PtrToStrError> {
     let null_char = '\0' as c_char;
     let end_index = arr[..N].iter().position(|c| c == &null_char).unwrap_or(N);
-    unsafe { ptr_to_cstr_n(arr.as_ptr(), end_index as size_t) }
+    unsafe {
+        CassStrLenDelimited::from_raw(arr.as_ptr())
+            .to_str(CassStrLen::from_raw(end_index as size_t))
+    }
 }
 
 pub(crate) fn str_to_arr<const N: usize>(s: &str) -> [c_char; N] {
@@ -76,6 +77,178 @@ pub(crate) unsafe fn strlen(ptr: *const c_char) -> size_t {
     unsafe { libc::strlen(ptr) as size_t }
 }
 
+/// A null-terminated C string pointer with lifetime tracking.
+///
+/// ABI-compatible with `*const c_char` thanks to `#[repr(transparent)]`.
+/// Can be used directly as an FFI function parameter — the C caller passes
+/// a `const char*`, and Rust receives a `CassStrNulTerminated<'_>`.
+///
+/// Must be paired with [`CassStrNulTerminated::to_str`] to obtain a `&str`.
+#[derive(Clone, Copy)]
+#[repr(transparent)]
+pub struct CassStrNulTerminated<'a> {
+    ptr: *const c_char,
+    _phantom: PhantomData<&'a c_char>,
+}
+
+impl<'a> CassStrNulTerminated<'a> {
+    pub fn is_null(&self) -> bool {
+        self.ptr.is_null()
+    }
+
+    /// Creates a `CassStrNulTerminated` from a raw pointer.
+    pub const fn from_raw(ptr: *const c_char) -> Self {
+        CassStrNulTerminated {
+            ptr,
+            _phantom: PhantomData,
+        }
+    }
+
+    /// Creates a `CassStrNulTerminated` from a `&CStr`.
+    ///
+    /// This is the safe alternative to [`from_raw`](Self::from_raw).
+    pub const fn from_cstr(cstr: &'a CStr) -> Self {
+        CassStrNulTerminated {
+            ptr: cstr.as_ptr(),
+            _phantom: PhantomData,
+        }
+    }
+
+    /// Converts the pointer to a `&str` by scanning for a null terminator
+    /// and validating UTF-8.
+    ///
+    /// # Safety
+    ///
+    /// If the pointer is non-null, the caller must ensure it points to valid,
+    /// readable, null-terminated memory.
+    ///
+    /// Unlike [`CassPtr::into_ref`], which is safe because `CassPtr` wraps
+    /// pointers to **driver-allocated** objects (via `Box`/`Arc`) whose validity
+    /// is established at construction by the driver itself, this type wraps
+    /// pointers to **user-allocated** C strings. The driver has no control over
+    /// the pointed-to memory, so the actual unsafe operation ([`CStr::from_ptr`],
+    /// which scans for a null terminator) is deferred to this method rather than
+    /// being absorbed at construction time.
+    pub unsafe fn to_str(self) -> Result<&'a str, PtrToStrError> {
+        if self.ptr.is_null() {
+            return Err(PtrToStrError::NullPointer);
+        }
+        unsafe { CStr::from_ptr(self.ptr) }
+            .to_str()
+            .map_err(PtrToStrError::InvalidUtf8)
+    }
+
+    /// Converts a null-terminated string to a length-delimited string and its
+    /// length, for forwarding non-`_n` functions to their `_n` variants.
+    ///
+    /// Returns a null `CassStrLenDelimited` and zero `CassStrLen` if the
+    /// pointer is null, preserving null semantics for the `_n` callee.
+    ///
+    /// # Safety
+    ///
+    /// If the pointer is non-null, the caller must ensure it points to valid,
+    /// readable, null-terminated memory (same as [`CassStrNulTerminated::to_str`]).
+    pub unsafe fn as_len_delimited(&self) -> (CassStrLenDelimited<'a>, CassStrLen) {
+        if self.ptr.is_null() {
+            return (
+                CassStrLenDelimited::from_raw(std::ptr::null()),
+                CassStrLen::from_raw(0),
+            );
+        }
+        let len = unsafe { strlen(self.ptr) };
+        (
+            CassStrLenDelimited::from_raw(self.ptr),
+            CassStrLen::from_raw(len),
+        )
+    }
+}
+
+/// A length-delimited C string pointer with lifetime tracking (no null
+/// terminator required).
+///
+/// ABI-compatible with `*const c_char` thanks to `#[repr(transparent)]`.
+/// Can be used directly as an FFI function parameter — the C caller passes
+/// a `const char*`, and Rust receives a `CassStrLenDelimited<'_>`.
+///
+/// Must be paired with a [`CassStrLen`] parameter to convert to `&str`
+/// via [`CassStrLenDelimited::to_str`].
+#[derive(Clone, Copy)]
+#[repr(transparent)]
+pub struct CassStrLenDelimited<'a> {
+    ptr: *const c_char,
+    _phantom: PhantomData<&'a c_char>,
+}
+
+impl<'a> CassStrLenDelimited<'a> {
+    pub fn is_null(&self) -> bool {
+        self.ptr.is_null()
+    }
+
+    /// Creates a `CassStrLenDelimited` from a raw pointer.
+    pub fn from_raw(ptr: *const c_char) -> Self {
+        CassStrLenDelimited {
+            ptr,
+            _phantom: PhantomData,
+        }
+    }
+
+    /// Converts the pointer to a `&str` using the provided length
+    /// and validating UTF-8.
+    ///
+    /// # Safety
+    ///
+    /// If the pointer is non-null, the caller must ensure it points to valid,
+    /// readable memory of at least `len` bytes.
+    ///
+    /// Unlike [`CassPtr::into_ref`], which is safe because `CassPtr` wraps
+    /// pointers to **driver-allocated** objects (via `Box`/`Arc`) whose validity
+    /// is established at construction by the driver itself, this type wraps
+    /// pointers to **user-allocated** C strings. The driver has no control over
+    /// the pointed-to memory, so the actual unsafe operation
+    /// ([`std::slice::from_raw_parts`]) is deferred to this method rather than
+    /// being absorbed at construction time.
+    pub unsafe fn to_str(self, len: CassStrLen) -> Result<&'a str, PtrToStrError> {
+        if self.ptr.is_null() {
+            return Err(PtrToStrError::NullPointer);
+        }
+        std::str::from_utf8(unsafe {
+            std::slice::from_raw_parts(self.ptr as *const u8, len.len as usize)
+        })
+        .map_err(PtrToStrError::InvalidUtf8)
+    }
+
+    #[cfg(test)]
+    #[expect(dead_code, reason = "used after call-site migration")]
+    pub(crate) fn null() -> CassStrLenDelimited<'a> {
+        Self {
+            ptr: std::ptr::null(),
+            _phantom: PhantomData,
+        }
+    }
+}
+
+/// The length component for [`CassStrLenDelimited`].
+///
+/// ABI-compatible with `size_t` thanks to `#[repr(transparent)]`.
+/// Can be used directly as an FFI function parameter — the C caller passes
+/// a `size_t`, and Rust receives a `CassStrLen`.
+#[derive(Clone, Copy)]
+#[repr(transparent)]
+pub struct CassStrLen {
+    len: size_t,
+}
+
+impl CassStrLen {
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
+    /// Creates a `CassStrLen` from a raw `size_t`.
+    pub fn from_raw(len: size_t) -> Self {
+        CassStrLen { len }
+    }
+}
+
 #[cfg(test)]
 pub(crate) fn str_to_c_str_n(s: &str) -> (*const c_char, size_t) {
     let mut c_str = std::ptr::null();
@@ -90,7 +263,7 @@ pub(crate) fn str_to_c_str_n(s: &str) -> (*const c_char, size_t) {
 #[cfg(test)]
 macro_rules! make_c_str {
     ($str:literal) => {
-        concat!($str, "\0").as_ptr() as *const c_char
+        concat!($str, "\0").as_ptr() as *const std::ffi::c_char
     };
 }
 
