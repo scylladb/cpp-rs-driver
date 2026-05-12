@@ -84,15 +84,13 @@ where
 
 #[track_caller]
 pub(crate) fn assert_cass_error_eq(errcode1: CassError, errcode2: CassError) {
-    unsafe {
-        assert_eq!(
-            errcode1,
-            errcode2,
-            "expected \"{}\", instead got \"{}\"",
-            ptr_to_cstr(cass_error_desc(errcode1)).unwrap(),
-            ptr_to_cstr(cass_error_desc(errcode2)).unwrap()
-        );
-    }
+    assert_eq!(
+        errcode1,
+        errcode2,
+        "expected \"{}\", instead got \"{}\"",
+        unsafe { ptr_to_cstr(cass_error_desc(errcode1)) }.unwrap(),
+        unsafe { ptr_to_cstr(cass_error_desc(errcode2)) }.unwrap()
+    );
 }
 
 #[track_caller]

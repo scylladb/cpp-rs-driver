@@ -830,9 +830,7 @@ mod tests {
             let (cass_fut, flag_ptr) = create_future_and_flag();
             unsafe { cass_future_wait(cass_fut.borrow()) };
 
-            unsafe {
-                assert_cass_future_error_message_eq!(cass_fut, Some(ERROR_MSG));
-            }
+            assert_cass_future_error_message_eq!(cass_fut, Some(ERROR_MSG));
             assert!(unsafe { *flag_ptr });
 
             unsafe { cass_future_free(cass_fut) };
@@ -843,9 +841,7 @@ mod tests {
         {
             let (cass_fut, flag_ptr) = create_future_and_flag();
 
-            unsafe {
-                assert_cass_future_error_message_eq!(cass_fut, Some(ERROR_MSG));
-            }
+            assert_cass_future_error_message_eq!(cass_fut, Some(ERROR_MSG));
             assert!(unsafe { *flag_ptr });
 
             unsafe { cass_future_free(cass_fut) };
@@ -866,9 +862,7 @@ mod tests {
             assert_eq!(0, timed_result);
 
             // Await and check result.
-            unsafe {
-                assert_cass_future_error_message_eq!(cass_fut, Some(ERROR_MSG));
-            }
+            assert_cass_future_error_message_eq!(cass_fut, Some(ERROR_MSG));
             assert!(unsafe { *flag_ptr });
 
             unsafe { cass_future_free(cass_fut) };
