@@ -76,15 +76,19 @@ pub(crate) unsafe extern "C" fn stderr_log_callback(
     message: CassBorrowedSharedPtr<CassLogMessage, CConst>,
     _data: *mut c_void,
 ) {
-    let message = RefFFI::as_ref(message).unwrap();
+    let message =
+        RefFFI::as_ref(message).expect("message pointer is always valid; set by on_event");
 
     eprintln!(
         "{} [{}] ({}:{}) {}",
         message.time_ms,
-        unsafe { ptr_to_cstr(cass_log_level_string(message.severity)) }.unwrap(),
-        unsafe { ptr_to_cstr(message.file) }.unwrap(),
+        unsafe { ptr_to_cstr(cass_log_level_string(message.severity)) }
+            .expect("cass_log_level_string always returns a valid UTF-8 c-string literal"),
+        unsafe { ptr_to_cstr(message.file) }
+            .expect("file is set to a null-terminated Rust string by on_event"),
         message.line,
-        unsafe { arr_to_cstr::<{ CASS_LOG_MAX_MESSAGE_SIZE }>(&message.message) }.unwrap(),
+        unsafe { arr_to_cstr::<{ CASS_LOG_MAX_MESSAGE_SIZE }>(&message.message) }
+            .expect("message is populated from a Rust String via str_to_arr"),
     )
 }
 
