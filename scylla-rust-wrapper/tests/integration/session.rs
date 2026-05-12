@@ -1,9 +1,8 @@
 use std::{
-    ffi::{CStr, c_void},
+    ffi::c_void,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use libc::c_char;
 use rusty_fork::rusty_fork_test;
 use scylla::errors::DbError;
 use scylla_cpp_driver::{
@@ -14,9 +13,8 @@ use scylla_cpp_driver::{
         },
         cluster::{
             cass_cluster_free, cass_cluster_new, cass_cluster_set_client_id,
-            cass_cluster_set_contact_points, cass_cluster_set_contact_points_n,
-            cass_cluster_set_execution_profile, cass_cluster_set_latency_aware_routing,
-            cass_cluster_set_retry_policy,
+            cass_cluster_set_contact_points, cass_cluster_set_execution_profile,
+            cass_cluster_set_latency_aware_routing, cass_cluster_set_retry_policy,
         },
         error::CassError,
         execution_profile::{
@@ -42,7 +40,9 @@ use scylla_cpp_driver::{
         },
         uuid::CassUuid,
     },
-    argconv::{ArcFFI, CConst, CMut, CassBorrowedExclusivePtr, CassBorrowedSharedPtr},
+    argconv::{
+        ArcFFI, CConst, CMut, CassBorrowedExclusivePtr, CassBorrowedSharedPtr, CassStrNulTerminated,
+    },
     types::cass_bool_t,
 };
 use scylla_cql::Consistency;
@@ -54,7 +54,7 @@ use tracing::instrument::WithSubscriber as _;
 use crate::utils::{
     assert_cass_error_eq, cass_future_wait_check_and_free, generic_drop_queries_rules,
     handshake_rules, make_c_str, mock_init_rules, proxy_uris_to_contact_points, setup_tracing,
-    str_to_c_str_n, test_with_3_node_dry_mode_cluster,
+    test_with_3_node_dry_mode_cluster,
 };
 
 #[tokio::test]
@@ -129,7 +129,10 @@ fn retry_policy_on_statement_and_batch_is_handled_properly_do(
         let contact_points = proxy_uris_to_contact_points(proxy_uris);
 
         assert_cass_error_eq(
-            cass_cluster_set_contact_points(cluster_raw.borrow_mut(), contact_points.as_ptr()),
+            cass_cluster_set_contact_points(
+                cluster_raw.borrow_mut(),
+                CassStrNulTerminated::from_raw(contact_points.as_ptr()),
+            ),
             CassError::CASS_OK,
         );
 
@@ -152,7 +155,7 @@ fn retry_policy_on_statement_and_batch_is_handled_properly_do(
         );
 
         let query = make_c_str!("SELECT host_id FROM system.local WHERE key='local'");
-        let mut statement_raw = cass_statement_new(query, 0);
+        let mut statement_raw = cass_statement_new(CassStrNulTerminated::from_raw(query), 0);
         let mut batch_raw = cass_batch_new(CassBatchType::CASS_BATCH_TYPE_LOGGED);
         assert_cass_error_eq(
             cass_batch_add_statement(batch_raw.borrow_mut(), statement_raw.borrow()),
@@ -162,7 +165,7 @@ fn retry_policy_on_statement_and_batch_is_handled_properly_do(
         assert_cass_error_eq(
             cass_cluster_set_execution_profile(
                 cluster_raw.borrow_mut(),
-                profile_name_c_str,
+                CassStrNulTerminated::from_raw(profile_name_c_str),
                 profile_raw.borrow_mut(),
             ),
             CassError::CASS_OK,
@@ -245,14 +248,14 @@ fn retry_policy_on_statement_and_batch_is_handled_properly_do(
             }
 
             unsafe fn set_provided_exec_profile(
-                name: *const i8,
+                name: CassStrNulTerminated<'_>,
                 statement_raw: CassBorrowedExclusivePtr<CassStatement, CMut>,
                 batch_raw: CassBorrowedExclusivePtr<CassBatch, CMut>,
             ) {
                 // Set statement/batch exec profile.
                 unsafe {
                     assert_cass_error_eq(
-                        cass_statement_set_execution_profile(statement_raw, name),
+                        cass_statement_set_execution_profile(statement_raw, name.clone()),
                         CassError::CASS_OK,
                     );
                     assert_cass_error_eq(
@@ -262,7 +265,7 @@ fn retry_policy_on_statement_and_batch_is_handled_properly_do(
                 }
             }
             unsafe fn set_exec_profile(
-                profile_name_c_str: *const c_char,
+                profile_name_c_str: CassStrNulTerminated<'_>,
                 statement_raw: CassBorrowedExclusivePtr<CassStatement, CMut>,
                 batch_raw: CassBorrowedExclusivePtr<CassBatch, CMut>,
             ) {
@@ -273,7 +276,11 @@ fn retry_policy_on_statement_and_batch_is_handled_properly_do(
                 batch_raw: CassBorrowedExclusivePtr<CassBatch, CMut>,
             ) {
                 unsafe {
-                    set_provided_exec_profile(std::ptr::null::<i8>(), statement_raw, batch_raw)
+                    set_provided_exec_profile(
+                        CassStrNulTerminated::from_raw(std::ptr::null()),
+                        statement_raw,
+                        batch_raw,
+                    )
                 };
             }
             unsafe fn set_retry_policy_on_stmt(
@@ -314,7 +321,7 @@ fn retry_policy_on_statement_and_batch_is_handled_properly_do(
 
             // F D -
             set_exec_profile(
-                profile_name_c_str,
+                CassStrNulTerminated::from_raw(profile_name_c_str),
                 statement_raw.borrow_mut(),
                 batch_raw.borrow_mut(),
             );
@@ -349,7 +356,7 @@ fn retry_policy_on_statement_and_batch_is_handled_properly_do(
 
             // F D F
             set_exec_profile(
-                profile_name_c_str,
+                CassStrNulTerminated::from_raw(profile_name_c_str),
                 statement_raw.borrow_mut(),
                 batch_raw.borrow_mut(),
             );
@@ -441,7 +448,7 @@ fn retry_policy_on_statement_and_batch_is_handled_properly_do(
 
             // F D D
             set_exec_profile(
-                profile_name_c_str,
+                CassStrNulTerminated::from_raw(profile_name_c_str),
                 statement_raw.borrow_mut(),
                 batch_raw.borrow_mut(),
             );
@@ -480,11 +487,13 @@ fn session_with_latency_aware_load_balancing_does_not_panic() {
         let mut cluster_raw = cass_cluster_new();
 
         // An IP with very little chance of having a ScyllaDB node listening
-        let ip = "127.0.1.231";
-        let (c_ip, c_ip_len) = str_to_c_str_n(ip);
+        let ip = make_c_str!("127.0.1.231");
 
         assert_cass_error_eq(
-            cass_cluster_set_contact_points_n(cluster_raw.borrow_mut(), c_ip, c_ip_len),
+            cass_cluster_set_contact_points(
+                cluster_raw.borrow_mut(),
+                CassStrNulTerminated::from_raw(ip),
+            ),
             CassError::CASS_OK,
         );
         cass_cluster_set_latency_aware_routing(cluster_raw.borrow_mut(), true as cass_bool_t);
@@ -500,7 +509,7 @@ fn session_with_latency_aware_load_balancing_does_not_panic() {
         let profile_name = make_c_str!("latency_aware");
         cass_cluster_set_execution_profile(
             cluster_raw.borrow_mut(),
-            profile_name,
+            CassStrNulTerminated::from_raw(profile_name),
             profile_raw.borrow_mut(),
         );
         {
@@ -520,15 +529,14 @@ rusty_fork_test! {
     #[test]
     fn cluster_is_not_referenced_by_session_connect_future() {
         // An IP with very little chance of having a ScyllaDB node listening
-        let ip = "127.0.1.231";
-        let (c_ip, c_ip_len) = str_to_c_str_n(ip);
+        let ip = make_c_str!("127.0.1.231");
         let profile_name = make_c_str!("latency_aware");
 
         unsafe {
             let mut cluster_raw = cass_cluster_new();
 
             assert_cass_error_eq(
-                cass_cluster_set_contact_points_n(cluster_raw.borrow_mut(), c_ip, c_ip_len),
+            cass_cluster_set_contact_points(cluster_raw.borrow_mut(), CassStrNulTerminated::from_raw(ip)),
                 CassError::CASS_OK
             );
             cass_cluster_set_latency_aware_routing(cluster_raw.borrow_mut(), true as cass_bool_t);
@@ -538,7 +546,7 @@ rusty_fork_test! {
                 cass_execution_profile_set_latency_aware_routing(profile_raw.borrow_mut(), true as cass_bool_t),
                 CassError::CASS_OK
             );
-            cass_cluster_set_execution_profile(cluster_raw.borrow_mut(), profile_name, profile_raw.borrow_mut());
+            cass_cluster_set_execution_profile(cluster_raw.borrow_mut(), CassStrNulTerminated::from_raw(profile_name), profile_raw.borrow_mut());
             {
                 let cass_future = cass_session_connect(session_raw.borrow(), cluster_raw.borrow().into_c_const());
 
@@ -572,7 +580,7 @@ async fn test_cass_session_get_client_id_on_disconnected_session() {
                 assert_cass_error_eq(
                     cass_cluster_set_contact_points(
                         cluster_raw.borrow_mut(),
-                        contact_points.as_ptr(),
+                        CassStrNulTerminated::from_raw(contact_points.as_ptr()),
                     ),
                     CassError::CASS_OK,
                 );
@@ -639,7 +647,10 @@ fn session_free_waits_for_requests_to_complete_do(
         let contact_points = proxy_uris_to_contact_points(proxy_uris);
 
         assert_cass_error_eq(
-            cass_cluster_set_contact_points(cluster_raw.borrow_mut(), contact_points.as_ptr()),
+            cass_cluster_set_contact_points(
+                cluster_raw.borrow_mut(),
+                CassStrNulTerminated::from_raw(contact_points.as_ptr()),
+            ),
             CassError::CASS_OK,
         );
         let session_raw = cass_session_new();
@@ -650,9 +661,10 @@ fn session_free_waits_for_requests_to_complete_do(
 
         tracing::debug!("Session connected, starting to execute requests...");
 
-        let statement =
-            c"SELECT host_id FROM system.local WHERE key='local'" as *const CStr as *const c_char;
-        let statement_raw = cass_statement_new(statement, 0);
+        let statement = CassStrNulTerminated::from_raw(
+            c"SELECT host_id FROM system.local WHERE key='local'".as_ptr(),
+        );
+        let statement_raw = cass_statement_new(statement.clone(), 0);
 
         let mut batch_raw = cass_batch_new(CassBatchType::CASS_BATCH_TYPE_LOGGED);
         // This batch is obviously invalid, because it contains a SELECT statement. This is OK for us,
@@ -675,7 +687,7 @@ fn session_free_waits_for_requests_to_complete_do(
         let futures = (0..ITERATIONS)
             .flat_map(|_| {
                 // Prepare a statement
-                let prepare_fut = cass_session_prepare(session_raw.borrow(), statement);
+                let prepare_fut = cass_session_prepare(session_raw.borrow(), statement.clone());
 
                 // Execute a statement
                 let statement_fut = cass_session_execute(

@@ -386,7 +386,9 @@ pub(crate) mod stubs {
     use std::ffi::c_void;
 
     use super::*;
-    use crate::argconv::{CassOwnedExclusivePtr, CassPtr, ptr_to_cstr_n, strlen};
+    use crate::argconv::{
+        CassOwnedExclusivePtr, CassPtr, CassStrLen, CassStrLenDelimited, CassStrNulTerminated,
+    };
     use crate::cass_authenticator_types::{
         CassAuthenticatorCallbacks, CassAuthenticatorDataCleanupCallback,
     };
@@ -402,21 +404,20 @@ pub(crate) mod stubs {
     #[unsafe(no_mangle)]
     pub unsafe extern "C" fn cass_cluster_set_cloud_secure_connection_bundle(
         cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
-        path: *const c_char,
+        path: CassStrNulTerminated<'_>,
     ) -> CassError {
-        unsafe {
-            cass_cluster_set_cloud_secure_connection_bundle_n(cluster_raw, path, strlen(path))
-        }
+        let (path, path_length) = unsafe { path.as_len_delimited() };
+        unsafe { cass_cluster_set_cloud_secure_connection_bundle_n(cluster_raw, path, path_length) }
     }
 
     #[unsafe(no_mangle)]
     pub unsafe extern "C" fn cass_cluster_set_cloud_secure_connection_bundle_n(
         _cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
-        path: *const c_char,
-        path_length: size_t,
+        path: CassStrLenDelimited<'_>,
+        path_length: CassStrLen,
     ) -> CassError {
         // FIXME: Should unzip file associated with the path
-        let zip_file = unsafe { ptr_to_cstr_n(path, path_length) }.unwrap();
+        let zip_file = unsafe { path.to_str(path_length) }.unwrap();
 
         if zip_file == "invalid_filename" {
             return CassError::CASS_ERROR_LIB_BAD_PARAMS;
@@ -481,7 +482,7 @@ pub(crate) mod stubs {
     #[unsafe(no_mangle)]
     pub extern "C" fn cass_statement_set_keyspace(
         _statement: CassBorrowedExclusivePtr<CassStatement, CMut>,
-        _keyspace: *const c_char,
+        _keyspace: CassStrNulTerminated<'_>,
     ) -> CassError {
         CassError::CASS_OK
     }
@@ -590,10 +591,10 @@ pub(crate) mod stubs {
     }
 
     #[unsafe(no_mangle)]
-    pub unsafe extern "C" fn cass_keyspace_meta_function_by_name(
-        _keyspace_meta: CassBorrowedSharedPtr<CassKeyspaceMeta, CConst>,
-        _function: *const c_char,
-    ) -> CassBorrowedSharedPtr<CassFunctionMeta, CConst> {
+    pub unsafe extern "C" fn cass_keyspace_meta_function_by_name<'a>(
+        _keyspace_meta: CassBorrowedSharedPtr<'a, CassKeyspaceMeta, CConst>,
+        _function: CassStrNulTerminated<'_>,
+    ) -> CassBorrowedSharedPtr<'a, CassFunctionMeta, CConst> {
         CassPtr::null()
     }
 
@@ -615,10 +616,10 @@ pub(crate) mod stubs {
     }
 
     #[unsafe(no_mangle)]
-    pub unsafe extern "C" fn cass_keyspace_meta_aggregate_by_name(
-        _keyspace_meta: CassBorrowedSharedPtr<CassKeyspaceMeta, CConst>,
-        _aggregate: *const c_char,
-    ) -> CassBorrowedSharedPtr<CassAggregateMeta, CConst> {
+    pub unsafe extern "C" fn cass_keyspace_meta_aggregate_by_name<'a>(
+        _keyspace_meta: CassBorrowedSharedPtr<'a, CassKeyspaceMeta, CConst>,
+        _aggregate: CassStrNulTerminated<'_>,
+    ) -> CassBorrowedSharedPtr<'a, CassAggregateMeta, CConst> {
         CassPtr::null()
     }
 }

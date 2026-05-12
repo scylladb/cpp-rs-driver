@@ -287,19 +287,20 @@ impl CassStatement {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_statement_new(
-    query: *const c_char,
+    query: CassStrNulTerminated<'_>,
     parameter_count: size_t,
 ) -> CassOwnedExclusivePtr<CassStatement, CMut> {
-    unsafe { cass_statement_new_n(query, strlen(query), parameter_count) }
+    let (query, query_length) = unsafe { query.as_len_delimited() };
+    unsafe { cass_statement_new_n(query, query_length, parameter_count) }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_statement_new_n(
-    query: *const c_char,
-    query_length: size_t,
+    query: CassStrLenDelimited<'_>,
+    query_length: CassStrLen,
     parameter_count: size_t,
 ) -> CassOwnedExclusivePtr<CassStatement, CMut> {
-    let query_str = match unsafe { ptr_to_cstr_n(query, query_length) } {
+    let query_str = match unsafe { query.to_str(query_length) } {
         Ok(v) => v,
         Err(PtrToStrError::NullPointer) => {
             tracing::error!("Provided null query pointer to cass_statement_new(_n)!");
@@ -489,24 +490,25 @@ pub unsafe extern "C" fn cass_statement_set_tracing(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_statement_set_host(
     statement_raw: CassBorrowedExclusivePtr<CassStatement, CMut>,
-    host: *const c_char,
+    host: CassStrNulTerminated<'_>,
     port: c_int,
 ) -> CassError {
-    unsafe { cass_statement_set_host_n(statement_raw, host, strlen(host), port) }
+    let (host, host_length) = unsafe { host.as_len_delimited() };
+    unsafe { cass_statement_set_host_n(statement_raw, host, host_length, port) }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_statement_set_host_n(
     statement_raw: CassBorrowedExclusivePtr<CassStatement, CMut>,
-    host: *const c_char,
-    host_length: size_t,
+    host: CassStrLenDelimited<'_>,
+    host_length: CassStrLen,
     port: c_int,
 ) -> CassError {
     let Some(statement) = BoxFFI::as_mut_ref(statement_raw) else {
         tracing::error!("Provided null statement pointer to cass_statement_set_host_n!");
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
-    let host = match unsafe { ptr_to_cstr_n(host, host_length) } {
+    let host = match unsafe { host.to_str(host_length) } {
         Ok(v) => v,
         Err(PtrToStrError::NullPointer) => {
             tracing::error!("Provided null host pointer to cass_statement_set_host_n!");
@@ -884,7 +886,9 @@ mod tests {
     use std::ptr::addr_of;
     use std::str::FromStr;
 
-    use crate::argconv::{BoxFFI, RefFFI};
+    use crate::argconv::{
+        BoxFFI, CassStrLen, CassStrLenDelimited, CassStrNulTerminated, RefFFI, make_c_str,
+    };
     use crate::cass_error::CassError;
     use crate::cql_types::inet::CassInet;
     use crate::statements::statement::{
@@ -897,32 +901,49 @@ mod tests {
     #[test]
     fn test_statement_set_host() {
         unsafe {
-            let mut statement_raw = cass_statement_new(c"dummy".as_ptr(), 0);
+            let mut statement_raw =
+                cass_statement_new(CassStrNulTerminated::from_raw(make_c_str!("dummy")), 0);
 
             // cass_statement_set_host
             {
                 // Null statement
                 assert_cass_error_eq!(
                     CassError::CASS_ERROR_LIB_BAD_PARAMS,
-                    cass_statement_set_host(BoxFFI::null_mut(), c"127.0.0.1".as_ptr(), 9042)
+                    cass_statement_set_host(
+                        BoxFFI::null_mut(),
+                        CassStrNulTerminated::from_raw(make_c_str!("127.0.0.1")),
+                        9042
+                    )
                 );
 
                 // Null ip address
                 assert_cass_error_eq!(
                     CassError::CASS_ERROR_LIB_BAD_PARAMS,
-                    cass_statement_set_host(statement_raw.borrow_mut(), std::ptr::null(), 9042)
+                    cass_statement_set_host(
+                        statement_raw.borrow_mut(),
+                        CassStrNulTerminated::from_raw(std::ptr::null()),
+                        9042
+                    )
                 );
 
                 // Unparsable ip address
                 assert_cass_error_eq!(
                     CassError::CASS_ERROR_LIB_BAD_PARAMS,
-                    cass_statement_set_host(statement_raw.borrow_mut(), c"invalid".as_ptr(), 9042)
+                    cass_statement_set_host(
+                        statement_raw.borrow_mut(),
+                        CassStrNulTerminated::from_raw(make_c_str!("invalid")),
+                        9042
+                    )
                 );
 
                 // Negative port
                 assert_cass_error_eq!(
                     CassError::CASS_ERROR_LIB_BAD_PARAMS,
-                    cass_statement_set_host(statement_raw.borrow_mut(), c"127.0.0.1".as_ptr(), -1)
+                    cass_statement_set_host(
+                        statement_raw.borrow_mut(),
+                        CassStrNulTerminated::from_raw(make_c_str!("127.0.0.1")),
+                        -1
+                    )
                 );
 
                 // Port too big
@@ -930,7 +951,7 @@ mod tests {
                     CassError::CASS_ERROR_LIB_BAD_PARAMS,
                     cass_statement_set_host(
                         statement_raw.borrow_mut(),
-                        c"127.0.0.1".as_ptr(),
+                        CassStrNulTerminated::from_raw(make_c_str!("127.0.0.1")),
                         70000
                     )
                 );
@@ -940,7 +961,7 @@ mod tests {
                     CassError::CASS_OK,
                     cass_statement_set_host(
                         statement_raw.borrow_mut(),
-                        c"127.0.0.1".as_ptr(),
+                        CassStrNulTerminated::from_raw(make_c_str!("127.0.0.1")),
                         9042
                     )
                 );
@@ -1035,12 +1056,17 @@ mod tests {
     #[test]
     fn test_bind_string_null_pointer() {
         unsafe {
-            let mut statement_raw = cass_statement_new(c"dummy".as_ptr(), 1);
+            let mut statement_raw =
+                cass_statement_new(CassStrNulTerminated::from_raw(make_c_str!("dummy")), 1);
 
             // NULL pointer to cass_statement_bind_string produces empty string, not a crash.
             assert_cass_error_eq!(
                 CassError::CASS_OK,
-                super::cass_statement_bind_string(statement_raw.borrow_mut(), 0, std::ptr::null())
+                super::cass_statement_bind_string(
+                    statement_raw.borrow_mut(),
+                    0,
+                    CassStrNulTerminated::from_raw(std::ptr::null())
+                )
             );
 
             cass_statement_free(statement_raw);
@@ -1050,7 +1076,8 @@ mod tests {
     #[test]
     fn test_bind_string_n_null_pointer() {
         unsafe {
-            let mut statement_raw = cass_statement_new(c"dummy".as_ptr(), 1);
+            let mut statement_raw =
+                cass_statement_new(CassStrNulTerminated::from_raw(make_c_str!("dummy")), 1);
 
             // NULL pointer with size 0 produces empty string.
             assert_cass_error_eq!(
@@ -1058,8 +1085,8 @@ mod tests {
                 super::cass_statement_bind_string_n(
                     statement_raw.borrow_mut(),
                     0,
-                    std::ptr::null(),
-                    0
+                    CassStrLenDelimited::from_raw(std::ptr::null()),
+                    CassStrLen::from_raw(0)
                 )
             );
 
@@ -1069,8 +1096,8 @@ mod tests {
                 super::cass_statement_bind_string_n(
                     statement_raw.borrow_mut(),
                     0,
-                    std::ptr::null(),
-                    5
+                    CassStrLenDelimited::from_raw(std::ptr::null()),
+                    CassStrLen::from_raw(5)
                 )
             );
 
@@ -1081,7 +1108,8 @@ mod tests {
     #[test]
     fn test_bind_bytes_null_pointer() {
         unsafe {
-            let mut statement_raw = cass_statement_new(c"dummy".as_ptr(), 1);
+            let mut statement_raw =
+                cass_statement_new(CassStrNulTerminated::from_raw(make_c_str!("dummy")), 1);
 
             // NULL pointer with size 0 produces empty blob (matching cpp-driver).
             assert_cass_error_eq!(
@@ -1112,7 +1140,8 @@ mod tests {
     #[test]
     fn test_bind_decimal_null_pointer() {
         unsafe {
-            let mut statement_raw = cass_statement_new(c"dummy".as_ptr(), 1);
+            let mut statement_raw =
+                cass_statement_new(CassStrNulTerminated::from_raw(make_c_str!("dummy")), 1);
 
             // NULL pointer with size 0 produces empty varint decimal.
             assert_cass_error_eq!(
@@ -1145,14 +1174,15 @@ mod tests {
     #[test]
     fn test_bind_by_name_null_name() {
         unsafe {
-            let mut statement_raw = cass_statement_new(c"dummy".as_ptr(), 1);
+            let mut statement_raw =
+                cass_statement_new(CassStrNulTerminated::from_raw(make_c_str!("dummy")), 1);
 
             // NULL name pointer should not crash — returns BAD_PARAMS.
             assert_cass_error_eq!(
                 CassError::CASS_ERROR_LIB_BAD_PARAMS,
                 super::cass_statement_bind_int32_by_name(
                     statement_raw.borrow_mut(),
-                    std::ptr::null(),
+                    CassStrNulTerminated::from_raw(std::ptr::null()),
                     42
                 )
             );
@@ -1162,8 +1192,8 @@ mod tests {
                 CassError::CASS_ERROR_LIB_BAD_PARAMS,
                 super::cass_statement_bind_int32_by_name_n(
                     statement_raw.borrow_mut(),
-                    std::ptr::null(),
-                    0,
+                    CassStrLenDelimited::from_raw(std::ptr::null()),
+                    CassStrLen::from_raw(0),
                     42
                 )
             );
@@ -1175,14 +1205,15 @@ mod tests {
     #[test]
     fn test_bind_by_name_empty_name() {
         unsafe {
-            let mut statement_raw = cass_statement_new(c"dummy".as_ptr(), 1);
+            let mut statement_raw =
+                cass_statement_new(CassStrNulTerminated::from_raw(make_c_str!("dummy")), 1);
 
             // Empty name is a programmer error — returns BAD_PARAMS.
             assert_cass_error_eq!(
                 CassError::CASS_ERROR_LIB_BAD_PARAMS,
                 super::cass_statement_bind_int32_by_name(
                     statement_raw.borrow_mut(),
-                    c"".as_ptr(),
+                    CassStrNulTerminated::from_cstr(c""),
                     42
                 )
             );
@@ -1192,8 +1223,8 @@ mod tests {
                 CassError::CASS_ERROR_LIB_BAD_PARAMS,
                 super::cass_statement_bind_int32_by_name_n(
                     statement_raw.borrow_mut(),
-                    c"x".as_ptr(),
-                    0,
+                    CassStrLenDelimited::from_raw(c"x".as_ptr()),
+                    CassStrLen::from_raw(0),
                     42
                 )
             );

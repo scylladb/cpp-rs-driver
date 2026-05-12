@@ -13,7 +13,6 @@ use crate::runtime::Runtime;
 use crate::statements::batch::CassBatch;
 use crate::statements::prepared::CassPrepared;
 use crate::statements::statement::{BoundStatement, CassStatement, SimpleQueryRowSerializer};
-use crate::types::size_t;
 use scylla::client::execution_profile::ExecutionProfileHandle;
 use scylla::client::session::Session;
 use scylla::client::session_builder::SessionBuilder;
@@ -27,7 +26,6 @@ use scylla::statement::unprepared::Statement;
 use std::collections::HashMap;
 use std::future::Future;
 use std::ops::Deref;
-use std::os::raw::c_char;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -257,17 +255,18 @@ pub unsafe extern "C" fn cass_session_connect(
 pub unsafe extern "C" fn cass_session_connect_keyspace(
     session_raw: CassBorrowedSharedPtr<CassSession, CMut>,
     cluster_raw: CassBorrowedSharedPtr<CassCluster, CConst>,
-    keyspace: *const c_char,
+    keyspace: CassStrNulTerminated<'_>,
 ) -> CassOwnedSharedPtr<CassFuture, CMut> {
-    unsafe { cass_session_connect_keyspace_n(session_raw, cluster_raw, keyspace, strlen(keyspace)) }
+    let (keyspace, keyspace_length) = unsafe { keyspace.as_len_delimited() };
+    unsafe { cass_session_connect_keyspace_n(session_raw, cluster_raw, keyspace, keyspace_length) }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_session_connect_keyspace_n(
     session_raw: CassBorrowedSharedPtr<CassSession, CMut>,
     cluster_raw: CassBorrowedSharedPtr<CassCluster, CConst>,
-    keyspace: *const c_char,
-    keyspace_length: size_t,
+    keyspace: CassStrLenDelimited<'_>,
+    keyspace_length: CassStrLen,
 ) -> CassOwnedSharedPtr<CassFuture, CMut> {
     let Some(session) = ArcFFI::cloned_from_ptr(session_raw) else {
         tracing::error!("Provided null session pointer to cass_session_connect_keyspace_n!");
@@ -277,7 +276,7 @@ pub unsafe extern "C" fn cass_session_connect_keyspace_n(
         tracing::error!("Provided null cluster pointer to cass_session_connect_keyspace_n!");
         return ArcFFI::null();
     };
-    let keyspace = match unsafe { ptr_to_cstr_n(keyspace, keyspace_length) } {
+    let keyspace = match unsafe { keyspace.to_str(keyspace_length) } {
         Ok(ks) => Some(ks.to_owned()),
         Err(PtrToStrError::NullPointer) => None,
         Err(PtrToStrError::InvalidUtf8(_)) => {
@@ -572,23 +571,24 @@ pub unsafe extern "C" fn cass_session_prepare_from_existing(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_session_prepare(
     session: CassBorrowedSharedPtr<CassSession, CMut>,
-    query: *const c_char,
+    query: CassStrNulTerminated<'_>,
 ) -> CassOwnedSharedPtr<CassFuture, CMut> {
-    unsafe { cass_session_prepare_n(session, query, strlen(query)) }
+    let (query, query_length) = unsafe { query.as_len_delimited() };
+    unsafe { cass_session_prepare_n(session, query, query_length) }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_session_prepare_n(
     cass_session_raw: CassBorrowedSharedPtr<CassSession, CMut>,
-    query: *const c_char,
-    query_length: size_t,
+    query: CassStrLenDelimited<'_>,
+    query_length: CassStrLen,
 ) -> CassOwnedSharedPtr<CassFuture, CMut> {
     let Some(cass_session) = ArcFFI::cloned_from_ptr(cass_session_raw) else {
         tracing::error!("Provided null session pointer to cass_session_prepare_n!");
         return ArcFFI::null();
     };
 
-    let query_str = match unsafe { ptr_to_cstr_n(query, query_length) } {
+    let query_str = match unsafe { query.to_str(query_length) } {
         Ok(s) => s,
         // Apparently nullptr denotes an empty statement string.
         // It seems to be intended (for some weird reason, why not save a round-trip???)
@@ -872,7 +872,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        argconv::make_c_str,
+        argconv::{CassStrLen, CassStrLenDelimited, CassStrNulTerminated, make_c_str},
         cluster::{
             cass_cluster_free, cass_cluster_new, cass_cluster_set_contact_points_n,
             cass_cluster_set_execution_profile,
@@ -918,7 +918,11 @@ mod tests {
             let (c_ip, c_ip_len) = str_to_c_str_n(ip.as_str());
 
             assert_cass_error_eq!(
-                cass_cluster_set_contact_points_n(cluster_raw.borrow_mut(), c_ip, c_ip_len),
+                cass_cluster_set_contact_points_n(
+                    cluster_raw.borrow_mut(),
+                    CassStrLenDelimited::from_raw(c_ip),
+                    CassStrLen::from_raw(c_ip_len)
+                ),
                 CassError::CASS_OK
             );
             let session_raw = cass_session_new();
@@ -943,7 +947,7 @@ mod tests {
 
                 cass_cluster_set_execution_profile(
                     cluster_raw.borrow_mut(),
-                    make_c_str!("prof"),
+                    CassStrNulTerminated::from_raw(make_c_str!("prof")),
                     profile_raw.borrow_mut(),
                 );
                 // Mutations in cluster do not affect the session that was connected before.
@@ -1022,7 +1026,11 @@ mod tests {
             let (c_ip, c_ip_len) = str_to_c_str_n(ip.as_str());
 
             assert_cass_error_eq!(
-                cass_cluster_set_contact_points_n(cluster_raw.borrow_mut(), c_ip, c_ip_len),
+                cass_cluster_set_contact_points_n(
+                    cluster_raw.borrow_mut(),
+                    CassStrLenDelimited::from_raw(c_ip),
+                    CassStrLen::from_raw(c_ip_len)
+                ),
                 CassError::CASS_OK
             );
 
@@ -1040,7 +1048,8 @@ mod tests {
             let invalid_query = make_c_str!(
                 "INSERT INTO system.runtime_info (group, item, value) VALUES ('bindings_test', 'bindings_test', 'bindings_test')"
             );
-            let mut statement_raw = cass_statement_new(invalid_query, 0);
+            let mut statement_raw =
+                cass_statement_new(CassStrNulTerminated::from_raw(invalid_query), 0);
             let mut batch_raw = cass_batch_new(CassBatchType::CASS_BATCH_TYPE_LOGGED);
             assert_cass_error_eq!(
                 cass_batch_add_statement(batch_raw.borrow_mut(), statement_raw.borrow()),
@@ -1050,7 +1059,7 @@ mod tests {
             assert_cass_error_eq!(
                 cass_cluster_set_execution_profile(
                     cluster_raw.borrow_mut(),
-                    valid_name_c_str,
+                    CassStrNulTerminated::from_raw(valid_name_c_str),
                     profile_raw.borrow_mut(),
                 ),
                 CassError::CASS_OK
@@ -1072,12 +1081,15 @@ mod tests {
                     assert_cass_error_eq!(
                         cass_statement_set_execution_profile(
                             statement_raw.borrow_mut(),
-                            valid_name_c_str,
+                            CassStrNulTerminated::from_raw(valid_name_c_str),
                         ),
                         CassError::CASS_OK
                     );
                     assert_cass_error_eq!(
-                        cass_batch_set_execution_profile(batch_raw.borrow_mut(), valid_name_c_str,),
+                        cass_batch_set_execution_profile(
+                            batch_raw.borrow_mut(),
+                            CassStrNulTerminated::from_raw(valid_name_c_str),
+                        ),
                         CassError::CASS_OK
                     );
 
@@ -1156,14 +1168,14 @@ mod tests {
                     assert_cass_error_eq!(
                         cass_statement_set_execution_profile(
                             statement_raw.borrow_mut(),
-                            std::ptr::null::<i8>()
+                            CassStrNulTerminated::from_raw(std::ptr::null())
                         ),
                         CassError::CASS_OK
                     );
                     assert_cass_error_eq!(
                         cass_batch_set_execution_profile(
                             batch_raw.borrow_mut(),
-                            std::ptr::null::<i8>()
+                            CassStrNulTerminated::from_raw(std::ptr::null())
                         ),
                         CassError::CASS_OK
                     );
@@ -1177,16 +1189,16 @@ mod tests {
                     assert_cass_error_eq!(
                         cass_statement_set_execution_profile_n(
                             statement_raw.borrow_mut(),
-                            nonexisting_name_c_str,
-                            nonexisting_name_len,
+                            CassStrLenDelimited::from_raw(nonexisting_name_c_str),
+                            CassStrLen::from_raw(nonexisting_name_len),
                         ),
                         CassError::CASS_OK
                     );
                     assert_cass_error_eq!(
                         cass_batch_set_execution_profile_n(
                             batch_raw.borrow_mut(),
-                            nonexisting_name_c_str,
-                            nonexisting_name_len,
+                            CassStrLenDelimited::from_raw(nonexisting_name_c_str),
+                            CassStrLen::from_raw(nonexisting_name_len),
                         ),
                         CassError::CASS_OK
                     );

@@ -1,7 +1,6 @@
 use crate::argconv::*;
 use crate::cql_types::{CassConsistency, CassWriteType};
 use crate::types::*;
-use libc::c_char;
 use scylla::deserialize::DeserializationError;
 use scylla::errors::{
     BadKeyspaceName, BadQuery, ConnectionPoolError, DbError, ExecutionError, MetadataError,
@@ -670,7 +669,7 @@ pub unsafe extern "C" fn cass_error_result_arg_type(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn cass_error_desc(error: CassError) -> *const c_char {
+pub unsafe extern "C" fn cass_error_desc(error: CassError) -> CassStrNulTerminated<'static> {
     let desc = match error {
         CassError::CASS_ERROR_LIB_BAD_PARAMS => c"Bad parameters",
         CassError::CASS_ERROR_LIB_NO_STREAMS => c"No streams available",
@@ -741,5 +740,5 @@ pub unsafe extern "C" fn cass_error_desc(error: CassError) -> *const c_char {
         _ => c"",
     };
 
-    desc.as_ptr()
+    CassStrNulTerminated::from_cstr(desc)
 }
