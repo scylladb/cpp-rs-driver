@@ -1,5 +1,4 @@
 use itertools::Itertools as _;
-use libc::c_char;
 use scylla::frame::types::Consistency;
 use scylla::statement::SerialConsistency;
 use scylla::statement::batch::BatchType;
@@ -33,13 +32,14 @@ use scylla_cpp_driver::api::statement::{
     CassStatement, cass_statement_new, cass_statement_set_consistency,
     cass_statement_set_execution_profile, cass_statement_set_serial_consistency,
 };
-use scylla_cpp_driver::argconv::{CConst, CMut, CassBorrowedExclusivePtr, CassBorrowedSharedPtr};
+use scylla_cpp_driver::argconv::{
+    CConst, CMut, CassBorrowedExclusivePtr, CassBorrowedSharedPtr, CassStrNulTerminated,
+};
 use scylla_cql::frame::protocol_features::ProtocolFeatures;
 use scylla_proxy::{
     Condition, ProxyError, Reaction, RequestFrame, RequestOpcode, RequestReaction, RequestRule,
     TargetShard, WorkerError,
 };
-use std::ffi::CStr;
 use std::sync::Arc;
 use tokio::sync::mpsc::{self, UnboundedReceiver};
 
@@ -82,7 +82,8 @@ fn pairs_of_all_consistencies() -> impl Iterator<Item = (Consistency, Option<Ser
     consistencies.zip(serial_consistencies)
 }
 
-const STATEMENT_CSTR: *const i8 = c"INSERT INTO consistency_tests VALUES (42)" as *const CStr as _;
+const STATEMENT_CSTR: CassStrNulTerminated<'static> =
+    CassStrNulTerminated::from_cstr(c"INSERT INTO consistency_tests VALUES (42)");
 
 fn execute_and_check_statement(
     cass_session: CassBorrowedSharedPtr<'_, CassSession, CMut>,
@@ -202,7 +203,10 @@ fn check_for_all_consistencies_and_setting_options(
     unsafe {
         let mut cass_cluster = cass_cluster_new();
         assert_cass_error_eq(
-            cass_cluster_set_contact_points(cass_cluster.borrow_mut(), contact_points.as_ptr()),
+            cass_cluster_set_contact_points(
+                cass_cluster.borrow_mut(),
+                CassStrNulTerminated::from_raw(contact_points.as_ptr()),
+            ),
             CassError::CASS_OK,
         );
 
@@ -219,6 +223,7 @@ fn check_for_all_consistencies_and_setting_options(
         let cass_session = cass_session_new();
         let mut cass_exec_profile = cass_execution_profile_new();
         let exec_profile_name = c"test_profile".as_ptr();
+        let exec_profile_name_w = CassStrNulTerminated::from_raw(exec_profile_name);
 
         {
             // Connect the session to the cluster. Use default consistency and serial consistency.
@@ -380,7 +385,7 @@ fn check_for_all_consistencies_and_setting_options(
                 assert_cass_error_eq(
                     cass_cluster_set_execution_profile(
                         cass_cluster.borrow_mut(),
-                        exec_profile_name,
+                        CassStrNulTerminated::from_raw(exec_profile_name),
                         cass_exec_profile.borrow_mut(),
                     ),
                     CassError::CASS_OK,
@@ -447,7 +452,7 @@ fn check_for_all_consistencies_and_setting_options(
                     assert_cass_error_eq(
                         cass_statement_set_execution_profile(
                             cass_statement_unprepared.borrow_mut(),
-                            exec_profile_name,
+                            exec_profile_name_w,
                         ),
                         CassError::CASS_OK,
                     );
@@ -465,7 +470,7 @@ fn check_for_all_consistencies_and_setting_options(
                     assert_cass_error_eq(
                         cass_statement_set_execution_profile(
                             cass_statement_prepared.borrow_mut(),
-                            exec_profile_name,
+                            exec_profile_name_w,
                         ),
                         CassError::CASS_OK,
                     );
@@ -483,7 +488,7 @@ fn check_for_all_consistencies_and_setting_options(
                     assert_cass_error_eq(
                         cass_statement_set_execution_profile(
                             cass_statement_prepared_from_existing.borrow_mut(),
-                            exec_profile_name,
+                            exec_profile_name_w,
                         ),
                         CassError::CASS_OK,
                     );
@@ -503,7 +508,7 @@ fn check_for_all_consistencies_and_setting_options(
                     assert_cass_error_eq(
                         cass_batch_set_execution_profile(
                             cass_batch.borrow_mut(),
-                            exec_profile_name,
+                            exec_profile_name_w,
                         ),
                         CassError::CASS_OK,
                     );
@@ -561,7 +566,7 @@ fn check_for_all_consistencies_and_setting_options(
                 assert_cass_error_eq(
                     cass_statement_set_execution_profile(
                         cass_statement_unprepared.borrow_mut(),
-                        std::ptr::null::<c_char>(),
+                        CassStrNulTerminated::from_raw(std::ptr::null()),
                     ),
                     CassError::CASS_OK,
                 );
@@ -570,7 +575,7 @@ fn check_for_all_consistencies_and_setting_options(
                 assert_cass_error_eq(
                     cass_statement_set_execution_profile(
                         cass_statement_prepared.borrow_mut(),
-                        std::ptr::null::<c_char>(),
+                        CassStrNulTerminated::from_raw(std::ptr::null()),
                     ),
                     CassError::CASS_OK,
                 );
@@ -579,7 +584,7 @@ fn check_for_all_consistencies_and_setting_options(
                 assert_cass_error_eq(
                     cass_statement_set_execution_profile(
                         cass_statement_prepared_from_existing.borrow_mut(),
-                        std::ptr::null::<c_char>(),
+                        CassStrNulTerminated::from_raw(std::ptr::null()),
                     ),
                     CassError::CASS_OK,
                 );
@@ -588,7 +593,7 @@ fn check_for_all_consistencies_and_setting_options(
                 assert_cass_error_eq(
                     cass_batch_set_execution_profile(
                         cass_batch.borrow_mut(),
-                        std::ptr::null::<c_char>(),
+                        CassStrNulTerminated::from_raw(std::ptr::null()),
                     ),
                     CassError::CASS_OK,
                 );

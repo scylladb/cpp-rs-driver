@@ -17,26 +17,6 @@ pub enum PtrToStrError {
     InvalidUtf8(std::str::Utf8Error),
 }
 
-pub unsafe fn ptr_to_cstr(ptr: *const c_char) -> Result<&'static str, PtrToStrError> {
-    if ptr.is_null() {
-        return Err(PtrToStrError::NullPointer);
-    }
-    unsafe { CStr::from_ptr(ptr) }
-        .to_str()
-        .map_err(PtrToStrError::InvalidUtf8)
-}
-
-pub unsafe fn ptr_to_cstr_n(
-    ptr: *const c_char,
-    size: size_t,
-) -> Result<&'static str, PtrToStrError> {
-    if ptr.is_null() {
-        return Err(PtrToStrError::NullPointer);
-    }
-    std::str::from_utf8(unsafe { std::slice::from_raw_parts(ptr as *const u8, size as usize) })
-        .map_err(PtrToStrError::InvalidUtf8)
-}
-
 pub(crate) unsafe fn arr_to_cstr<const N: usize>(arr: &[c_char]) -> Result<&str, PtrToStrError> {
     let null_char = '\0' as c_char;
     let end_index = arr[..N].iter().position(|c| c == &null_char).unwrap_or(N);
@@ -218,7 +198,6 @@ impl<'a> CassStrLenDelimited<'a> {
     }
 
     #[cfg(test)]
-    #[expect(dead_code, reason = "used after call-site migration")]
     pub(crate) fn null() -> CassStrLenDelimited<'a> {
         Self {
             ptr: std::ptr::null(),

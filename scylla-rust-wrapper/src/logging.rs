@@ -1,6 +1,7 @@
 use crate::LOGGER;
 use crate::argconv::{
-    CConst, CassBorrowedSharedPtr, FFI, FromRef, RefFFI, arr_to_cstr, ptr_to_cstr, str_to_arr,
+    CConst, CassBorrowedSharedPtr, CassStrNulTerminated, FFI, FromRef, RefFFI, arr_to_cstr,
+    str_to_arr,
 };
 use crate::cass_log_types::{CassLogLevel, CassLogMessage};
 use std::convert::TryFrom;
@@ -82,9 +83,9 @@ pub(crate) unsafe extern "C" fn stderr_log_callback(
     eprintln!(
         "{} [{}] ({}:{}) {}",
         message.time_ms,
-        unsafe { ptr_to_cstr(cass_log_level_string(message.severity)) }
+        unsafe { cass_log_level_string(message.severity).to_str() }
             .expect("cass_log_level_string always returns a valid UTF-8 c-string literal"),
-        unsafe { ptr_to_cstr(message.file) }
+        unsafe { CassStrNulTerminated::from_raw(message.file).to_str() }
             .expect("file is set to a null-terminated Rust string by on_event"),
         message.line,
         unsafe { arr_to_cstr::<{ CASS_LOG_MAX_MESSAGE_SIZE }>(&message.message) }
@@ -182,7 +183,9 @@ pub unsafe extern "C" fn cass_log_set_level(log_level: CassLogLevel) {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn cass_log_level_string(log_level: CassLogLevel) -> *const c_char {
+pub unsafe extern "C" fn cass_log_level_string(
+    log_level: CassLogLevel,
+) -> CassStrNulTerminated<'static> {
     let log_level_str = match log_level {
         CassLogLevel::CASS_LOG_TRACE => c"TRACE",
         CassLogLevel::CASS_LOG_DEBUG => c"DEBUG",
@@ -194,7 +197,7 @@ pub unsafe extern "C" fn cass_log_level_string(log_level: CassLogLevel) -> *cons
         _ => c"",
     };
 
-    log_level_str.as_ptr()
+    CassStrNulTerminated::from_cstr(log_level_str)
 }
 
 #[unsafe(no_mangle)]
