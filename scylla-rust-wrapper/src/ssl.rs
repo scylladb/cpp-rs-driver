@@ -1,4 +1,7 @@
-use crate::argconv::{ArcFFI, CMut, CassBorrowedSharedPtr, CassOwnedSharedPtr, FFI, FromArc};
+use crate::argconv::{
+    ArcFFI, CMut, CassBorrowedSharedPtr, CassOwnedSharedPtr, CassStrLen, CassStrLenDelimited,
+    CassStrNulTerminated, FFI, FromArc,
+};
 use crate::cass_error::CassError;
 use crate::types::size_t;
 use libc::{c_int, strlen};
@@ -101,27 +104,42 @@ unsafe extern "C" fn pem_password_callback(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_ssl_add_trusted_cert(
     ssl: CassBorrowedSharedPtr<CassSsl, CMut>,
-    cert: *const c_char,
+    cert: CassStrNulTerminated<'_>,
 ) -> CassError {
-    if cert.is_null() {
-        return CassError::CASS_ERROR_SSL_INVALID_CERT;
-    }
-
-    unsafe { cass_ssl_add_trusted_cert_n(ssl, cert, strlen(cert).try_into().unwrap()) }
+    let (cert, cert_length) = unsafe { cert.as_len_delimited() };
+    unsafe { cass_ssl_add_trusted_cert_n(ssl, cert, cert_length) }
 }
+
+// These functions accept PEM-encoded data (ASCII text format), not binary DER.
+// Both the cpp-driver API documentation and the implementation (PEM_read_bio_X509,
+// PEM_read_bio_PrivateKey) enforce PEM-only input. Since ASCII is a subset of
+// UTF-8, using CassStrLenDelimited (which validates UTF-8) is safe and appropriate.
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_ssl_add_trusted_cert_n(
     ssl: CassBorrowedSharedPtr<CassSsl, CMut>,
-    cert: *const c_char,
-    cert_length: size_t,
+    cert: CassStrLenDelimited<'_>,
+    cert_length: CassStrLen,
 ) -> CassError {
     let Some(ssl) = ArcFFI::cloned_from_ptr(ssl) else {
         tracing::error!("Provided null ssl pointer to cass_ssl_add_trusted_cert_n!");
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
-    let bio = unsafe { BIO_new_mem_buf(cert as *const c_void, cert_length.try_into().unwrap()) };
+    let cert_str = match unsafe { cert.to_str(cert_length) } {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::error!("Invalid PEM certificate data: {e}");
+            return CassError::CASS_ERROR_SSL_INVALID_CERT;
+        }
+    };
+
+    let bio = unsafe {
+        BIO_new_mem_buf(
+            cert_str.as_ptr() as *const c_void,
+            cert_str.len().try_into().unwrap(),
+        )
+    };
 
     if bio.is_null() {
         return CassError::CASS_ERROR_SSL_INVALID_CERT;
@@ -188,27 +206,37 @@ pub unsafe extern "C" fn cass_ssl_set_verify_flags(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_ssl_set_cert(
     ssl: CassBorrowedSharedPtr<CassSsl, CMut>,
-    cert: *const c_char,
+    cert: CassStrNulTerminated<'_>,
 ) -> CassError {
-    if cert.is_null() {
-        return CassError::CASS_ERROR_SSL_INVALID_CERT;
-    }
-
-    unsafe { cass_ssl_set_cert_n(ssl, cert, strlen(cert).try_into().unwrap()) }
+    let (cert, cert_length) = unsafe { cert.as_len_delimited() };
+    unsafe { cass_ssl_set_cert_n(ssl, cert, cert_length) }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_ssl_set_cert_n(
     ssl: CassBorrowedSharedPtr<CassSsl, CMut>,
-    cert: *const c_char,
-    cert_length: size_t,
+    cert: CassStrLenDelimited<'_>,
+    cert_length: CassStrLen,
 ) -> CassError {
     let Some(ssl) = ArcFFI::cloned_from_ptr(ssl) else {
         tracing::error!("Provided null ssl pointer to cass_ssl_set_cert_n!");
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
-    let bio = unsafe { BIO_new_mem_buf(cert as *const c_void, cert_length.try_into().unwrap()) };
+    let cert_str = match unsafe { cert.to_str(cert_length) } {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::error!("Invalid PEM certificate data: {e}");
+            return CassError::CASS_ERROR_SSL_INVALID_CERT;
+        }
+    };
+
+    let bio = unsafe {
+        BIO_new_mem_buf(
+            cert_str.as_ptr() as *const c_void,
+            cert_str.len().try_into().unwrap(),
+        )
+    };
 
     if bio.is_null() {
         return CassError::CASS_ERROR_SSL_INVALID_CERT;
@@ -280,29 +308,24 @@ unsafe extern "C" fn SSL_CTX_use_certificate_chain_bio(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_ssl_set_private_key(
     ssl: CassBorrowedSharedPtr<CassSsl, CMut>,
-    key: *const c_char,
+    key: CassStrNulTerminated<'_>,
     password: *mut c_char,
 ) -> CassError {
-    if key.is_null() || password.is_null() {
+    if password.is_null() {
         return CassError::CASS_ERROR_SSL_INVALID_PRIVATE_KEY;
     }
 
-    unsafe {
-        cass_ssl_set_private_key_n(
-            ssl,
-            key,
-            strlen(key).try_into().unwrap(),
-            password,
-            strlen(password).try_into().unwrap(),
-        )
-    }
+    let (key, key_length) = unsafe { key.as_len_delimited() };
+    unsafe { cass_ssl_set_private_key_n(ssl, key, key_length, password, 0) }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_ssl_set_private_key_n(
     ssl: CassBorrowedSharedPtr<CassSsl, CMut>,
-    key: *const c_char,
-    key_length: size_t,
+    key: CassStrLenDelimited<'_>,
+    key_length: CassStrLen,
+    // Password is passed as opaque userdata to OpenSSL's PEM password callback,
+    // not used as a string by this function directly. Left as raw pointer.
     password: *mut c_char,
     _password_length: size_t,
 ) -> CassError {
@@ -311,7 +334,20 @@ pub unsafe extern "C" fn cass_ssl_set_private_key_n(
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
-    let bio = unsafe { BIO_new_mem_buf(key as *const c_void, key_length.try_into().unwrap()) };
+    let key_str = match unsafe { key.to_str(key_length) } {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::error!("Invalid PEM private key data: {e}");
+            return CassError::CASS_ERROR_SSL_INVALID_PRIVATE_KEY;
+        }
+    };
+
+    let bio = unsafe {
+        BIO_new_mem_buf(
+            key_str.as_ptr() as *const c_void,
+            key_str.len().try_into().unwrap(),
+        )
+    };
 
     if bio.is_null() {
         return CassError::CASS_ERROR_SSL_INVALID_CERT;

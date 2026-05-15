@@ -239,21 +239,29 @@ pub unsafe extern "C" fn cass_uuid_string(uuid_raw: CassUuid, output: *mut c_cha
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_uuid_from_string(
-    value: *const c_char,
+    value: CassStrNulTerminated<'_>,
     output: *mut CassUuid,
 ) -> CassError {
-    unsafe { cass_uuid_from_string_n(value, strlen(value), output) }
+    let (value, value_length) = unsafe { value.as_len_delimited() };
+    unsafe { cass_uuid_from_string_n(value, value_length, output) }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_uuid_from_string_n(
-    value: *const c_char,
-    value_length: size_t,
+    value: CassStrLenDelimited<'_>,
+    value_length: CassStrLen,
     output: *mut CassUuid,
 ) -> CassError {
-    let Some(value_str) = (unsafe { ptr_to_cstr_n(value, value_length) }) else {
-        tracing::error!("Provided null or invalid string pointer to cass_uuid_from_string(_n)!");
-        return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+    let value_str = match unsafe { value.to_str(value_length) } {
+        Ok(s) => s,
+        Err(PtrToStrError::NullPointer) => {
+            tracing::error!("Provided null string pointer to cass_uuid_from_string(_n)!");
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!("Provided non-UTF8 string to cass_uuid_from_string(_n)!");
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
     };
     Uuid::parse_str(value_str).map_or(CassError::CASS_ERROR_LIB_BAD_PARAMS, |parsed_uuid| {
         unsafe { std::ptr::write(output, parsed_uuid.into()) };

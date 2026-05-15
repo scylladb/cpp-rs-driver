@@ -84,21 +84,29 @@ pub unsafe extern "C" fn cass_inet_string(inet: CassInet, output: *mut c_char) {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_inet_from_string(
-    input: *const c_char,
+    input: CassStrNulTerminated<'_>,
     inet: *mut CassInet,
 ) -> CassError {
-    unsafe { cass_inet_from_string_n(input, strlen(input), inet) }
+    let (input, input_length) = unsafe { input.as_len_delimited() };
+    unsafe { cass_inet_from_string_n(input, input_length, inet) }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_inet_from_string_n(
-    input_raw: *const c_char,
-    input_length: size_t,
+    input_raw: CassStrLenDelimited<'_>,
+    input_length: CassStrLen,
     inet_raw: *mut CassInet,
 ) -> CassError {
-    let Some(input_str) = (unsafe { ptr_to_cstr_n(input_raw, input_length) }) else {
-        tracing::error!("Provided null input string to cass_inet_from_string(_n)!");
-        return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+    let input_str = match unsafe { input_raw.to_str(input_length) } {
+        Ok(s) => s,
+        Err(PtrToStrError::NullPointer) => {
+            tracing::error!("Provided null input string to cass_inet_from_string(_n)!");
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!("Provided non-UTF8 input string to cass_inet_from_string(_n)!");
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
     };
 
     let Ok(ip_addr) = IpAddr::from_str(input_str) else {

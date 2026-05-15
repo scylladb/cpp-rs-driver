@@ -123,32 +123,36 @@ pub unsafe extern "C" fn cass_schema_meta_free(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn cass_schema_meta_keyspace_by_name(
-    schema_meta: CassBorrowedSharedPtr<CassSchemaMeta, CConst>,
-    keyspace_name: *const c_char,
-) -> CassBorrowedSharedPtr<CassKeyspaceMeta, CConst> {
-    unsafe {
-        cass_schema_meta_keyspace_by_name_n(schema_meta, keyspace_name, strlen(keyspace_name))
-    }
+pub unsafe extern "C" fn cass_schema_meta_keyspace_by_name<'a>(
+    schema_meta: CassBorrowedSharedPtr<'a, CassSchemaMeta, CConst>,
+    keyspace_name: CassStrNulTerminated<'_>,
+) -> CassBorrowedSharedPtr<'a, CassKeyspaceMeta, CConst> {
+    let (keyspace_name, keyspace_name_length) = unsafe { keyspace_name.as_len_delimited() };
+    unsafe { cass_schema_meta_keyspace_by_name_n(schema_meta, keyspace_name, keyspace_name_length) }
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn cass_schema_meta_keyspace_by_name_n(
-    schema_meta: CassBorrowedSharedPtr<CassSchemaMeta, CConst>,
-    keyspace_name: *const c_char,
-    keyspace_name_length: size_t,
-) -> CassBorrowedSharedPtr<CassKeyspaceMeta, CConst> {
+pub unsafe extern "C" fn cass_schema_meta_keyspace_by_name_n<'a>(
+    schema_meta: CassBorrowedSharedPtr<'a, CassSchemaMeta, CConst>,
+    keyspace_name: CassStrLenDelimited<'_>,
+    keyspace_name_length: CassStrLen,
+) -> CassBorrowedSharedPtr<'a, CassKeyspaceMeta, CConst> {
     let Some(metadata) = BoxFFI::as_ref(schema_meta) else {
         tracing::error!(
             "Provided null schema metadata pointer to cass_schema_meta_keyspace_by_name_n!"
         );
         return RefFFI::null();
     };
-    if keyspace_name.is_null() {
-        return RefFFI::null();
-    }
-
-    let keyspace = unsafe { ptr_to_cstr_n(keyspace_name, keyspace_name_length) }.unwrap();
+    let keyspace = match unsafe { keyspace_name.to_str(keyspace_name_length) } {
+        Ok(s) => s,
+        Err(PtrToStrError::NullPointer) => return RefFFI::null(),
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!(
+                "Provided non-UTF8 keyspace name to cass_schema_meta_keyspace_by_name(_n)!"
+            );
+            return RefFFI::null();
+        }
+    };
 
     let keyspace_meta = metadata.keyspaces.get(keyspace);
 
@@ -173,30 +177,36 @@ pub unsafe extern "C" fn cass_keyspace_meta_name(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn cass_keyspace_meta_user_type_by_name(
-    keyspace_meta: CassBorrowedSharedPtr<CassKeyspaceMeta, CConst>,
-    type_: *const c_char,
-) -> CassBorrowedSharedPtr<CassDataType, CConst> {
-    unsafe { cass_keyspace_meta_user_type_by_name_n(keyspace_meta, type_, strlen(type_)) }
+pub unsafe extern "C" fn cass_keyspace_meta_user_type_by_name<'a>(
+    keyspace_meta: CassBorrowedSharedPtr<'a, CassKeyspaceMeta, CConst>,
+    type_: CassStrNulTerminated<'_>,
+) -> CassBorrowedSharedPtr<'a, CassDataType, CConst> {
+    let (type_, type_length) = unsafe { type_.as_len_delimited() };
+    unsafe { cass_keyspace_meta_user_type_by_name_n(keyspace_meta, type_, type_length) }
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn cass_keyspace_meta_user_type_by_name_n(
-    keyspace_meta: CassBorrowedSharedPtr<CassKeyspaceMeta, CConst>,
-    type_: *const c_char,
-    type_length: size_t,
-) -> CassBorrowedSharedPtr<CassDataType, CConst> {
+pub unsafe extern "C" fn cass_keyspace_meta_user_type_by_name_n<'a>(
+    keyspace_meta: CassBorrowedSharedPtr<'a, CassKeyspaceMeta, CConst>,
+    type_: CassStrLenDelimited<'_>,
+    type_length: CassStrLen,
+) -> CassBorrowedSharedPtr<'a, CassDataType, CConst> {
     let Some(keyspace_meta) = RefFFI::as_ref(keyspace_meta) else {
         tracing::error!(
             "Provided null keyspace metadata pointer to cass_keyspace_meta_user_type_by_name_n!"
         );
         return ArcFFI::null();
     };
-    if type_.is_null() {
-        return ArcFFI::null();
-    }
-
-    let user_type_name = unsafe { ptr_to_cstr_n(type_, type_length) }.unwrap();
+    let user_type_name = match unsafe { type_.to_str(type_length) } {
+        Ok(s) => s,
+        Err(PtrToStrError::NullPointer) => return ArcFFI::null(),
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!(
+                "Provided non-UTF8 type name to cass_keyspace_meta_user_type_by_name(_n)!"
+            );
+            return ArcFFI::null();
+        }
+    };
 
     match keyspace_meta
         .user_defined_type_data_type
@@ -208,30 +218,36 @@ pub unsafe extern "C" fn cass_keyspace_meta_user_type_by_name_n(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn cass_keyspace_meta_table_by_name(
-    keyspace_meta: CassBorrowedSharedPtr<CassKeyspaceMeta, CConst>,
-    table: *const c_char,
-) -> CassBorrowedSharedPtr<CassTableMeta, CConst> {
-    unsafe { cass_keyspace_meta_table_by_name_n(keyspace_meta, table, strlen(table)) }
+pub unsafe extern "C" fn cass_keyspace_meta_table_by_name<'a>(
+    keyspace_meta: CassBorrowedSharedPtr<'a, CassKeyspaceMeta, CConst>,
+    table: CassStrNulTerminated<'_>,
+) -> CassBorrowedSharedPtr<'a, CassTableMeta, CConst> {
+    let (table, table_length) = unsafe { table.as_len_delimited() };
+    unsafe { cass_keyspace_meta_table_by_name_n(keyspace_meta, table, table_length) }
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn cass_keyspace_meta_table_by_name_n(
-    keyspace_meta: CassBorrowedSharedPtr<CassKeyspaceMeta, CConst>,
-    table: *const c_char,
-    table_length: size_t,
-) -> CassBorrowedSharedPtr<CassTableMeta, CConst> {
+pub unsafe extern "C" fn cass_keyspace_meta_table_by_name_n<'a>(
+    keyspace_meta: CassBorrowedSharedPtr<'a, CassKeyspaceMeta, CConst>,
+    table: CassStrLenDelimited<'_>,
+    table_length: CassStrLen,
+) -> CassBorrowedSharedPtr<'a, CassTableMeta, CConst> {
     let Some(keyspace_meta) = RefFFI::as_ref(keyspace_meta) else {
         tracing::error!(
             "Provided null keyspace metadata pointer to cass_keyspace_meta_table_by_name_n!"
         );
         return RefFFI::null();
     };
-    if table.is_null() {
-        return RefFFI::null();
-    }
-
-    let table_name = unsafe { ptr_to_cstr_n(table, table_length) }.unwrap();
+    let table_name = match unsafe { table.to_str(table_length) } {
+        Ok(s) => s,
+        Err(PtrToStrError::NullPointer) => return RefFFI::null(),
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!(
+                "Provided non-UTF8 table name to cass_keyspace_meta_table_by_name(_n)!"
+            );
+            return RefFFI::null();
+        }
+    };
 
     let table_meta = keyspace_meta.tables.get(table_name);
 
@@ -390,30 +406,34 @@ pub unsafe extern "C" fn cass_table_meta_clustering_key_count(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn cass_table_meta_column_by_name(
-    table_meta: CassBorrowedSharedPtr<CassTableMeta, CConst>,
-    column: *const c_char,
-) -> CassBorrowedSharedPtr<CassColumnMeta, CConst> {
-    unsafe { cass_table_meta_column_by_name_n(table_meta, column, strlen(column)) }
+pub unsafe extern "C" fn cass_table_meta_column_by_name<'a>(
+    table_meta: CassBorrowedSharedPtr<'a, CassTableMeta, CConst>,
+    column: CassStrNulTerminated<'_>,
+) -> CassBorrowedSharedPtr<'a, CassColumnMeta, CConst> {
+    let (column, column_length) = unsafe { column.as_len_delimited() };
+    unsafe { cass_table_meta_column_by_name_n(table_meta, column, column_length) }
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn cass_table_meta_column_by_name_n(
-    table_meta: CassBorrowedSharedPtr<CassTableMeta, CConst>,
-    column: *const c_char,
-    column_length: size_t,
-) -> CassBorrowedSharedPtr<CassColumnMeta, CConst> {
+pub unsafe extern "C" fn cass_table_meta_column_by_name_n<'a>(
+    table_meta: CassBorrowedSharedPtr<'a, CassTableMeta, CConst>,
+    column: CassStrLenDelimited<'_>,
+    column_length: CassStrLen,
+) -> CassBorrowedSharedPtr<'a, CassColumnMeta, CConst> {
     let Some(table_meta) = RefFFI::as_ref(table_meta) else {
         tracing::error!(
             "Provided null table metadata pointer to cass_table_meta_column_by_name_n!"
         );
         return RefFFI::null();
     };
-    if column.is_null() {
-        return RefFFI::null();
-    }
-
-    let column_name = unsafe { ptr_to_cstr_n(column, column_length) }.unwrap();
+    let column_name = match unsafe { column.to_str(column_length) } {
+        Ok(s) => s,
+        Err(PtrToStrError::NullPointer) => return RefFFI::null(),
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!("Provided non-UTF8 column name to cass_table_meta_column_by_name(_n)!");
+            return RefFFI::null();
+        }
+    };
 
     match table_meta.columns_metadata.get(column_name) {
         Some(column_meta) => RefFFI::as_ptr(column_meta),
@@ -460,30 +480,36 @@ pub unsafe extern "C" fn cass_column_meta_type(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn cass_keyspace_meta_materialized_view_by_name(
-    keyspace_meta: CassBorrowedSharedPtr<CassKeyspaceMeta, CConst>,
-    view: *const c_char,
-) -> CassBorrowedSharedPtr<CassMaterializedViewMeta, CConst> {
-    unsafe { cass_keyspace_meta_materialized_view_by_name_n(keyspace_meta, view, strlen(view)) }
+pub unsafe extern "C" fn cass_keyspace_meta_materialized_view_by_name<'a>(
+    keyspace_meta: CassBorrowedSharedPtr<'a, CassKeyspaceMeta, CConst>,
+    view: CassStrNulTerminated<'_>,
+) -> CassBorrowedSharedPtr<'a, CassMaterializedViewMeta, CConst> {
+    let (view, view_length) = unsafe { view.as_len_delimited() };
+    unsafe { cass_keyspace_meta_materialized_view_by_name_n(keyspace_meta, view, view_length) }
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn cass_keyspace_meta_materialized_view_by_name_n(
-    keyspace_meta: CassBorrowedSharedPtr<CassKeyspaceMeta, CConst>,
-    view: *const c_char,
-    view_length: size_t,
-) -> CassBorrowedSharedPtr<CassMaterializedViewMeta, CConst> {
+pub unsafe extern "C" fn cass_keyspace_meta_materialized_view_by_name_n<'a>(
+    keyspace_meta: CassBorrowedSharedPtr<'a, CassKeyspaceMeta, CConst>,
+    view: CassStrLenDelimited<'_>,
+    view_length: CassStrLen,
+) -> CassBorrowedSharedPtr<'a, CassMaterializedViewMeta, CConst> {
     let Some(keyspace_meta) = RefFFI::as_ref(keyspace_meta) else {
         tracing::error!(
             "Provided null keyspace metadata pointer to cass_keyspace_meta_materialized_view_by_name_n!"
         );
         return RefFFI::null();
     };
-    if view.is_null() {
-        return RefFFI::null();
-    }
-
-    let view_name = unsafe { ptr_to_cstr_n(view, view_length).unwrap() };
+    let view_name = match unsafe { view.to_str(view_length) } {
+        Ok(s) => s,
+        Err(PtrToStrError::NullPointer) => return RefFFI::null(),
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!(
+                "Provided non-UTF8 view name to cass_keyspace_meta_materialized_view_by_name(_n)!"
+            );
+            return RefFFI::null();
+        }
+    };
 
     match keyspace_meta.views.get(view_name) {
         Some(view_meta) => RefFFI::as_ptr(view_meta.as_ref()),
@@ -492,30 +518,36 @@ pub unsafe extern "C" fn cass_keyspace_meta_materialized_view_by_name_n(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn cass_table_meta_materialized_view_by_name(
-    table_meta: CassBorrowedSharedPtr<CassTableMeta, CConst>,
-    view: *const c_char,
-) -> CassBorrowedSharedPtr<CassMaterializedViewMeta, CConst> {
-    unsafe { cass_table_meta_materialized_view_by_name_n(table_meta, view, strlen(view)) }
+pub unsafe extern "C" fn cass_table_meta_materialized_view_by_name<'a>(
+    table_meta: CassBorrowedSharedPtr<'a, CassTableMeta, CConst>,
+    view: CassStrNulTerminated<'_>,
+) -> CassBorrowedSharedPtr<'a, CassMaterializedViewMeta, CConst> {
+    let (view, view_length) = unsafe { view.as_len_delimited() };
+    unsafe { cass_table_meta_materialized_view_by_name_n(table_meta, view, view_length) }
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn cass_table_meta_materialized_view_by_name_n(
-    table_meta: CassBorrowedSharedPtr<CassTableMeta, CConst>,
-    view: *const c_char,
-    view_length: size_t,
-) -> CassBorrowedSharedPtr<CassMaterializedViewMeta, CConst> {
+pub unsafe extern "C" fn cass_table_meta_materialized_view_by_name_n<'a>(
+    table_meta: CassBorrowedSharedPtr<'a, CassTableMeta, CConst>,
+    view: CassStrLenDelimited<'_>,
+    view_length: CassStrLen,
+) -> CassBorrowedSharedPtr<'a, CassMaterializedViewMeta, CConst> {
     let Some(table_meta) = RefFFI::as_ref(table_meta) else {
         tracing::error!(
             "Provided null table metadata pointer to cass_table_meta_materialized_view_by_name_n!"
         );
         return RefFFI::null();
     };
-    if view.is_null() {
-        return RefFFI::null();
-    }
-
-    let view_name = unsafe { ptr_to_cstr_n(view, view_length).unwrap() };
+    let view_name = match unsafe { view.to_str(view_length) } {
+        Ok(s) => s,
+        Err(PtrToStrError::NullPointer) => return RefFFI::null(),
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!(
+                "Provided non-UTF8 view name to cass_table_meta_materialized_view_by_name(_n)!"
+            );
+            return RefFFI::null();
+        }
+    };
 
     match table_meta.views.get(view_name) {
         Some(view_meta) => RefFFI::as_ptr(view_meta.as_ref()),
@@ -556,19 +588,20 @@ pub unsafe extern "C" fn cass_table_meta_materialized_view(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn cass_materialized_view_meta_column_by_name(
-    view_meta: CassBorrowedSharedPtr<CassMaterializedViewMeta, CConst>,
-    column: *const c_char,
-) -> CassBorrowedSharedPtr<CassColumnMeta, CConst> {
-    unsafe { cass_materialized_view_meta_column_by_name_n(view_meta, column, strlen(column)) }
+pub unsafe extern "C" fn cass_materialized_view_meta_column_by_name<'a>(
+    view_meta: CassBorrowedSharedPtr<'a, CassMaterializedViewMeta, CConst>,
+    column: CassStrNulTerminated<'_>,
+) -> CassBorrowedSharedPtr<'a, CassColumnMeta, CConst> {
+    let (column, column_length) = unsafe { column.as_len_delimited() };
+    unsafe { cass_materialized_view_meta_column_by_name_n(view_meta, column, column_length) }
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn cass_materialized_view_meta_column_by_name_n(
-    view_meta: CassBorrowedSharedPtr<CassMaterializedViewMeta, CConst>,
-    column: *const c_char,
-    column_length: size_t,
-) -> CassBorrowedSharedPtr<CassColumnMeta, CConst> {
+pub unsafe extern "C" fn cass_materialized_view_meta_column_by_name_n<'a>(
+    view_meta: CassBorrowedSharedPtr<'a, CassMaterializedViewMeta, CConst>,
+    column: CassStrLenDelimited<'_>,
+    column_length: CassStrLen,
+) -> CassBorrowedSharedPtr<'a, CassColumnMeta, CConst> {
     let Some(view_meta) = RefFFI::as_ref(view_meta) else {
         tracing::error!(
             "Provided null materialized view metadata pointer to cass_materialized_view_meta_column_by_name_n!"
@@ -576,11 +609,16 @@ pub unsafe extern "C" fn cass_materialized_view_meta_column_by_name_n(
         return RefFFI::null();
     };
 
-    if column.is_null() {
-        return RefFFI::null();
-    }
-
-    let column_name = unsafe { ptr_to_cstr_n(column, column_length).unwrap() };
+    let column_name = match unsafe { column.to_str(column_length) } {
+        Ok(s) => s,
+        Err(PtrToStrError::NullPointer) => return RefFFI::null(),
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!(
+                "Provided non-UTF8 column name to cass_materialized_view_meta_column_by_name(_n)!"
+            );
+            return RefFFI::null();
+        }
+    };
 
     match view_meta.view_metadata.columns_metadata.get(column_name) {
         Some(column_meta) => RefFFI::as_ptr(column_meta),

@@ -556,25 +556,34 @@ pub unsafe extern "C" fn cass_data_type_type_name(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_data_type_set_type_name(
     data_type: CassBorrowedSharedPtr<CassDataType, CMut>,
-    type_name: *const c_char,
+    type_name: CassStrNulTerminated<'_>,
 ) -> CassError {
-    unsafe { cass_data_type_set_type_name_n(data_type, type_name, strlen(type_name)) }
+    let (type_name, type_name_length) = unsafe { type_name.as_len_delimited() };
+    unsafe { cass_data_type_set_type_name_n(data_type, type_name, type_name_length) }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_data_type_set_type_name_n(
     data_type_raw: CassBorrowedSharedPtr<CassDataType, CMut>,
-    type_name: *const c_char,
-    type_name_length: size_t,
+    type_name: CassStrLenDelimited<'_>,
+    type_name_length: CassStrLen,
 ) -> CassError {
     let Some(data_type) = ArcFFI::as_ref(data_type_raw) else {
         tracing::error!("Provided null data type pointer to cass_data_type_set_type_name_n!");
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
-    let type_name_string = unsafe { ptr_to_cstr_n(type_name, type_name_length) }
-        .unwrap()
-        .to_string();
+    let type_name_string = match unsafe { type_name.to_str(type_name_length) } {
+        Ok(s) => s.to_string(),
+        Err(PtrToStrError::NullPointer) => {
+            tracing::error!("Provided null type name pointer to cass_data_type_set_type_name(_n)!");
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!("Provided non-UTF8 type name to cass_data_type_set_type_name(_n)!");
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
+    };
 
     match unsafe { data_type.get_mut_unchecked() } {
         CassDataTypeInner::Udt(udt_data_type) => {
@@ -608,25 +617,34 @@ pub unsafe extern "C" fn cass_data_type_keyspace(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_data_type_set_keyspace(
     data_type: CassBorrowedSharedPtr<CassDataType, CMut>,
-    keyspace: *const c_char,
+    keyspace: CassStrNulTerminated<'_>,
 ) -> CassError {
-    unsafe { cass_data_type_set_keyspace_n(data_type, keyspace, strlen(keyspace)) }
+    let (keyspace, keyspace_length) = unsafe { keyspace.as_len_delimited() };
+    unsafe { cass_data_type_set_keyspace_n(data_type, keyspace, keyspace_length) }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_data_type_set_keyspace_n(
     data_type: CassBorrowedSharedPtr<CassDataType, CMut>,
-    keyspace: *const c_char,
-    keyspace_length: size_t,
+    keyspace: CassStrLenDelimited<'_>,
+    keyspace_length: CassStrLen,
 ) -> CassError {
     let Some(data_type) = ArcFFI::as_ref(data_type) else {
         tracing::error!("Provided null data type pointer to cass_data_type_set_keyspace_n!");
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
-    let keyspace_string = unsafe { ptr_to_cstr_n(keyspace, keyspace_length) }
-        .unwrap()
-        .to_string();
+    let keyspace_string = match unsafe { keyspace.to_str(keyspace_length) } {
+        Ok(s) => s.to_string(),
+        Err(PtrToStrError::NullPointer) => {
+            tracing::error!("Provided null keyspace pointer to cass_data_type_set_keyspace(_n)!");
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!("Provided non-UTF8 keyspace to cass_data_type_set_keyspace(_n)!");
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
+    };
 
     match unsafe { data_type.get_mut_unchecked() } {
         CassDataTypeInner::Udt(udt_data_type) => {
@@ -660,25 +678,36 @@ pub unsafe extern "C" fn cass_data_type_class_name(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_data_type_set_class_name(
     data_type: CassBorrowedSharedPtr<CassDataType, CMut>,
-    class_name: *const ::std::os::raw::c_char,
+    class_name: CassStrNulTerminated<'_>,
 ) -> CassError {
-    unsafe { cass_data_type_set_class_name_n(data_type, class_name, strlen(class_name)) }
+    let (class_name, class_name_length) = unsafe { class_name.as_len_delimited() };
+    unsafe { cass_data_type_set_class_name_n(data_type, class_name, class_name_length) }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_data_type_set_class_name_n(
     data_type: CassBorrowedSharedPtr<CassDataType, CMut>,
-    class_name: *const ::std::os::raw::c_char,
-    class_name_length: size_t,
+    class_name: CassStrLenDelimited<'_>,
+    class_name_length: CassStrLen,
 ) -> CassError {
     let Some(data_type) = ArcFFI::as_ref(data_type) else {
         tracing::error!("Provided null data type pointer to cass_data_type_set_class_name_n!");
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
-    let class_string = unsafe { ptr_to_cstr_n(class_name, class_name_length) }
-        .unwrap()
-        .to_string();
+    let class_string = match unsafe { class_name.to_str(class_name_length) } {
+        Ok(s) => s.to_string(),
+        Err(PtrToStrError::NullPointer) => {
+            tracing::error!(
+                "Provided null class name pointer to cass_data_type_set_class_name(_n)!"
+            );
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!("Provided non-UTF8 class name to cass_data_type_set_class_name(_n)!");
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
+    };
     match unsafe { data_type.get_mut_unchecked() } {
         CassDataTypeInner::Custom(name) => {
             *name = class_string;
@@ -741,19 +770,20 @@ pub unsafe extern "C" fn cass_data_type_sub_data_type(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn cass_data_type_sub_data_type_by_name(
-    data_type: CassBorrowedSharedPtr<CassDataType, CConst>,
-    name: *const ::std::os::raw::c_char,
-) -> CassBorrowedSharedPtr<CassDataType, CConst> {
-    unsafe { cass_data_type_sub_data_type_by_name_n(data_type, name, strlen(name)) }
+pub unsafe extern "C" fn cass_data_type_sub_data_type_by_name<'a>(
+    data_type: CassBorrowedSharedPtr<'a, CassDataType, CConst>,
+    name: CassStrNulTerminated<'_>,
+) -> CassBorrowedSharedPtr<'a, CassDataType, CConst> {
+    let (name, name_length) = unsafe { name.as_len_delimited() };
+    unsafe { cass_data_type_sub_data_type_by_name_n(data_type, name, name_length) }
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn cass_data_type_sub_data_type_by_name_n(
-    data_type: CassBorrowedSharedPtr<CassDataType, CConst>,
-    name: *const ::std::os::raw::c_char,
-    name_length: size_t,
-) -> CassBorrowedSharedPtr<CassDataType, CConst> {
+pub unsafe extern "C" fn cass_data_type_sub_data_type_by_name_n<'a>(
+    data_type: CassBorrowedSharedPtr<'a, CassDataType, CConst>,
+    name: CassStrLenDelimited<'_>,
+    name_length: CassStrLen,
+) -> CassBorrowedSharedPtr<'a, CassDataType, CConst> {
     let Some(data_type) = ArcFFI::as_ref(data_type) else {
         tracing::error!(
             "Provided null data type pointer to cass_data_type_sub_data_type_by_name_n!"
@@ -761,7 +791,19 @@ pub unsafe extern "C" fn cass_data_type_sub_data_type_by_name_n(
         return ArcFFI::null();
     };
 
-    let name_str = unsafe { ptr_to_cstr_n(name, name_length) }.unwrap();
+    let name_str = match unsafe { name.to_str(name_length) } {
+        Ok(s) => s,
+        Err(PtrToStrError::NullPointer) => {
+            tracing::error!(
+                "Provided null name pointer to cass_data_type_sub_data_type_by_name(_n)!"
+            );
+            return ArcFFI::null();
+        }
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!("Provided non-UTF8 name to cass_data_type_sub_data_type_by_name(_n)!");
+            return ArcFFI::null();
+        }
+    };
     match unsafe { data_type.get_unchecked() } {
         CassDataTypeInner::Udt(udt) => match udt.get_field_by_name(name_str) {
             None => ArcFFI::null(),
@@ -818,17 +860,18 @@ pub unsafe extern "C" fn cass_data_type_add_sub_type(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_data_type_add_sub_type_by_name(
     data_type: CassBorrowedSharedPtr<CassDataType, CMut>,
-    name: *const c_char,
+    name: CassStrNulTerminated<'_>,
     sub_data_type: CassBorrowedSharedPtr<CassDataType, CConst>,
 ) -> CassError {
-    unsafe { cass_data_type_add_sub_type_by_name_n(data_type, name, strlen(name), sub_data_type) }
+    let (name, name_length) = unsafe { name.as_len_delimited() };
+    unsafe { cass_data_type_add_sub_type_by_name_n(data_type, name, name_length, sub_data_type) }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_data_type_add_sub_type_by_name_n(
     data_type_raw: CassBorrowedSharedPtr<CassDataType, CMut>,
-    name: *const c_char,
-    name_length: size_t,
+    name: CassStrLenDelimited<'_>,
+    name_length: CassStrLen,
     sub_data_type_raw: CassBorrowedSharedPtr<CassDataType, CConst>,
 ) -> CassError {
     let Some(data_type) = ArcFFI::as_ref(data_type_raw) else {
@@ -844,9 +887,19 @@ pub unsafe extern "C" fn cass_data_type_add_sub_type_by_name_n(
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
-    let name_string = unsafe { ptr_to_cstr_n(name, name_length) }
-        .unwrap()
-        .to_string();
+    let name_string = match unsafe { name.to_str(name_length) } {
+        Ok(s) => s.to_string(),
+        Err(PtrToStrError::NullPointer) => {
+            tracing::error!(
+                "Provided null name pointer to cass_data_type_add_sub_type_by_name(_n)!"
+            );
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!("Provided non-UTF8 name to cass_data_type_add_sub_type_by_name(_n)!");
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
+    };
 
     match unsafe { data_type.get_mut_unchecked() } {
         CassDataTypeInner::Udt(udt_data_type) => {
@@ -871,7 +924,7 @@ pub unsafe extern "C" fn cass_data_type_add_sub_value_type(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_data_type_add_sub_value_type_by_name(
     data_type: CassBorrowedSharedPtr<CassDataType, CMut>,
-    name: *const c_char,
+    name: CassStrNulTerminated<'_>,
     sub_value_type: CassValueType,
 ) -> CassError {
     let sub_data_type = CassDataType::new_arced(CassDataTypeInner::Value(sub_value_type));
@@ -889,8 +942,8 @@ pub unsafe extern "C" fn cass_data_type_add_sub_value_type_by_name_n(
     unsafe {
         cass_data_type_add_sub_type_by_name_n(
             data_type,
-            name,
-            name_length,
+            CassStrLenDelimited::from_raw(name),
+            CassStrLen::from_raw(name_length),
             ArcFFI::as_ptr(&sub_data_type),
         )
     }

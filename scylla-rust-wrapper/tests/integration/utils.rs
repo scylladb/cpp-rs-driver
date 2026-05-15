@@ -5,7 +5,7 @@ use scylla_cpp_driver::api::future::{
     CassFuture, cass_future_error_code, cass_future_error_message, cass_future_free,
     cass_future_wait,
 };
-use scylla_cpp_driver::argconv::{CMut, CassOwnedSharedPtr, ptr_to_cstr, ptr_to_cstr_n};
+use scylla_cpp_driver::argconv::{CMut, CassOwnedSharedPtr, CassStrLen, CassStrLenDelimited};
 use scylla_cpp_driver::types::size_t;
 use std::collections::HashMap;
 use std::ffi::CString;
@@ -25,26 +25,9 @@ pub(crate) fn setup_tracing() {
         .try_init();
 }
 
-unsafe fn write_str_to_c(s: &str, c_str: *mut *const c_char, c_strlen: *mut size_t) {
-    unsafe {
-        *c_str = s.as_ptr() as *const c_char;
-        *c_strlen = s.len() as u64;
-    }
-}
-
-pub(crate) fn str_to_c_str_n(s: &str) -> (*const c_char, size_t) {
-    let mut c_str = std::ptr::null();
-    let mut c_strlen = size_t::default();
-
-    // SAFETY: The pointers that are passed to `write_str_to_c` are compile-checked references.
-    unsafe { write_str_to_c(s, &mut c_str, &mut c_strlen) };
-
-    (c_str, c_strlen)
-}
-
 macro_rules! make_c_str {
     ($str:literal) => {
-        concat!($str, "\0").as_ptr() as *const c_char
+        concat!($str, "\0").as_ptr() as *const std::ffi::c_char
     };
 }
 pub(crate) use make_c_str;
@@ -84,15 +67,13 @@ where
 
 #[track_caller]
 pub(crate) fn assert_cass_error_eq(errcode1: CassError, errcode2: CassError) {
-    unsafe {
-        assert_eq!(
-            errcode1,
-            errcode2,
-            "expected \"{}\", instead got \"{}\"",
-            ptr_to_cstr(cass_error_desc(errcode1)).unwrap(),
-            ptr_to_cstr(cass_error_desc(errcode2)).unwrap()
-        );
-    }
+    assert_eq!(
+        errcode1,
+        errcode2,
+        "expected \"{}\", instead got \"{}\"",
+        unsafe { cass_error_desc(errcode1).to_str() }.unwrap(),
+        unsafe { cass_error_desc(errcode2).to_str() }.unwrap()
+    );
 }
 
 #[track_caller]
@@ -105,8 +86,10 @@ pub(crate) unsafe fn cass_future_wait_check_and_free(fut: CassOwnedSharedPtr<Cas
         unsafe { cass_future_error_message(fut.borrow(), &mut message, &mut message_len) };
         panic!(
             "Expected CASS_OK, got an error: <{:?}>, with message: {:?}",
-            unsafe { ptr_to_cstr(cass_error_desc(errcode)) },
-            unsafe { ptr_to_cstr_n(message, message_len) },
+            unsafe { cass_error_desc(errcode).to_str() },
+            unsafe {
+                CassStrLenDelimited::from_raw(message).to_str(CassStrLen::from_raw(message_len))
+            },
         );
     }
 
@@ -129,8 +112,10 @@ pub(crate) unsafe fn cass_future_result_wait_expect_server_error_and_free(
             unsafe { cass_future_error_message(fut.borrow(), &mut message, &mut message_len) };
             panic!(
                 "Expected CASS_ERROR_SERVER_SERVER_ERROR, got a different error: <{:?}>, with message: {:?}",
-                unsafe { ptr_to_cstr(cass_error_desc(errcode)) },
-                unsafe { ptr_to_cstr_n(message, message_len) },
+                unsafe { cass_error_desc(errcode).to_str() },
+                unsafe {
+                    CassStrLenDelimited::from_raw(message).to_str(CassStrLen::from_raw(message_len))
+                },
             );
         }
     }

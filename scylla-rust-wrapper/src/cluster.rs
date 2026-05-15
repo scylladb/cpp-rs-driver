@@ -4,7 +4,9 @@ use crate::cass_host_listener_types::CassHostListenerCallback;
 use crate::config_value::MaybeUnsetConfig;
 use crate::cql_types::CassConsistency;
 use crate::cql_types::uuid::CassUuid;
-use crate::exec_profile::{CassExecProfile, ExecProfileName, exec_profile_builder_modify};
+use crate::exec_profile::{
+    CassExecProfile, EmptyProfileName, ExecProfileName, exec_profile_builder_modify,
+};
 use crate::host_listener::CCallbackBasedHostListener;
 use crate::load_balancing::{
     CassHostFilter, DcRestriction, LoadBalancingConfig, LoadBalancingKind,
@@ -36,7 +38,7 @@ use std::convert::TryInto;
 use std::future::Future;
 use std::net::IpAddr;
 use std::num::{NonZero, NonZeroUsize};
-use std::os::raw::{c_char, c_int, c_uint, c_void};
+use std::os::raw::{c_int, c_uint, c_void};
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -377,16 +379,17 @@ pub unsafe extern "C" fn cass_cluster_free(cluster: CassOwnedExclusivePtr<CassCl
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_cluster_set_contact_points(
     cluster: CassBorrowedExclusivePtr<CassCluster, CMut>,
-    contact_points: *const c_char,
+    contact_points: CassStrNulTerminated<'_>,
 ) -> CassError {
-    unsafe { cass_cluster_set_contact_points_n(cluster, contact_points, strlen(contact_points)) }
+    let (contact_points, contact_points_length) = unsafe { contact_points.as_len_delimited() };
+    unsafe { cass_cluster_set_contact_points_n(cluster, contact_points, contact_points_length) }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_cluster_set_contact_points_n(
     cluster: CassBorrowedExclusivePtr<CassCluster, CMut>,
-    contact_points: *const c_char,
-    contact_points_length: size_t,
+    contact_points: CassStrLenDelimited<'_>,
+    contact_points_length: CassStrLen,
 ) -> CassError {
     let Some(cluster) = BoxFFI::as_mut_ref(cluster) else {
         tracing::error!("Provided null cluster pointer to cass_cluster_set_contact_points_n!");
@@ -418,8 +421,8 @@ pub unsafe extern "C" fn cass_cluster_set_contact_points_n(
 /// `convert` function should filter out invalid items - they will be ignored.
 pub(crate) unsafe fn update_comma_delimited_list<T, F>(
     list: &mut Vec<T>,
-    item_ptr: *const c_char,
-    item_length: size_t,
+    item_ptr: CassStrLenDelimited<'_>,
+    item_length: CassStrLen,
     convert: F,
 ) -> Result<(), CassError>
 where
@@ -427,15 +430,12 @@ where
 {
     // item_ptr is null if the user provided a null string.
     // null string is equivalent to empty string in this case - it clears the list.
-    let item_str = if item_ptr.is_null() {
-        None
-    } else {
-        match unsafe { ptr_to_cstr_n(item_ptr, item_length) } {
-            Some(h) => Some(h),
-            None => {
-                tracing::error!("Provided non-utf8 string representing a comma-delimited list");
-                return Err(CassError::CASS_ERROR_LIB_BAD_PARAMS);
-            }
+    let item_str = match unsafe { item_ptr.to_str(item_length) } {
+        Ok(h) => Some(h),
+        Err(PtrToStrError::NullPointer) => None,
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!("Provided non-UTF8 string representing a comma-delimited list");
+            return Err(CassError::CASS_ERROR_LIB_BAD_PARAMS);
         }
     };
 
@@ -466,24 +466,35 @@ where
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_cluster_set_application_name(
     cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
-    app_name: *const c_char,
+    app_name: CassStrNulTerminated<'_>,
 ) {
-    unsafe { cass_cluster_set_application_name_n(cluster_raw, app_name, strlen(app_name)) }
+    let (app_name, app_name_len) = unsafe { app_name.as_len_delimited() };
+    unsafe { cass_cluster_set_application_name_n(cluster_raw, app_name, app_name_len) }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_cluster_set_application_name_n(
     cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
-    app_name: *const c_char,
-    app_name_len: size_t,
+    app_name: CassStrLenDelimited<'_>,
+    app_name_len: CassStrLen,
 ) {
     let Some(cluster) = BoxFFI::as_mut_ref(cluster_raw) else {
         tracing::error!("Provided null cluster pointer to cass_cluster_set_application_name_n!");
         return;
     };
-    let app_name = unsafe { ptr_to_cstr_n(app_name, app_name_len) }
-        .unwrap()
-        .to_string();
+    let app_name = match unsafe { app_name.to_str(app_name_len) } {
+        Ok(s) => s.to_string(),
+        Err(PtrToStrError::NullPointer) => {
+            tracing::error!(
+                "Provided null app name pointer to cass_cluster_set_application_name(_n)!"
+            );
+            return;
+        }
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!("Provided non-UTF8 app name to cass_cluster_set_application_name(_n)!");
+            return;
+        }
+    };
 
     cluster
         .session_builder
@@ -495,24 +506,37 @@ pub unsafe extern "C" fn cass_cluster_set_application_name_n(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_cluster_set_application_version(
     cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
-    app_version: *const c_char,
+    app_version: CassStrNulTerminated<'_>,
 ) {
-    unsafe { cass_cluster_set_application_version_n(cluster_raw, app_version, strlen(app_version)) }
+    let (app_version, app_version_len) = unsafe { app_version.as_len_delimited() };
+    unsafe { cass_cluster_set_application_version_n(cluster_raw, app_version, app_version_len) }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_cluster_set_application_version_n(
     cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
-    app_version: *const c_char,
-    app_version_len: size_t,
+    app_version: CassStrLenDelimited<'_>,
+    app_version_len: CassStrLen,
 ) {
     let Some(cluster) = BoxFFI::as_mut_ref(cluster_raw) else {
         tracing::error!("Provided null cluster pointer to cass_cluster_set_application_version_n!");
         return;
     };
-    let app_version = unsafe { ptr_to_cstr_n(app_version, app_version_len) }
-        .unwrap()
-        .to_string();
+    let app_version = match unsafe { app_version.to_str(app_version_len) } {
+        Ok(s) => s.to_string(),
+        Err(PtrToStrError::NullPointer) => {
+            tracing::error!(
+                "Provided null app version pointer to cass_cluster_set_application_version(_n)!"
+            );
+            return;
+        }
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!(
+                "Provided non-UTF8 app version to cass_cluster_set_application_version(_n)!"
+            );
+            return;
+        }
+    };
 
     cluster
         .session_builder
@@ -843,17 +867,17 @@ pub unsafe extern "C" fn cass_cluster_set_port(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_cluster_set_local_address(
     cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
-    ip: *const c_char,
+    ip: CassStrNulTerminated<'_>,
 ) -> CassError {
-    // Safety: We assume that string is null-terminated.
-    unsafe { cass_cluster_set_local_address_n(cluster_raw, ip, strlen(ip)) }
+    let (ip, ip_length) = unsafe { ip.as_len_delimited() };
+    unsafe { cass_cluster_set_local_address_n(cluster_raw, ip, ip_length) }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_cluster_set_local_address_n(
     cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
-    ip: *const c_char,
-    ip_length: size_t,
+    ip: CassStrLenDelimited<'_>,
+    ip_length: CassStrLen,
 ) -> CassError {
     let Some(cluster) = BoxFFI::as_mut_ref(cluster_raw) else {
         tracing::error!("Provided null cluster pointer to cass_cluster_set_local_address_n!");
@@ -862,20 +886,21 @@ pub unsafe extern "C" fn cass_cluster_set_local_address_n(
 
     // Semantics from cpp-driver - if pointer is null or length is 0, use the
     // arbitrary address (INADDR_ANY, or in6addr_any).
-    let local_addr: Option<IpAddr> = if ip.is_null() || ip_length == 0 {
+    let local_addr: Option<IpAddr> = if ip_length.is_empty() {
         None
     } else {
         // SAFETY: We assume that user provides valid pointer and length.
-        match unsafe { ptr_to_cstr_n(ip, ip_length) } {
-            Some(ip_str) => match IpAddr::from_str(ip_str) {
+        match unsafe { ip.to_str(ip_length) } {
+            Ok(ip_str) => match IpAddr::from_str(ip_str) {
                 Ok(addr) => Some(addr),
                 Err(err) => {
                     tracing::error!("Failed to parse ip address <{}>: {}", ip_str, err);
                     return CassError::CASS_ERROR_LIB_BAD_PARAMS;
                 }
             },
-            None => {
-                tracing::error!("Provided non-utf8 ip string to cass_cluster_set_local_address_n!");
+            Err(PtrToStrError::NullPointer) => None,
+            Err(PtrToStrError::InvalidUtf8(_)) => {
+                tracing::error!("Provided non-UTF8 ip string to cass_cluster_set_local_address_n!");
                 return CassError::CASS_ERROR_LIB_BAD_PARAMS;
             }
         }
@@ -930,16 +955,18 @@ pub unsafe extern "C" fn cass_cluster_set_local_port_range(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_cluster_set_credentials(
     cluster: CassBorrowedExclusivePtr<CassCluster, CMut>,
-    username: *const c_char,
-    password: *const c_char,
+    username: CassStrNulTerminated<'_>,
+    password: CassStrNulTerminated<'_>,
 ) {
+    let (username, username_length) = unsafe { username.as_len_delimited() };
+    let (password, password_length) = unsafe { password.as_len_delimited() };
     unsafe {
         cass_cluster_set_credentials_n(
             cluster,
             username,
-            strlen(username),
+            username_length,
             password,
-            strlen(password),
+            password_length,
         )
     }
 }
@@ -947,18 +974,37 @@ pub unsafe extern "C" fn cass_cluster_set_credentials(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_cluster_set_credentials_n(
     cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
-    username_raw: *const c_char,
-    username_length: size_t,
-    password_raw: *const c_char,
-    password_length: size_t,
+    username_raw: CassStrLenDelimited<'_>,
+    username_length: CassStrLen,
+    password_raw: CassStrLenDelimited<'_>,
+    password_length: CassStrLen,
 ) {
     let Some(cluster) = BoxFFI::as_mut_ref(cluster_raw) else {
         tracing::error!("Provided null cluster pointer to cass_cluster_set_credentials_n!");
         return;
     };
-    // TODO: string error handling
-    let username = unsafe { ptr_to_cstr_n(username_raw, username_length) }.unwrap();
-    let password = unsafe { ptr_to_cstr_n(password_raw, password_length) }.unwrap();
+    let username = match unsafe { username_raw.to_str(username_length) } {
+        Ok(s) => s,
+        Err(PtrToStrError::NullPointer) => {
+            tracing::error!("Provided null username pointer to cass_cluster_set_credentials(_n)!");
+            return;
+        }
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!("Provided non-UTF8 username to cass_cluster_set_credentials(_n)!");
+            return;
+        }
+    };
+    let password = match unsafe { password_raw.to_str(password_length) } {
+        Ok(s) => s,
+        Err(PtrToStrError::NullPointer) => {
+            tracing::error!("Provided null password pointer to cass_cluster_set_credentials(_n)!");
+            return;
+        }
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!("Provided non-UTF8 password to cass_cluster_set_credentials(_n)!");
+            return;
+        }
+    };
 
     cluster.auth_username = Some(username.to_string());
     cluster.auth_password = Some(password.to_string());
@@ -981,15 +1027,16 @@ pub unsafe extern "C" fn cass_cluster_set_load_balance_round_robin(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_cluster_set_load_balance_dc_aware(
     cluster: CassBorrowedExclusivePtr<CassCluster, CMut>,
-    local_dc: *const c_char,
+    local_dc: CassStrNulTerminated<'_>,
     used_hosts_per_remote_dc: c_uint,
     allow_remote_dcs_for_local_cl: cass_bool_t,
 ) -> CassError {
+    let (local_dc, local_dc_length) = unsafe { local_dc.as_len_delimited() };
     unsafe {
         cass_cluster_set_load_balance_dc_aware_n(
             cluster,
             local_dc,
-            strlen(local_dc),
+            local_dc_length,
             used_hosts_per_remote_dc,
             allow_remote_dcs_for_local_cl,
         )
@@ -998,19 +1045,26 @@ pub unsafe extern "C" fn cass_cluster_set_load_balance_dc_aware(
 
 pub(crate) unsafe fn set_load_balance_dc_aware_n(
     load_balancing_config: &mut LoadBalancingConfig,
-    local_dc_raw: *const c_char,
-    local_dc_length: size_t,
+    local_dc_raw: CassStrLenDelimited<'_>,
+    local_dc_length: CassStrLen,
     used_hosts_per_remote_dc: c_uint,
     allow_remote_dcs_for_local_cl: cass_bool_t,
 ) -> CassError {
-    let Some(local_dc) = (unsafe { ptr_to_cstr_n(local_dc_raw, local_dc_length) }) else {
-        tracing::error!(
-            "Provided null or non-UTF-8 local DC name to cass_*_set_load_balance_dc_aware(_n)!"
-        );
-        return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+    let local_dc = match unsafe { local_dc_raw.to_str(local_dc_length) } {
+        Ok(dc) => dc,
+        Err(PtrToStrError::NullPointer) => {
+            tracing::error!("Provided null local DC name to cass_*_set_load_balance_dc_aware(_n)!");
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!(
+                "Provided non-UTF8 local DC name to cass_*_set_load_balance_dc_aware(_n)!"
+            );
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
     };
 
-    if local_dc_length == 0 {
+    if local_dc_length.is_empty() {
         tracing::error!("Provided empty local DC name to cass_*_set_load_balance_dc_aware(_n)!");
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     }
@@ -1048,8 +1102,8 @@ pub(crate) unsafe fn set_load_balance_dc_aware_n(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_cluster_set_load_balance_dc_aware_n(
     cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
-    local_dc_raw: *const c_char,
-    local_dc_length: size_t,
+    local_dc_raw: CassStrLenDelimited<'_>,
+    local_dc_length: CassStrLen,
     used_hosts_per_remote_dc: c_uint,
     allow_remote_dcs_for_local_cl: cass_bool_t,
 ) -> CassError {
@@ -1074,16 +1128,18 @@ pub unsafe extern "C" fn cass_cluster_set_load_balance_dc_aware_n(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_cluster_set_load_balance_rack_aware(
     cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
-    local_dc_raw: *const c_char,
-    local_rack_raw: *const c_char,
+    local_dc_raw: CassStrNulTerminated<'_>,
+    local_rack_raw: CassStrNulTerminated<'_>,
 ) -> CassError {
+    let (local_dc, local_dc_length) = unsafe { local_dc_raw.as_len_delimited() };
+    let (local_rack, local_rack_length) = unsafe { local_rack_raw.as_len_delimited() };
     unsafe {
         cass_cluster_set_load_balance_rack_aware_n(
             cluster_raw,
-            local_dc_raw,
-            strlen(local_dc_raw),
-            local_rack_raw,
-            strlen(local_rack_raw),
+            local_dc,
+            local_dc_length,
+            local_rack,
+            local_rack_length,
         )
     }
 }
@@ -1091,10 +1147,10 @@ pub unsafe extern "C" fn cass_cluster_set_load_balance_rack_aware(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_cluster_set_load_balance_rack_aware_n(
     cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
-    local_dc_raw: *const c_char,
-    local_dc_length: size_t,
-    local_rack_raw: *const c_char,
-    local_rack_length: size_t,
+    local_dc_raw: CassStrLenDelimited<'_>,
+    local_dc_length: CassStrLen,
+    local_rack_raw: CassStrLenDelimited<'_>,
+    local_rack_length: CassStrLen,
 ) -> CassError {
     let Some(cluster) = BoxFFI::as_mut_ref(cluster_raw) else {
         tracing::error!(
@@ -1116,21 +1172,20 @@ pub unsafe extern "C" fn cass_cluster_set_load_balance_rack_aware_n(
 
 pub(crate) unsafe fn set_load_balance_rack_aware_n(
     load_balancing_config: &mut LoadBalancingConfig,
-    local_dc_raw: *const c_char,
-    local_dc_length: size_t,
-    local_rack_raw: *const c_char,
-    local_rack_length: size_t,
+    local_dc_raw: CassStrLenDelimited<'_>,
+    local_dc_length: CassStrLen,
+    local_rack_raw: CassStrLenDelimited<'_>,
+    local_rack_length: CassStrLen,
 ) -> CassError {
-    let (local_dc, local_rack) = match (
-        unsafe { ptr_to_cstr_n(local_dc_raw, local_dc_length) },
-        unsafe { ptr_to_cstr_n(local_rack_raw, local_rack_length) },
-    ) {
-        (Some(local_dc_str), Some(local_rack_str))
-            if local_dc_length > 0 && local_rack_length > 0 =>
+    let (local_dc, local_rack) = match (unsafe { local_dc_raw.to_str(local_dc_length) }, unsafe {
+        local_rack_raw.to_str(local_rack_length)
+    }) {
+        (Ok(local_dc_str), Ok(local_rack_str))
+            if !local_dc_length.is_empty() && !local_rack_length.is_empty() =>
         {
             (local_dc_str.to_owned(), local_rack_str.to_owned())
         }
-        // One of them either is a null pointer, is an empty string or is not a proper utf-8.
+        // One of them either is a null pointer, is an empty string or is not a proper UTF-8.
         _ => {
             tracing::error!(
                 "Provided local_dc or local_rack that is null, empty or non-UTF-8 to cass_*_set_load_balance_rack_aware(_n)!"
@@ -1369,16 +1424,17 @@ pub unsafe extern "C" fn cass_cluster_set_latency_aware_routing_settings(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_cluster_set_whitelist_filtering(
     cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
-    hosts: *const c_char,
+    hosts: CassStrNulTerminated<'_>,
 ) {
-    unsafe { cass_cluster_set_whitelist_filtering_n(cluster_raw, hosts, strlen(hosts)) }
+    let (hosts, hosts_size) = unsafe { hosts.as_len_delimited() };
+    unsafe { cass_cluster_set_whitelist_filtering_n(cluster_raw, hosts, hosts_size) }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_cluster_set_whitelist_filtering_n(
     cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
-    hosts: *const c_char,
-    hosts_size: size_t,
+    hosts: CassStrLenDelimited<'_>,
+    hosts_size: CassStrLen,
 ) {
     let Some(cluster) = BoxFFI::as_mut_ref(cluster_raw) else {
         tracing::error!("Provided null cluster pointer to cass_cluster_set_whitelist_filtering_n!");
@@ -1406,16 +1462,17 @@ pub unsafe extern "C" fn cass_cluster_set_whitelist_filtering_n(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_cluster_set_blacklist_filtering(
     cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
-    hosts: *const c_char,
+    hosts: CassStrNulTerminated<'_>,
 ) {
-    unsafe { cass_cluster_set_blacklist_filtering_n(cluster_raw, hosts, strlen(hosts)) }
+    let (hosts, hosts_size) = unsafe { hosts.as_len_delimited() };
+    unsafe { cass_cluster_set_blacklist_filtering_n(cluster_raw, hosts, hosts_size) }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_cluster_set_blacklist_filtering_n(
     cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
-    hosts: *const c_char,
-    hosts_size: size_t,
+    hosts: CassStrLenDelimited<'_>,
+    hosts_size: CassStrLen,
 ) {
     let Some(cluster) = BoxFFI::as_mut_ref(cluster_raw) else {
         tracing::error!("Provided null cluster pointer to cass_cluster_set_blacklist_filtering_n!");
@@ -1441,16 +1498,17 @@ pub unsafe extern "C" fn cass_cluster_set_blacklist_filtering_n(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_cluster_set_whitelist_dc_filtering(
     cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
-    dcs: *const c_char,
+    dcs: CassStrNulTerminated<'_>,
 ) {
-    unsafe { cass_cluster_set_whitelist_dc_filtering_n(cluster_raw, dcs, strlen(dcs)) }
+    let (dcs, dcs_size) = unsafe { dcs.as_len_delimited() };
+    unsafe { cass_cluster_set_whitelist_dc_filtering_n(cluster_raw, dcs, dcs_size) }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_cluster_set_whitelist_dc_filtering_n(
     cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
-    dcs: *const c_char,
-    dcs_size: size_t,
+    dcs: CassStrLenDelimited<'_>,
+    dcs_size: CassStrLen,
 ) {
     let Some(cluster) = BoxFFI::as_mut_ref(cluster_raw) else {
         tracing::error!(
@@ -1473,16 +1531,17 @@ pub unsafe extern "C" fn cass_cluster_set_whitelist_dc_filtering_n(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_cluster_set_blacklist_dc_filtering(
     cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
-    dcs: *const c_char,
+    dcs: CassStrNulTerminated<'_>,
 ) {
-    unsafe { cass_cluster_set_blacklist_dc_filtering_n(cluster_raw, dcs, strlen(dcs)) }
+    let (dcs, dcs_size) = unsafe { dcs.as_len_delimited() };
+    unsafe { cass_cluster_set_blacklist_dc_filtering_n(cluster_raw, dcs, dcs_size) }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_cluster_set_blacklist_dc_filtering_n(
     cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
-    dcs: *const c_char,
-    dcs_size: size_t,
+    dcs: CassStrLenDelimited<'_>,
+    dcs_size: CassStrLen,
 ) {
     let Some(cluster) = BoxFFI::as_mut_ref(cluster_raw) else {
         tracing::error!(
@@ -1580,17 +1639,18 @@ pub unsafe extern "C" fn cass_cluster_set_serial_consistency(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_cluster_set_execution_profile(
     cluster: CassBorrowedExclusivePtr<CassCluster, CMut>,
-    name: *const c_char,
+    name: CassStrNulTerminated<'_>,
     profile: CassBorrowedExclusivePtr<CassExecProfile, CMut>,
 ) -> CassError {
-    unsafe { cass_cluster_set_execution_profile_n(cluster, name, strlen(name), profile) }
+    let (name, name_length) = unsafe { name.as_len_delimited() };
+    unsafe { cass_cluster_set_execution_profile_n(cluster, name, name_length, profile) }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_cluster_set_execution_profile_n(
     cluster: CassBorrowedExclusivePtr<CassCluster, CMut>,
-    name: *const c_char,
-    name_length: size_t,
+    name: CassStrLenDelimited<'_>,
+    name_length: CassStrLen,
     profile: CassBorrowedExclusivePtr<CassExecProfile, CMut>,
 ) -> CassError {
     let Some(cluster) = BoxFFI::as_mut_ref(cluster) else {
@@ -1603,16 +1663,28 @@ pub unsafe extern "C" fn cass_cluster_set_execution_profile_n(
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
-    let name = if let Some(name) =
-        unsafe { ptr_to_cstr_n(name, name_length) }.and_then(|name| name.to_owned().try_into().ok())
-    {
-        name
-    } else {
-        // Got NULL or empty string, which is invalid name for a profile.
-        tracing::error!(
-            "Provided null or empty profile name to cass_cluster_set_execution_profile(_n)!"
-        );
-        return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+    let name = match unsafe { name.to_str(name_length) } {
+        Ok(name) => match name.to_owned().try_into() {
+            Ok(name) => name,
+            Err(EmptyProfileName) => {
+                tracing::error!(
+                    "Provided empty profile name to cass_cluster_set_execution_profile(_n)!"
+                );
+                return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+            }
+        },
+        Err(PtrToStrError::NullPointer) => {
+            tracing::error!(
+                "Provided null profile name to cass_cluster_set_execution_profile(_n)!"
+            );
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!(
+                "Provided non-UTF8 profile name to cass_cluster_set_execution_profile(_n)!"
+            );
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
     };
 
     cluster.execution_profile_map.insert(name, profile.clone());
@@ -1765,7 +1837,10 @@ mod tests {
             // null ip pointer
             {
                 assert_cass_error_eq!(
-                    cass_cluster_set_local_address(cluster_raw.borrow_mut(), std::ptr::null()),
+                    cass_cluster_set_local_address(
+                        cluster_raw.borrow_mut(),
+                        CassStrNulTerminated::from_raw(std::ptr::null())
+                    ),
                     CassError::CASS_OK
                 );
 
@@ -1776,7 +1851,10 @@ mod tests {
             // empty string
             {
                 assert_cass_error_eq!(
-                    cass_cluster_set_local_address(cluster_raw.borrow_mut(), c"".as_ptr()),
+                    cass_cluster_set_local_address(
+                        cluster_raw.borrow_mut(),
+                        CassStrNulTerminated::from_cstr(c"")
+                    ),
                     CassError::CASS_OK
                 );
 
@@ -1787,7 +1865,10 @@ mod tests {
             // valid ipv4 address
             {
                 assert_cass_error_eq!(
-                    cass_cluster_set_local_address(cluster_raw.borrow_mut(), c"1.2.3.4".as_ptr()),
+                    cass_cluster_set_local_address(
+                        cluster_raw.borrow_mut(),
+                        CassStrNulTerminated::from_cstr(c"1.2.3.4")
+                    ),
                     CassError::CASS_OK
                 );
 
@@ -1803,7 +1884,7 @@ mod tests {
                 assert_cass_error_eq!(
                     cass_cluster_set_local_address(
                         cluster_raw.borrow_mut(),
-                        c"2001:db8::8a2e:370:7334".as_ptr()
+                        CassStrNulTerminated::from_cstr(c"2001:db8::8a2e:370:7334")
                     ),
                     CassError::CASS_OK
                 );
@@ -1818,7 +1899,10 @@ mod tests {
             // non-numeric address
             {
                 assert_cass_error_eq!(
-                    cass_cluster_set_local_address(cluster_raw.borrow_mut(), c"foo".as_ptr()),
+                    cass_cluster_set_local_address(
+                        cluster_raw.borrow_mut(),
+                        CassStrNulTerminated::from_cstr(c"foo")
+                    ),
                     CassError::CASS_ERROR_LIB_BAD_PARAMS
                 );
             }
@@ -1829,7 +1913,7 @@ mod tests {
                 assert_cass_error_eq!(
                     cass_cluster_set_local_address(
                         cluster_raw.borrow_mut(),
-                        non_utf8_slice.as_ptr() as *const c_char
+                        CassStrNulTerminated::from_raw(non_utf8_slice.as_ptr() as *const c_char)
                     ),
                     CassError::CASS_ERROR_LIB_BAD_PARAMS
                 );
@@ -2031,7 +2115,7 @@ mod tests {
                     assert_cass_error_eq!(
                         cass_cluster_set_load_balance_dc_aware(
                             cluster_raw.borrow_mut(),
-                            c"eu".as_ptr(),
+                            CassStrNulTerminated::from_cstr(c"eu"),
                             0, // forbid DC failover
                             0
                         ),
@@ -2070,8 +2154,8 @@ mod tests {
                     assert_cass_error_eq!(
                         cass_cluster_set_load_balance_rack_aware(
                             cluster_raw.borrow_mut(),
-                            c"eu-east".as_ptr(),
-                            c"rack1".as_ptr(),
+                            CassStrNulTerminated::from_cstr(c"eu-east"),
+                            CassStrNulTerminated::from_cstr(c"rack1"),
                         ),
                         CassError::CASS_OK
                     );
@@ -2094,7 +2178,7 @@ mod tests {
                     assert_cass_error_eq!(
                         cass_cluster_set_load_balance_dc_aware(
                             cluster_raw.borrow_mut(),
-                            c"eu".as_ptr(),
+                            CassStrNulTerminated::from_cstr(c"eu"),
                             42,        // allow DC failover
                             cass_true  // allow remote DCs for local CL
                         ),
@@ -2123,7 +2207,7 @@ mod tests {
                     assert_cass_error_eq!(
                         cass_cluster_set_load_balance_dc_aware(
                             cluster_raw.borrow_mut(),
-                            std::ptr::null(),
+                            CassStrNulTerminated::from_raw(std::ptr::null()),
                             0,
                             0
                         ),
@@ -2132,16 +2216,16 @@ mod tests {
                     assert_cass_error_eq!(
                         cass_cluster_set_load_balance_rack_aware(
                             cluster_raw.borrow_mut(),
-                            c"eu".as_ptr(),
-                            std::ptr::null(),
+                            CassStrNulTerminated::from_cstr(c"eu"),
+                            CassStrNulTerminated::from_raw(std::ptr::null()),
                         ),
                         CassError::CASS_ERROR_LIB_BAD_PARAMS
                     );
                     assert_cass_error_eq!(
                         cass_cluster_set_load_balance_rack_aware(
                             cluster_raw.borrow_mut(),
-                            std::ptr::null(),
-                            c"rack".as_ptr(),
+                            CassStrNulTerminated::from_raw(std::ptr::null()),
+                            CassStrNulTerminated::from_cstr(c"rack"),
                         ),
                         CassError::CASS_ERROR_LIB_BAD_PARAMS
                     );
@@ -2153,7 +2237,7 @@ mod tests {
                     assert_cass_error_eq!(
                         cass_cluster_set_load_balance_dc_aware(
                             cluster_raw.borrow_mut(),
-                            std::ptr::null(),
+                            CassStrNulTerminated::from_raw(std::ptr::null()),
                             0,
                             0
                         ),
@@ -2162,16 +2246,16 @@ mod tests {
                     assert_cass_error_eq!(
                         cass_cluster_set_load_balance_rack_aware(
                             cluster_raw.borrow_mut(),
-                            c"eu".as_ptr(),
-                            empty_str,
+                            CassStrNulTerminated::from_cstr(c"eu"),
+                            CassStrNulTerminated::from_raw(empty_str),
                         ),
                         CassError::CASS_ERROR_LIB_BAD_PARAMS
                     );
                     assert_cass_error_eq!(
                         cass_cluster_set_load_balance_rack_aware(
                             cluster_raw.borrow_mut(),
-                            empty_str,
-                            c"rack".as_ptr(),
+                            CassStrNulTerminated::from_raw(empty_str),
+                            CassStrNulTerminated::from_cstr(c"rack"),
                         ),
                         CassError::CASS_ERROR_LIB_BAD_PARAMS
                     );
@@ -2226,7 +2310,7 @@ mod tests {
             {
                 cass_cluster_set_whitelist_filtering(
                     cluster_raw.borrow_mut(),
-                    c" 127.0.0.1 ,  127.0.0.2 ".as_ptr(),
+                    CassStrNulTerminated::from_cstr(c" 127.0.0.1 ,  127.0.0.2 "),
                 );
 
                 let cluster = BoxFFI::as_ref(cluster_raw.borrow()).unwrap();
@@ -2244,7 +2328,7 @@ mod tests {
             {
                 cass_cluster_set_whitelist_filtering(
                     cluster_raw.borrow_mut(),
-                    c"foo, 127.0.0.3, bar,,baz".as_ptr(),
+                    CassStrNulTerminated::from_cstr(c"foo, 127.0.0.3, bar,,baz"),
                 );
 
                 let cluster = BoxFFI::as_ref(cluster_raw.borrow()).unwrap();
@@ -2260,7 +2344,10 @@ mod tests {
 
             // Provide empty string - this should clear the list.
             {
-                cass_cluster_set_whitelist_filtering(cluster_raw.borrow_mut(), c"".as_ptr());
+                cass_cluster_set_whitelist_filtering(
+                    cluster_raw.borrow_mut(),
+                    CassStrNulTerminated::from_cstr(c""),
+                );
 
                 let cluster = BoxFFI::as_ref(cluster_raw.borrow()).unwrap();
                 assert!(
@@ -2276,7 +2363,7 @@ mod tests {
             {
                 cass_cluster_set_blacklist_filtering(
                     cluster_raw.borrow_mut(),
-                    c"1.1.1.1,2.2.2.2,foo,,,,  ,3.3.3.3,".as_ptr(),
+                    CassStrNulTerminated::from_cstr(c"1.1.1.1,2.2.2.2,foo,,,,  ,3.3.3.3,"),
                 );
 
                 let cluster = BoxFFI::as_ref(cluster_raw.borrow()).unwrap();
@@ -2292,7 +2379,10 @@ mod tests {
 
             // ..and clear it with the null pointer
             {
-                cass_cluster_set_blacklist_filtering(cluster_raw.borrow_mut(), std::ptr::null());
+                cass_cluster_set_blacklist_filtering(
+                    cluster_raw.borrow_mut(),
+                    CassStrNulTerminated::from_raw(std::ptr::null()),
+                );
 
                 let cluster = BoxFFI::as_ref(cluster_raw.borrow()).unwrap();
                 assert!(
@@ -2324,7 +2414,7 @@ mod tests {
                     assert_cass_error_eq!(
                         cass_cluster_set_execution_profile(
                             cluster_raw.borrow_mut(),
-                            make_c_str!("profile1"),
+                            CassStrNulTerminated::from_raw(make_c_str!("profile1")),
                             exec_profile_raw.borrow_mut()
                         ),
                         CassError::CASS_OK
@@ -2341,8 +2431,8 @@ mod tests {
                     assert_cass_error_eq!(
                         cass_cluster_set_execution_profile_n(
                             cluster_raw.borrow_mut(),
-                            c_str,
-                            c_strlen,
+                            CassStrLenDelimited::from_raw(c_str),
+                            CassStrLen::from_raw(c_strlen),
                             exec_profile_raw.borrow_mut()
                         ),
                         CassError::CASS_OK
@@ -2358,7 +2448,7 @@ mod tests {
                     assert_cass_error_eq!(
                         cass_cluster_set_execution_profile(
                             cluster_raw.borrow_mut(),
-                            make_c_str!("profile2"),
+                            CassStrNulTerminated::from_raw(make_c_str!("profile2")),
                             exec_profile_raw.borrow_mut()
                         ),
                         CassError::CASS_OK
@@ -2378,7 +2468,7 @@ mod tests {
                     assert_cass_error_eq!(
                         cass_cluster_set_execution_profile(
                             cluster_raw.borrow_mut(),
-                            std::ptr::null(),
+                            CassStrNulTerminated::from_raw(std::ptr::null()),
                             exec_profile_raw.borrow_mut()
                         ),
                         CassError::CASS_ERROR_LIB_BAD_PARAMS
@@ -2389,7 +2479,7 @@ mod tests {
                     assert_cass_error_eq!(
                         cass_cluster_set_execution_profile(
                             cluster_raw.borrow_mut(),
-                            make_c_str!(""),
+                            CassStrNulTerminated::from_raw(make_c_str!("")),
                             exec_profile_raw.borrow_mut()
                         ),
                         CassError::CASS_ERROR_LIB_BAD_PARAMS
@@ -2400,7 +2490,7 @@ mod tests {
                     assert_cass_error_eq!(
                         cass_cluster_set_execution_profile(
                             cluster_raw.borrow_mut(),
-                            make_c_str!("profile1"),
+                            CassStrNulTerminated::from_raw(make_c_str!("profile1")),
                             BoxFFI::null_mut(),
                         ),
                         CassError::CASS_ERROR_LIB_BAD_PARAMS

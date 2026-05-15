@@ -254,19 +254,20 @@ pub unsafe extern "C" fn cass_prepared_parameter_data_type(
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn cass_prepared_parameter_data_type_by_name(
-    prepared_raw: CassBorrowedSharedPtr<CassPrepared, CConst>,
-    name: *const c_char,
-) -> CassBorrowedSharedPtr<CassDataType, CConst> {
-    unsafe { cass_prepared_parameter_data_type_by_name_n(prepared_raw, name, strlen(name)) }
+pub unsafe extern "C" fn cass_prepared_parameter_data_type_by_name<'a>(
+    prepared_raw: CassBorrowedSharedPtr<'a, CassPrepared, CConst>,
+    name: CassStrNulTerminated<'_>,
+) -> CassBorrowedSharedPtr<'a, CassDataType, CConst> {
+    let (name, name_length) = unsafe { name.as_len_delimited() };
+    unsafe { cass_prepared_parameter_data_type_by_name_n(prepared_raw, name, name_length) }
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn cass_prepared_parameter_data_type_by_name_n(
-    prepared_raw: CassBorrowedSharedPtr<CassPrepared, CConst>,
-    name: *const c_char,
-    name_length: size_t,
-) -> CassBorrowedSharedPtr<CassDataType, CConst> {
+pub unsafe extern "C" fn cass_prepared_parameter_data_type_by_name_n<'a>(
+    prepared_raw: CassBorrowedSharedPtr<'a, CassPrepared, CConst>,
+    name: CassStrLenDelimited<'_>,
+    name_length: CassStrLen,
+) -> CassBorrowedSharedPtr<'a, CassDataType, CConst> {
     let Some(prepared) = ArcFFI::as_ref(prepared_raw) else {
         tracing::error!(
             "Provided null prepared statement pointer to cass_prepared_parameter_data_type_by_name!"
@@ -274,8 +275,17 @@ pub unsafe extern "C" fn cass_prepared_parameter_data_type_by_name_n(
         return ArcFFI::null();
     };
 
-    let parameter_name =
-        unsafe { ptr_to_cstr_n(name, name_length).expect("Prepared parameter name is not UTF-8") };
+    let parameter_name = match unsafe { name.to_str(name_length) } {
+        Ok(name) => name,
+        Err(PtrToStrError::NullPointer) => {
+            tracing::error!("Prepared parameter name pointer is null");
+            return ArcFFI::null();
+        }
+        Err(PtrToStrError::InvalidUtf8(err)) => {
+            tracing::error!("Prepared parameter name is not valid UTF-8. Error: {err}");
+            return ArcFFI::null();
+        }
+    };
 
     let data_type = prepared.get_variable_data_type_by_name(parameter_name);
     match data_type {
