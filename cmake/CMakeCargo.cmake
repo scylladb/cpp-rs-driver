@@ -115,9 +115,10 @@
 #   <crate_name>_<crate_type>_target   —  custom target driving the cargo build
 #
 # The caller controls Rust compiler flags via CMAKE_Rust_FLAGS (passed as
-# RUSTFLAGS) and the build profile via CMAKE_BUILD_TYPE.
+# RUSTFLAGS) and the build profile via CMAKE_BUILD_TYPE. Additional
+# environment variables for the cargo process can be passed via ENV.
 function(cargo_build)
-  cmake_parse_arguments(CARGO "" "NAME;CRATE_TYPE" "FEATURES" ${ARGN})
+  cmake_parse_arguments(CARGO "" "NAME;CRATE_TYPE" "FEATURES;ENV" ${ARGN})
   string(REPLACE "-" "_" LIB_NAME ${CARGO_NAME})
 
   if(NOT CARGO_CRATE_TYPE)
@@ -236,7 +237,10 @@ function(cargo_build)
   )
 
   # Set CARGO_TARGET_DIR and RUSTFLAGS in the cargo process environment.
-  set(CARGO_ENV_COMMAND ${CMAKE_COMMAND} -E env "CARGO_TARGET_DIR=${CARGO_TARGET_DIR}" "RUSTFLAGS=${CMAKE_Rust_FLAGS}")
+  set(CARGO_ENV_COMMAND ${CMAKE_COMMAND} -E env
+    "CARGO_TARGET_DIR=${CARGO_TARGET_DIR}"
+    "RUSTFLAGS=${CMAKE_Rust_FLAGS}"
+    ${CARGO_ENV})
 
   add_custom_command(
     OUTPUT ${LIB_OUTPUTS}

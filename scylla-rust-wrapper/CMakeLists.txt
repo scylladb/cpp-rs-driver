@@ -57,7 +57,9 @@ else()
   set(CMAKE_Rust_FLAGS "${CMAKE_Rust_FLAGS_SONAME}")
 endif()
 if(CASS_BUILD_SHARED)
-  cargo_build(NAME scylla_cpp_driver CRATE_TYPE cdylib)
+  cargo_build(NAME scylla_cpp_driver CRATE_TYPE cdylib
+    ENV "OPENSSL_LIB_DIR=${OPENSSL_LIB_DIR}"
+        "OPENSSL_INCLUDE_DIR=${OPENSSL_INCLUDE_DIR}")
   create_copy($<TARGET_FILE:scylla_cpp_driver_cdylib> ${INSTALL_NAME_SHARED})
   add_library(scylla-cpp-driver SHARED IMPORTED GLOBAL)
   add_dependencies(scylla-cpp-driver ${INSTALL_NAME_SHARED}_copy)
@@ -75,11 +77,21 @@ if(CASS_BUILD_SHARED)
   endif()
 endif()
 if(CASS_BUILD_STATIC)
-  cargo_build(NAME scylla_cpp_driver CRATE_TYPE staticlib)
+  cargo_build(NAME scylla_cpp_driver CRATE_TYPE staticlib
+    ENV "OPENSSL_STATIC=1"
+        "OPENSSL_LIB_DIR=${OPENSSL_LIB_DIR}"
+        "OPENSSL_INCLUDE_DIR=${OPENSSL_INCLUDE_DIR}")
   create_copy($<TARGET_FILE:scylla_cpp_driver_staticlib> ${INSTALL_NAME_STATIC})
   add_library(scylla-cpp-driver_static STATIC IMPORTED GLOBAL)
   add_dependencies(scylla-cpp-driver_static ${INSTALL_NAME_STATIC}_copy)
   set_target_properties(scylla-cpp-driver_static PROPERTIES IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/${INSTALL_NAME_STATIC})
+endif()
+# When both builds share CARGO_TARGET_DIR, they must not run concurrently:
+# they pass different OPENSSL_STATIC values, which causes openssl-sys's build
+# script to re-run (due to rerun-if-env-changed). Concurrent cargo invocations
+# with different env fingerprints would thrash the shared build script cache.
+if(CASS_BUILD_SHARED AND CASS_BUILD_STATIC)
+  add_dependencies(scylla_cpp_driver_staticlib_target scylla_cpp_driver_cdylib_target)
 endif()
 
 #-------------------------------------
@@ -188,6 +200,17 @@ if(CASS_BUILD_STATIC)
   # Static library pkg-config file goes to dev package
   if(CASS_INSTALL_PKG_CONFIG)
     if(PKG_CONFIG_FOUND)
+      # System libraries needed when linking the static Rust archive.
+      # Ideally these would come from `cargo rustc -- --print native-static-libs`,
+      # but that flag is nightly-only. These are hardcoded approximations that
+      # may need updating if dependencies or Rust versions change.
+      if(APPLE)
+        set(native_static_libs "-lm -lpthread -ldl -framework Security -framework CoreFoundation")
+      elseif(WIN32)
+        set(native_static_libs "-lws2_32 -lbcrypt -luserenv -lntdll")
+      else()
+        set(native_static_libs "-lm -lpthread -ldl -lrt")
+      endif()
       configure_file("${CMAKE_CURRENT_SOURCE_DIR}/scylla-cpp-driver_static.pc.in" "scylla-cpp-driver_static.pc" @ONLY)
       install(FILES "${CMAKE_CURRENT_BINARY_DIR}/scylla-cpp-driver_static.pc"
         DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig"
