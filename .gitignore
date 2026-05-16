@@ -1,6 +1,7 @@
 .vscode/
 .zed
 build/
+build-static/
 build-macos/
 **/build/
 **/build-macos/

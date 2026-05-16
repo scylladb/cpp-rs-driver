@@ -132,18 +132,24 @@ if(WIN32 AND NOT CYGWIN)
     # Since OpenSSL 1.1, lib names are like libcrypto32MTd.lib and libssl32MTd.lib
     if( "${CMAKE_SIZEOF_VOID_P}" STREQUAL "8" )
         set(_OPENSSL_MSVC_ARCH_SUFFIX "64")
+        set(_OPENSSL_MSVC_ARCH_DIR "x64")
     else()
         set(_OPENSSL_MSVC_ARCH_SUFFIX "32")
+        set(_OPENSSL_MSVC_ARCH_DIR "x86")
     endif()
 
     if(OPENSSL_USE_STATIC_LIBS)
       set(_OPENSSL_PATH_SUFFIXES
+        "lib/VC/${_OPENSSL_MSVC_ARCH_DIR}/MT"
+        "VC/${_OPENSSL_MSVC_ARCH_DIR}/MT"
         "lib/VC/static"
         "VC/static"
         "lib"
         )
     else()
       set(_OPENSSL_PATH_SUFFIXES
+        "lib/VC/${_OPENSSL_MSVC_ARCH_DIR}/${_OPENSSL_MSVC_RT_MODE}"
+        "VC/${_OPENSSL_MSVC_ARCH_DIR}/${_OPENSSL_MSVC_RT_MODE}"
         "lib/VC"
         "VC"
         "lib"

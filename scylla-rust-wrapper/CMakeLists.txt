@@ -80,6 +80,88 @@ if(CASS_BUILD_STATIC)
   add_library(scylla-cpp-driver_static STATIC IMPORTED GLOBAL)
   add_dependencies(scylla-cpp-driver_static ${INSTALL_NAME_STATIC}_copy)
   set_target_properties(scylla-cpp-driver_static PROPERTIES IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/${INSTALL_NAME_STATIC})
+
+  # The Rust staticlib contains unresolved references to OpenSSL and system
+  # libraries.  Declare them as transitive (INTERFACE) dependencies so that
+  # any target linking against scylla-cpp-driver_static automatically pulls
+  # in the required symbols in the correct order.
+  #
+  # NOTE: Some of these libraries (e.g. OpenSSL, ws2_32, crypt32, userenv on
+  # Windows) also appear in CASS_LIBS (populated by cmake/Dependencies.cmake).
+  # This causes them to appear twice on the linker command line, which is
+  # intentional and harmless -- linkers silently ignore duplicate inputs --
+  # but it keeps the static target self-contained so it works correctly even
+  # when linked outside the integration-test build where CASS_LIBS is set.
+  set(_STATIC_INTERFACE_LIBS "")
+  set(scylla_cpp_driver_static_requires_private "")
+  set(scylla_cpp_driver_static_libs_private "")
+  if(CASS_USE_OPENSSL AND OPENSSL_LIBRARIES)
+    list(APPEND _STATIC_INTERFACE_LIBS ${OPENSSL_LIBRARIES})
+    list(APPEND scylla_cpp_driver_static_requires_private openssl)
+  endif()
+  if(WIN32)
+    # Windows system libraries required by Rust runtime and its dependencies
+    list(APPEND _STATIC_INTERFACE_LIBS ws2_32 bcrypt ntdll userenv crypt32 secur32 ncrypt)
+    list(APPEND scylla_cpp_driver_static_libs_private
+      "-lws2_32" "-lbcrypt" "-lntdll" "-luserenv" "-lcrypt32" "-lsecur32" "-lncrypt")
+  elseif(APPLE)
+    list(APPEND _STATIC_INTERFACE_LIBS ${CMAKE_DL_LIBS} m)
+    if(CMAKE_DL_LIBS)
+      list(APPEND scylla_cpp_driver_static_libs_private "-l${CMAKE_DL_LIBS}")
+    endif()
+    list(APPEND scylla_cpp_driver_static_libs_private "-lm")
+    find_package(Threads)
+    if(Threads_FOUND)
+      list(APPEND _STATIC_INTERFACE_LIBS Threads::Threads)
+      if(CMAKE_THREAD_LIBS_INIT)
+        list(APPEND scylla_cpp_driver_static_libs_private "${CMAKE_THREAD_LIBS_INIT}")
+      endif()
+    endif()
+    # CoreFoundation is needed by the iana-time-zone crate on macOS
+    find_library(COREFOUNDATION_LIBRARY CoreFoundation)
+    if(COREFOUNDATION_LIBRARY)
+      list(APPEND _STATIC_INTERFACE_LIBS ${COREFOUNDATION_LIBRARY})
+      list(APPEND scylla_cpp_driver_static_libs_private "-framework CoreFoundation")
+    endif()
+    # SystemConfiguration and Security may also be needed on macOS
+    find_library(SYSTEMCONFIGURATION_LIBRARY SystemConfiguration)
+    if(SYSTEMCONFIGURATION_LIBRARY)
+      list(APPEND _STATIC_INTERFACE_LIBS ${SYSTEMCONFIGURATION_LIBRARY})
+      list(APPEND scylla_cpp_driver_static_libs_private "-framework SystemConfiguration")
+    endif()
+    find_library(SECURITY_LIBRARY Security)
+    if(SECURITY_LIBRARY)
+      list(APPEND _STATIC_INTERFACE_LIBS ${SECURITY_LIBRARY})
+      list(APPEND scylla_cpp_driver_static_libs_private "-framework Security")
+    endif()
+  else()
+    list(APPEND _STATIC_INTERFACE_LIBS ${CMAKE_DL_LIBS} m)
+    if(CMAKE_DL_LIBS)
+      list(APPEND scylla_cpp_driver_static_libs_private "-l${CMAKE_DL_LIBS}")
+    endif()
+    list(APPEND scylla_cpp_driver_static_libs_private "-lm")
+    find_package(Threads)
+    if(Threads_FOUND)
+      list(APPEND _STATIC_INTERFACE_LIBS Threads::Threads)
+      if(CMAKE_THREAD_LIBS_INIT)
+        list(APPEND scylla_cpp_driver_static_libs_private "${CMAKE_THREAD_LIBS_INIT}")
+      endif()
+    endif()
+  endif()
+  if(_STATIC_INTERFACE_LIBS)
+    set_target_properties(scylla-cpp-driver_static PROPERTIES
+      INTERFACE_LINK_LIBRARIES "${_STATIC_INTERFACE_LIBS}")
+  endif()
+  if(scylla_cpp_driver_static_requires_private)
+    list(REMOVE_DUPLICATES scylla_cpp_driver_static_requires_private)
+    string(JOIN " " scylla_cpp_driver_static_requires_private
+      ${scylla_cpp_driver_static_requires_private})
+  endif()
+  if(scylla_cpp_driver_static_libs_private)
+    list(REMOVE_DUPLICATES scylla_cpp_driver_static_libs_private)
+    string(JOIN " " scylla_cpp_driver_static_libs_private
+      ${scylla_cpp_driver_static_libs_private})
+  endif()
 endif()
 
 #-------------------------------------
