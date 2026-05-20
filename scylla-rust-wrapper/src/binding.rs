@@ -88,7 +88,26 @@ macro_rules! make_name_binder {
                 tracing::error!("Provided null pointer to {}!", stringify!($fn_by_name));
                 return CassError::CASS_ERROR_LIB_BAD_PARAMS;
             };
-            let name = unsafe { ptr_to_cstr(name) }.unwrap();
+            // NULL, non-UTF8, or empty name is clearly a programmer
+            // error. The cpp-driver accidentally accepts NULL (treating
+            // it as an empty string via SAFE_STRLEN), but we
+            // purposefully diverge and return an error early instead of
+            // silently binding to a bogus empty-named parameter.
+            let name = match unsafe { ptr_to_cstr(name) } {
+                Ok(name) if !name.is_empty() => name,
+                Ok(_) => {
+                    tracing::error!("Provided empty name to {}!", stringify!($fn_by_name));
+                    return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+                }
+                Err(PtrToStrError::NullPointer) => {
+                    tracing::error!("Provided null name pointer to {}!", stringify!($fn_by_name));
+                    return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+                }
+                Err(PtrToStrError::InvalidUtf8(_)) => {
+                    tracing::error!("Provided non-UTF8 name to {}!", stringify!($fn_by_name));
+                    return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+                }
+            };
             match ($e)($($arg), *) {
                 Ok(v) => $consume_v(this, name, v),
                 Err(e) => e,
@@ -114,7 +133,26 @@ macro_rules! make_name_n_binder {
                 tracing::error!("Provided null pointer to {}!", stringify!($fn_by_name_n));
                 return CassError::CASS_ERROR_LIB_BAD_PARAMS;
             };
-            let name = unsafe { ptr_to_cstr_n(name, name_length) }.unwrap();
+            // NULL, non-UTF8, or empty name is clearly a programmer
+            // error. The cpp-driver accidentally accepts NULL (treating
+            // it as an empty string via SAFE_STRLEN), but we
+            // purposefully diverge and return an error early instead of
+            // silently binding to a bogus empty-named parameter.
+            let name = match unsafe { ptr_to_cstr_n(name, name_length) } {
+                Ok(name) if !name.is_empty() => name,
+                Ok(_) => {
+                    tracing::error!("Provided empty name to {}!", stringify!($fn_by_name_n));
+                    return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+                }
+                Err(PtrToStrError::NullPointer) => {
+                    tracing::error!("Provided null name pointer to {}!", stringify!($fn_by_name_n));
+                    return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+                }
+                Err(PtrToStrError::InvalidUtf8(_)) => {
+                    tracing::error!("Provided non-UTF8 name to {}!", stringify!($fn_by_name_n));
+                    return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+                }
+            };
             match ($e)($($arg), *) {
                 Ok(v) => $consume_v(this, name, v),
                 Err(e) => e,
@@ -233,7 +271,14 @@ macro_rules! invoke_binder_maker_macro_with_type {
             $this,
             $consume_v,
             $fn,
-            |v| Ok(Some(Text(unsafe { ptr_to_cstr(v) }.unwrap().to_string()))),
+            |v: *const std::os::raw::c_char| {
+                // cpp-driver treats NULL as empty string (via SAFE_STRLEN).
+                match unsafe { ptr_to_cstr(v) } {
+                    Ok(s) => Ok(Some(Text(s.to_string()))),
+                    Err(PtrToStrError::NullPointer) => Ok(Some(Text(String::new()))),
+                    Err(PtrToStrError::InvalidUtf8(_)) => Err(CassError::CASS_ERROR_LIB_BAD_PARAMS),
+                }
+            },
             [v @ *const std::os::raw::c_char]
         );
     };
@@ -242,7 +287,15 @@ macro_rules! invoke_binder_maker_macro_with_type {
             $this,
             $consume_v,
             $fn,
-            |v, n| Ok(Some(Text(unsafe { ptr_to_cstr_n(v, n) }.unwrap().to_string()))),
+            |v: *const std::os::raw::c_char, n| {
+                // cpp-driver treats NULL as empty string (via SAFE_STRLEN).
+                match unsafe { ptr_to_cstr_n(v, n) } {
+                    Ok(s) => Ok(Some(Text(s.to_string()))),
+                    Err(PtrToStrError::NullPointer) if n != 0 => Err(CassError::CASS_ERROR_LIB_BAD_PARAMS),
+                    Err(PtrToStrError::NullPointer) => Ok(Some(Text(String::new()))),
+                    Err(PtrToStrError::InvalidUtf8(_)) => Err(CassError::CASS_ERROR_LIB_BAD_PARAMS),
+                }
+            },
             [v @ *const std::os::raw::c_char, n @ size_t]
         );
     };
@@ -251,7 +304,15 @@ macro_rules! invoke_binder_maker_macro_with_type {
             $this,
             $consume_v,
             $fn,
-            |v, v_size| {
+            |v: *const cass_byte_t, v_size| {
+                if v.is_null() {
+                    if v_size != 0 {
+                        return Err(CassError::CASS_ERROR_LIB_BAD_PARAMS);
+                    } else {
+                        // cpp-driver treats NULL+0 as empty blob, not CQL NULL.
+                        return Ok(Some(Blob(vec![])));
+                    }
+                }
                 let v_vec = unsafe { std::slice::from_raw_parts(v, v_size as usize) }.to_vec();
                 Ok(Some(Blob(v_vec)))
             },
@@ -305,8 +366,15 @@ macro_rules! invoke_binder_maker_macro_with_type {
             $this,
             $consume_v,
             $fn,
-            |v, v_size, scale| {
+            |v: *const cass_byte_t, v_size, scale| {
                 use scylla::value::CqlDecimal;
+                if v.is_null() {
+                    if v_size != 0 {
+                        return Err(CassError::CASS_ERROR_LIB_BAD_PARAMS);
+                    }
+                    // cpp-driver treats NULL+0 as empty varint.
+                    return Ok(Some(Decimal(CqlDecimal::from_signed_be_bytes_slice_and_exponent(&[], scale))));
+                }
                 let varint = unsafe { std::slice::from_raw_parts(v, v_size as usize) };
                 Ok(Some(Decimal(CqlDecimal::from_signed_be_bytes_slice_and_exponent(varint, scale))))
             },

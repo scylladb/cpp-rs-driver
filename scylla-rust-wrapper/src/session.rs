@@ -277,7 +277,14 @@ pub unsafe extern "C" fn cass_session_connect_keyspace_n(
         tracing::error!("Provided null cluster pointer to cass_session_connect_keyspace_n!");
         return ArcFFI::null();
     };
-    let keyspace = unsafe { ptr_to_cstr_n(keyspace, keyspace_length) }.map(ToOwned::to_owned);
+    let keyspace = match unsafe { ptr_to_cstr_n(keyspace, keyspace_length) } {
+        Ok(ks) => Some(ks.to_owned()),
+        Err(PtrToStrError::NullPointer) => None,
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!("Provided non-UTF8 keyspace to cass_session_connect_keyspace_n!");
+            return ArcFFI::null();
+        }
+    };
 
     CassConnectedSession::connect(session, cluster, keyspace)
 }
@@ -581,12 +588,18 @@ pub unsafe extern "C" fn cass_session_prepare_n(
         return ArcFFI::null();
     };
 
-    let query_str = unsafe { ptr_to_cstr_n(query, query_length) }
+    let query_str = match unsafe { ptr_to_cstr_n(query, query_length) } {
+        Ok(s) => s,
         // Apparently nullptr denotes an empty statement string.
         // It seems to be intended (for some weird reason, why not save a round-trip???)
         // to receive a server error in such case (CASS_ERROR_SERVER_SYNTAX_ERROR).
         // There is a test for this: `NullStringApiArgsTest.Integration_Cassandra_PrepareNullQuery`.
-        .unwrap_or_default();
+        Err(PtrToStrError::NullPointer) => "",
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!("Provided non-UTF8 query to cass_session_prepare(_n)!");
+            return ArcFFI::null();
+        }
+    };
 
     let Ok(session_guard) = cass_session.try_read_owned() else {
         return CassFuture::make_ready_raw(Err((

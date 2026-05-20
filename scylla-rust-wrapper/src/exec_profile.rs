@@ -16,7 +16,7 @@ use scylla::statement::{Consistency, SerialConsistency};
 
 use crate::argconv::{
     ArcFFI, BoxFFI, CMut, CassBorrowedExclusivePtr, CassBorrowedSharedPtr, CassOwnedExclusivePtr,
-    FFI, FromBox, ptr_to_cstr_n, strlen,
+    FFI, FromBox, PtrToStrError, ptr_to_cstr_n, strlen,
 };
 use crate::cass_error::CassError;
 use crate::cluster::{
@@ -277,8 +277,17 @@ pub unsafe extern "C" fn cass_statement_set_execution_profile_n(
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
-    let name: Option<ExecProfileName> = unsafe { ptr_to_cstr_n(name, name_length) }
-        .and_then(|name| name.to_owned().try_into().ok());
+    let name: Option<ExecProfileName> = match unsafe { ptr_to_cstr_n(name, name_length) } {
+        Ok(name) => name.to_owned().try_into().ok(),
+        // NULL or empty name clears the profile — intentional.
+        Err(PtrToStrError::NullPointer) => None,
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!(
+                "Provided non-UTF8 profile name to cass_statement_set_execution_profile(_n)!"
+            );
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
+    };
     statement.exec_profile = name.map(PerStatementExecProfile::new_unresolved);
 
     CassError::CASS_OK
@@ -303,8 +312,17 @@ pub unsafe extern "C" fn cass_batch_set_execution_profile_n(
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
-    let name: Option<ExecProfileName> = unsafe { ptr_to_cstr_n(name, name_length) }
-        .and_then(|name| name.to_owned().try_into().ok());
+    let name: Option<ExecProfileName> = match unsafe { ptr_to_cstr_n(name, name_length) } {
+        Ok(name) => name.to_owned().try_into().ok(),
+        // NULL or empty name clears the profile — intentional.
+        Err(PtrToStrError::NullPointer) => None,
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!(
+                "Provided non-UTF8 profile name to cass_batch_set_execution_profile(_n)!"
+            );
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
+    };
     batch.exec_profile = name.map(PerStatementExecProfile::new_unresolved);
 
     CassError::CASS_OK
