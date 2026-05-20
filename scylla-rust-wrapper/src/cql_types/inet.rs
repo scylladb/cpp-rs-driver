@@ -96,9 +96,16 @@ pub unsafe extern "C" fn cass_inet_from_string_n(
     input_length: size_t,
     inet_raw: *mut CassInet,
 ) -> CassError {
-    let Some(input_str) = (unsafe { ptr_to_cstr_n(input_raw, input_length) }) else {
-        tracing::error!("Provided null input string to cass_inet_from_string(_n)!");
-        return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+    let input_str = match unsafe { ptr_to_cstr_n(input_raw, input_length) } {
+        Ok(s) => s,
+        Err(PtrToStrError::NullPointer) => {
+            tracing::error!("Provided null input string to cass_inet_from_string(_n)!");
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!("Provided non-UTF8 input string to cass_inet_from_string(_n)!");
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
     };
 
     let Ok(ip_addr) = IpAddr::from_str(input_str) else {

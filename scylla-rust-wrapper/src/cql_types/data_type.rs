@@ -572,9 +572,17 @@ pub unsafe extern "C" fn cass_data_type_set_type_name_n(
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
-    let type_name_string = unsafe { ptr_to_cstr_n(type_name, type_name_length) }
-        .unwrap()
-        .to_string();
+    let type_name_string = match unsafe { ptr_to_cstr_n(type_name, type_name_length) } {
+        Ok(s) => s.to_string(),
+        Err(PtrToStrError::NullPointer) => {
+            tracing::error!("Provided null type name pointer to cass_data_type_set_type_name(_n)!");
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!("Provided non-UTF8 type name to cass_data_type_set_type_name(_n)!");
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
+    };
 
     match unsafe { data_type.get_mut_unchecked() } {
         CassDataTypeInner::Udt(udt_data_type) => {
@@ -624,9 +632,17 @@ pub unsafe extern "C" fn cass_data_type_set_keyspace_n(
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
-    let keyspace_string = unsafe { ptr_to_cstr_n(keyspace, keyspace_length) }
-        .unwrap()
-        .to_string();
+    let keyspace_string = match unsafe { ptr_to_cstr_n(keyspace, keyspace_length) } {
+        Ok(s) => s.to_string(),
+        Err(PtrToStrError::NullPointer) => {
+            tracing::error!("Provided null keyspace pointer to cass_data_type_set_keyspace(_n)!");
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!("Provided non-UTF8 keyspace to cass_data_type_set_keyspace(_n)!");
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
+    };
 
     match unsafe { data_type.get_mut_unchecked() } {
         CassDataTypeInner::Udt(udt_data_type) => {
@@ -676,9 +692,19 @@ pub unsafe extern "C" fn cass_data_type_set_class_name_n(
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
-    let class_string = unsafe { ptr_to_cstr_n(class_name, class_name_length) }
-        .unwrap()
-        .to_string();
+    let class_string = match unsafe { ptr_to_cstr_n(class_name, class_name_length) } {
+        Ok(s) => s.to_string(),
+        Err(PtrToStrError::NullPointer) => {
+            tracing::error!(
+                "Provided null class name pointer to cass_data_type_set_class_name(_n)!"
+            );
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!("Provided non-UTF8 class name to cass_data_type_set_class_name(_n)!");
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
+    };
     match unsafe { data_type.get_mut_unchecked() } {
         CassDataTypeInner::Custom(name) => {
             *name = class_string;
@@ -761,7 +787,19 @@ pub unsafe extern "C" fn cass_data_type_sub_data_type_by_name_n(
         return ArcFFI::null();
     };
 
-    let name_str = unsafe { ptr_to_cstr_n(name, name_length) }.unwrap();
+    let name_str = match unsafe { ptr_to_cstr_n(name, name_length) } {
+        Ok(s) => s,
+        Err(PtrToStrError::NullPointer) => {
+            tracing::error!(
+                "Provided null name pointer to cass_data_type_sub_data_type_by_name(_n)!"
+            );
+            return ArcFFI::null();
+        }
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!("Provided non-UTF8 name to cass_data_type_sub_data_type_by_name(_n)!");
+            return ArcFFI::null();
+        }
+    };
     match unsafe { data_type.get_unchecked() } {
         CassDataTypeInner::Udt(udt) => match udt.get_field_by_name(name_str) {
             None => ArcFFI::null(),
@@ -844,9 +882,19 @@ pub unsafe extern "C" fn cass_data_type_add_sub_type_by_name_n(
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
-    let name_string = unsafe { ptr_to_cstr_n(name, name_length) }
-        .unwrap()
-        .to_string();
+    let name_string = match unsafe { ptr_to_cstr_n(name, name_length) } {
+        Ok(s) => s.to_string(),
+        Err(PtrToStrError::NullPointer) => {
+            tracing::error!(
+                "Provided null name pointer to cass_data_type_add_sub_type_by_name(_n)!"
+            );
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
+        Err(PtrToStrError::InvalidUtf8(_)) => {
+            tracing::error!("Provided non-UTF8 name to cass_data_type_add_sub_type_by_name(_n)!");
+            return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+        }
+    };
 
     match unsafe { data_type.get_mut_unchecked() } {
         CassDataTypeInner::Udt(udt_data_type) => {
