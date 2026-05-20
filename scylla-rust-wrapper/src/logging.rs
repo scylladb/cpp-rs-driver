@@ -1,7 +1,6 @@
 use crate::LOGGER;
 use crate::argconv::{
-    CConst, CassBorrowedSharedPtr, CassStrNulTerminated, FFI, FromRef, RefFFI, arr_to_cstr,
-    str_to_arr,
+    CConst, CassBorrowedSharedPtr, CassStrNulTerminated, FFI, FromRef, RefFFI, str_to_arr,
 };
 use crate::cass_log_types::{CassLogLevel, CassLogMessage};
 use std::convert::TryFrom;
@@ -88,7 +87,7 @@ pub(crate) unsafe extern "C" fn stderr_log_callback(
         unsafe { CassStrNulTerminated::from_raw(message.file).to_str() }
             .expect("file is set to a null-terminated Rust string by on_event"),
         message.line,
-        unsafe { arr_to_cstr::<{ CASS_LOG_MAX_MESSAGE_SIZE }>(&message.message) }
+        unsafe { CassStrNulTerminated::from_raw(message.message.as_ptr()).to_str() }
             .expect("message is populated from a Rust String via str_to_arr"),
     )
 }

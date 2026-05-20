@@ -17,15 +17,6 @@ pub enum PtrToStrError {
     InvalidUtf8(std::str::Utf8Error),
 }
 
-pub(crate) unsafe fn arr_to_cstr<const N: usize>(arr: &[c_char]) -> Result<&str, PtrToStrError> {
-    let null_char = '\0' as c_char;
-    let end_index = arr[..N].iter().position(|c| c == &null_char).unwrap_or(N);
-    unsafe {
-        CassStrLenDelimited::from_raw(arr.as_ptr())
-            .to_str(CassStrLen::from_raw(end_index as size_t))
-    }
-}
-
 pub(crate) fn str_to_arr<const N: usize>(s: &str) -> [c_char; N] {
     let mut result = ['\0' as c_char; N];
 
