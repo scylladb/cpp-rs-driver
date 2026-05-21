@@ -15,34 +15,32 @@ To install the dependencies:
 sudo dnf -y install libuv openssl
 ```
 
-Install the runtime library. Replace `<VERSION>` with the version+platform string:
+Install the runtime library for your platform:
 
 ```bash
-sudo dnf install -y scylla-cpp-driver-<VERSION>.rpm
+sudo dnf install -y ./scylla_cpp_driver_<VERSION>_x86_64.rpm
 ```
 
-When developing against the driver you'll also want to install the development
-package and the debug symbols:
+When developing against the driver you'll also want to install the development package:
 
 ```bash
-sudo dnf install -y scylla-cpp-driver-devel-<VERSION>.rpm scylla-cpp-driver-debuginfo-<VERSION>.rpm
+sudo dnf install -y ./scylla_cpp_driver_<VERSION>_x86_64.rpm ./scylla_cpp_driver-devel_<VERSION>_x86_64.rpm
 ```
 
 ### Ubuntu/Debian
 
-Ubuntu's apt-get will resolve and install the dependencies by itself.
-Replace `<VERSION>` with the appropriate version+platform string:
+Ubuntu's apt-get will resolve and install the dependencies by itself:
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y ./scylla-cpp-driver_<VERSION>.deb
+sudo apt-get install -y ./scylla_cpp_driver_<VERSION>_amd64.deb
 ```
 
-When developing against the driver you'll also want to install the development
-package and the debug symbols:
+When developing against the driver you'll also want to install the runtime and
+development packages:
 
 ```bash
-sudo apt-get install -y ./scylla-cpp-driver-dev_<VERSION>.deb ./scylla-cpp-driver-dbg_<VERSION>.deb
+sudo apt-get install -y ./scylla_cpp_driver_<VERSION>_amd64.deb ./scylla_cpp_driver-dev_<VERSION>_amd64.deb
 ```
 
 ## Building
