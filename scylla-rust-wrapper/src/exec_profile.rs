@@ -1,5 +1,5 @@
 use std::convert::{TryFrom, TryInto};
-use std::ffi::c_char;
+
 use std::future::Future;
 use std::net::IpAddr;
 use std::ops::Deref;
@@ -16,7 +16,7 @@ use scylla::statement::{Consistency, SerialConsistency};
 
 use crate::argconv::{
     ArcFFI, BoxFFI, CMut, CassBorrowedExclusivePtr, CassBorrowedSharedPtr, CassOwnedExclusivePtr,
-    FFI, FromBox, PtrToStrError, ptr_to_cstr_n, strlen,
+    CassStrLen, CassStrLenDelimited, CassStrNulTerminated, FFI, FromBox, PtrToStrError,
 };
 use crate::cass_error::CassError;
 use crate::cluster::{
@@ -30,7 +30,7 @@ use crate::session::CassConnectedSession;
 use crate::statements::batch::CassBatch;
 use crate::statements::statement::CassStatement;
 use crate::types::{
-    cass_bool_t, cass_double_t, cass_int32_t, cass_int64_t, cass_uint32_t, cass_uint64_t, size_t,
+    cass_bool_t, cass_double_t, cass_int32_t, cass_int64_t, cass_uint32_t, cass_uint64_t,
 };
 
 /// Holds information about which execution profile settings were overridden.
@@ -261,23 +261,24 @@ pub unsafe extern "C" fn cass_execution_profile_free(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_statement_set_execution_profile(
     statement: CassBorrowedExclusivePtr<CassStatement, CMut>,
-    name: *const c_char,
+    name: CassStrNulTerminated<'_>,
 ) -> CassError {
-    unsafe { cass_statement_set_execution_profile_n(statement, name, strlen(name)) }
+    let (name, name_length) = unsafe { name.as_len_delimited() };
+    unsafe { cass_statement_set_execution_profile_n(statement, name, name_length) }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_statement_set_execution_profile_n(
     statement: CassBorrowedExclusivePtr<CassStatement, CMut>,
-    name: *const c_char,
-    name_length: size_t,
+    name: CassStrLenDelimited<'_>,
+    name_length: CassStrLen,
 ) -> CassError {
     let Some(statement) = BoxFFI::as_mut_ref(statement) else {
         tracing::error!("Provided null statement pointer to cass_statement_set_execution_profile!");
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
-    let name: Option<ExecProfileName> = match unsafe { ptr_to_cstr_n(name, name_length) } {
+    let name: Option<ExecProfileName> = match unsafe { name.to_str(name_length) } {
         Ok(name) => name.to_owned().try_into().ok(),
         // NULL or empty name clears the profile — intentional.
         Err(PtrToStrError::NullPointer) => None,
@@ -296,23 +297,24 @@ pub unsafe extern "C" fn cass_statement_set_execution_profile_n(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_batch_set_execution_profile(
     batch: CassBorrowedExclusivePtr<CassBatch, CMut>,
-    name: *const c_char,
+    name: CassStrNulTerminated<'_>,
 ) -> CassError {
-    unsafe { cass_batch_set_execution_profile_n(batch, name, strlen(name)) }
+    let (name, name_length) = unsafe { name.as_len_delimited() };
+    unsafe { cass_batch_set_execution_profile_n(batch, name, name_length) }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_batch_set_execution_profile_n(
     batch: CassBorrowedExclusivePtr<CassBatch, CMut>,
-    name: *const c_char,
-    name_length: size_t,
+    name: CassStrLenDelimited<'_>,
+    name_length: CassStrLen,
 ) -> CassError {
     let Some(batch) = BoxFFI::as_mut_ref(batch) else {
         tracing::error!("Provided null batch pointer to cass_batch_set_execution_profile!");
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
-    let name: Option<ExecProfileName> = match unsafe { ptr_to_cstr_n(name, name_length) } {
+    let name: Option<ExecProfileName> = match unsafe { name.to_str(name_length) } {
         Ok(name) => name.to_owned().try_into().ok(),
         // NULL or empty name clears the profile — intentional.
         Err(PtrToStrError::NullPointer) => None,
@@ -479,15 +481,16 @@ pub unsafe extern "C" fn cass_execution_profile_set_latency_aware_routing_settin
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_execution_profile_set_load_balance_dc_aware(
     profile: CassBorrowedExclusivePtr<CassExecProfile, CMut>,
-    local_dc: *const c_char,
+    local_dc: CassStrNulTerminated<'_>,
     used_hosts_per_remote_dc: cass_uint32_t,
     allow_remote_dcs_for_local_cl: cass_bool_t,
 ) -> CassError {
+    let (local_dc, local_dc_length) = unsafe { local_dc.as_len_delimited() };
     unsafe {
         cass_execution_profile_set_load_balance_dc_aware_n(
             profile,
             local_dc,
-            strlen(local_dc),
+            local_dc_length,
             used_hosts_per_remote_dc,
             allow_remote_dcs_for_local_cl,
         )
@@ -497,8 +500,8 @@ pub unsafe extern "C" fn cass_execution_profile_set_load_balance_dc_aware(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_execution_profile_set_load_balance_dc_aware_n(
     profile: CassBorrowedExclusivePtr<CassExecProfile, CMut>,
-    local_dc: *const c_char,
-    local_dc_length: size_t,
+    local_dc: CassStrLenDelimited<'_>,
+    local_dc_length: CassStrLen,
     used_hosts_per_remote_dc: cass_uint32_t,
     allow_remote_dcs_for_local_cl: cass_bool_t,
 ) -> CassError {
@@ -523,16 +526,18 @@ pub unsafe extern "C" fn cass_execution_profile_set_load_balance_dc_aware_n(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_execution_profile_set_load_balance_rack_aware(
     profile: CassBorrowedExclusivePtr<CassExecProfile, CMut>,
-    local_dc_raw: *const c_char,
-    local_rack_raw: *const c_char,
+    local_dc_raw: CassStrNulTerminated<'_>,
+    local_rack_raw: CassStrNulTerminated<'_>,
 ) -> CassError {
+    let (local_dc, local_dc_length) = unsafe { local_dc_raw.as_len_delimited() };
+    let (local_rack, local_rack_length) = unsafe { local_rack_raw.as_len_delimited() };
     unsafe {
         cass_execution_profile_set_load_balance_rack_aware_n(
             profile,
-            local_dc_raw,
-            strlen(local_dc_raw),
-            local_rack_raw,
-            strlen(local_rack_raw),
+            local_dc,
+            local_dc_length,
+            local_rack,
+            local_rack_length,
         )
     }
 }
@@ -540,10 +545,10 @@ pub unsafe extern "C" fn cass_execution_profile_set_load_balance_rack_aware(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_execution_profile_set_load_balance_rack_aware_n(
     profile: CassBorrowedExclusivePtr<CassExecProfile, CMut>,
-    local_dc_raw: *const c_char,
-    local_dc_length: size_t,
-    local_rack_raw: *const c_char,
-    local_rack_length: size_t,
+    local_dc_raw: CassStrLenDelimited<'_>,
+    local_dc_length: CassStrLen,
+    local_rack_raw: CassStrLenDelimited<'_>,
+    local_rack_length: CassStrLen,
 ) -> CassError {
     let Some(profile_builder) = BoxFFI::as_mut_ref(profile) else {
         tracing::error!(
@@ -582,16 +587,17 @@ pub unsafe extern "C" fn cass_execution_profile_set_load_balance_round_robin(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_execution_profile_set_whitelist_filtering(
     profile_raw: CassBorrowedExclusivePtr<CassExecProfile, CMut>,
-    hosts: *const c_char,
+    hosts: CassStrNulTerminated<'_>,
 ) -> CassError {
-    unsafe { cass_execution_profile_set_whitelist_filtering_n(profile_raw, hosts, strlen(hosts)) }
+    let (hosts, hosts_size) = unsafe { hosts.as_len_delimited() };
+    unsafe { cass_execution_profile_set_whitelist_filtering_n(profile_raw, hosts, hosts_size) }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_execution_profile_set_whitelist_filtering_n(
     profile_raw: CassBorrowedExclusivePtr<CassExecProfile, CMut>,
-    hosts: *const c_char,
-    hosts_size: size_t,
+    hosts: CassStrLenDelimited<'_>,
+    hosts_size: CassStrLen,
 ) -> CassError {
     let Some(profile_builder) = BoxFFI::as_mut_ref(profile_raw) else {
         tracing::error!(
@@ -627,16 +633,17 @@ pub unsafe extern "C" fn cass_execution_profile_set_whitelist_filtering_n(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_execution_profile_set_blacklist_filtering(
     profile_raw: CassBorrowedExclusivePtr<CassExecProfile, CMut>,
-    hosts: *const c_char,
+    hosts: CassStrNulTerminated<'_>,
 ) -> CassError {
-    unsafe { cass_execution_profile_set_blacklist_filtering_n(profile_raw, hosts, strlen(hosts)) }
+    let (hosts, hosts_size) = unsafe { hosts.as_len_delimited() };
+    unsafe { cass_execution_profile_set_blacklist_filtering_n(profile_raw, hosts, hosts_size) }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_execution_profile_set_blacklist_filtering_n(
     profile_raw: CassBorrowedExclusivePtr<CassExecProfile, CMut>,
-    hosts: *const c_char,
-    hosts_size: size_t,
+    hosts: CassStrLenDelimited<'_>,
+    hosts_size: CassStrLen,
 ) -> CassError {
     let Some(profile_builder) = BoxFFI::as_mut_ref(profile_raw) else {
         tracing::error!(
@@ -672,16 +679,17 @@ pub unsafe extern "C" fn cass_execution_profile_set_blacklist_filtering_n(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_execution_profile_set_whitelist_dc_filtering(
     profile_raw: CassBorrowedExclusivePtr<CassExecProfile, CMut>,
-    dcs: *const c_char,
+    dcs: CassStrNulTerminated<'_>,
 ) -> CassError {
-    unsafe { cass_execution_profile_set_whitelist_dc_filtering_n(profile_raw, dcs, strlen(dcs)) }
+    let (dcs, dcs_size) = unsafe { dcs.as_len_delimited() };
+    unsafe { cass_execution_profile_set_whitelist_dc_filtering_n(profile_raw, dcs, dcs_size) }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_execution_profile_set_whitelist_dc_filtering_n(
     profile_raw: CassBorrowedExclusivePtr<CassExecProfile, CMut>,
-    dcs: *const c_char,
-    dcs_size: size_t,
+    dcs: CassStrLenDelimited<'_>,
+    dcs_size: CassStrLen,
 ) -> CassError {
     let Some(profile_builder) = BoxFFI::as_mut_ref(profile_raw) else {
         tracing::error!(
@@ -709,16 +717,17 @@ pub unsafe extern "C" fn cass_execution_profile_set_whitelist_dc_filtering_n(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_execution_profile_set_blacklist_dc_filtering(
     profile_raw: CassBorrowedExclusivePtr<CassExecProfile, CMut>,
-    dcs: *const c_char,
+    dcs: CassStrNulTerminated<'_>,
 ) -> CassError {
-    unsafe { cass_execution_profile_set_blacklist_dc_filtering_n(profile_raw, dcs, strlen(dcs)) }
+    let (dcs, dcs_size) = unsafe { dcs.as_len_delimited() };
+    unsafe { cass_execution_profile_set_blacklist_dc_filtering_n(profile_raw, dcs, dcs_size) }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_execution_profile_set_blacklist_dc_filtering_n(
     profile_raw: CassBorrowedExclusivePtr<CassExecProfile, CMut>,
-    dcs: *const c_char,
-    dcs_size: size_t,
+    dcs: CassStrLenDelimited<'_>,
+    dcs_size: CassStrLen,
 ) -> CassError {
     let Some(profile_builder) = BoxFFI::as_mut_ref(profile_raw) else {
         tracing::error!(
@@ -886,7 +895,7 @@ mod tests {
 
     use super::*;
 
-    use crate::argconv::CassPtr;
+    use crate::argconv::{CassPtr, CassStrLen, CassStrLenDelimited, CassStrNulTerminated};
     use crate::cql_types::CassConsistency;
     use crate::retry_policy::{
         cass_retry_policy_downgrading_consistency_new, cass_retry_policy_free,
@@ -948,7 +957,7 @@ mod tests {
             {
                 cass_execution_profile_set_blacklist_filtering(
                     profile_raw.borrow_mut(),
-                    c" 127.0.0.1 ,  127.0.0.2 ".as_ptr(),
+                    CassStrNulTerminated::from_cstr(c" 127.0.0.1 ,  127.0.0.2 "),
                 );
 
                 let profile = BoxFFI::as_ref(profile_raw.borrow()).unwrap();
@@ -966,7 +975,7 @@ mod tests {
             {
                 cass_execution_profile_set_blacklist_filtering(
                     profile_raw.borrow_mut(),
-                    c"foo, 127.0.0.3, bar,,baz".as_ptr(),
+                    CassStrNulTerminated::from_cstr(c"foo, 127.0.0.3, bar,,baz"),
                 );
 
                 let profile = BoxFFI::as_ref(profile_raw.borrow()).unwrap();
@@ -984,7 +993,7 @@ mod tests {
             {
                 cass_execution_profile_set_blacklist_filtering(
                     profile_raw.borrow_mut(),
-                    c"".as_ptr(),
+                    CassStrNulTerminated::from_cstr(c""),
                 );
 
                 let profile = BoxFFI::as_ref(profile_raw.borrow()).unwrap();
@@ -1001,7 +1010,7 @@ mod tests {
             {
                 cass_execution_profile_set_blacklist_filtering(
                     profile_raw.borrow_mut(),
-                    c"1.1.1.1,2.2.2.2,foo,,,,  ,3.3.3.3,".as_ptr(),
+                    CassStrNulTerminated::from_cstr(c"1.1.1.1,2.2.2.2,foo,,,,  ,3.3.3.3,"),
                 );
 
                 let cluster = BoxFFI::as_ref(profile_raw.borrow()).unwrap();
@@ -1019,7 +1028,7 @@ mod tests {
             {
                 cass_execution_profile_set_blacklist_filtering(
                     profile_raw.borrow_mut(),
-                    std::ptr::null(),
+                    CassStrNulTerminated::from_raw(std::ptr::null()),
                 );
 
                 let profile = BoxFFI::as_ref(profile_raw.borrow()).unwrap();
@@ -1070,7 +1079,7 @@ mod tests {
                     assert_cass_error_eq!(
                         cass_execution_profile_set_load_balance_dc_aware(
                             profile_raw.borrow_mut(),
-                            c"eu".as_ptr(),
+                            CassStrNulTerminated::from_cstr(c"eu"),
                             0, // forbid DC failover
                             0
                         ),
@@ -1140,7 +1149,8 @@ mod tests {
     fn test_statement_and_batch_set_exec_profile() {
         unsafe {
             let empty_query = make_c_str!("");
-            let mut statement_raw = cass_statement_new(empty_query, 0);
+            let mut statement_raw =
+                cass_statement_new(CassStrNulTerminated::from_raw(empty_query), 0);
             let mut batch_raw = cass_batch_new(CassBatchType::CASS_BATCH_TYPE_LOGGED);
             assert_cass_error_eq!(
                 cass_batch_add_statement(batch_raw.borrow_mut(), statement_raw.borrow()),
@@ -1157,11 +1167,11 @@ mod tests {
                 }
                 {
                     let valid_name = "profile";
-                    let valid_name_c_str = make_c_str!("profile");
+                    let valid_name_c_str = CassStrNulTerminated::from_raw(make_c_str!("profile"));
                     assert_cass_error_eq!(
                         cass_statement_set_execution_profile(
                             statement_raw.borrow_mut(),
-                            valid_name_c_str,
+                            valid_name_c_str.clone(),
                         ),
                         CassError::CASS_OK
                     );
@@ -1202,14 +1212,14 @@ mod tests {
                     assert_cass_error_eq!(
                         cass_statement_set_execution_profile(
                             statement_raw.borrow_mut(),
-                            std::ptr::null::<i8>()
+                            CassStrNulTerminated::from_raw(std::ptr::null())
                         ),
                         CassError::CASS_OK
                     );
                     assert_cass_error_eq!(
                         cass_batch_set_execution_profile(
                             batch_raw.borrow_mut(),
-                            std::ptr::null::<i8>()
+                            CassStrNulTerminated::from_raw(std::ptr::null())
                         ),
                         CassError::CASS_OK
                     );
@@ -1226,16 +1236,16 @@ mod tests {
                     assert_cass_error_eq!(
                         cass_statement_set_execution_profile_n(
                             statement_raw.borrow_mut(),
-                            valid_name_c_str,
-                            valid_name_len,
+                            CassStrLenDelimited::from_raw(valid_name_c_str),
+                            CassStrLen::from_raw(valid_name_len),
                         ),
                         CassError::CASS_OK
                     );
                     assert_cass_error_eq!(
                         cass_batch_set_execution_profile_n(
                             batch_raw.borrow_mut(),
-                            valid_name_c_str,
-                            valid_name_len,
+                            CassStrLenDelimited::from_raw(valid_name_c_str),
+                            CassStrLen::from_raw(valid_name_len),
                         ),
                         CassError::CASS_OK
                     );
@@ -1272,12 +1282,15 @@ mod tests {
                     assert_cass_error_eq!(
                         cass_statement_set_execution_profile(
                             statement_raw.borrow_mut(),
-                            make_c_str!("")
+                            CassStrNulTerminated::from_raw(make_c_str!(""))
                         ),
                         CassError::CASS_OK
                     );
                     assert_cass_error_eq!(
-                        cass_batch_set_execution_profile(batch_raw.borrow_mut(), make_c_str!("")),
+                        cass_batch_set_execution_profile(
+                            batch_raw.borrow_mut(),
+                            CassStrNulTerminated::from_raw(make_c_str!(""))
+                        ),
                         CassError::CASS_OK
                     );
 

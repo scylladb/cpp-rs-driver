@@ -11,7 +11,9 @@ pub use crate::cass_consistency_types::CassConsistency;
 pub use crate::cass_data_types::CassValueType;
 pub use crate::cass_error_types::CassWriteType;
 
-use std::ffi::{CStr, c_char};
+use std::ffi::CStr;
+
+use crate::argconv::CassStrNulTerminated;
 
 impl CassConsistency {
     pub(crate) fn as_cstr(&self) -> &'static CStr {
@@ -34,8 +36,10 @@ impl CassConsistency {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn cass_consistency_string(consistency: CassConsistency) -> *const c_char {
-    consistency.as_cstr().as_ptr() as *const c_char
+pub unsafe extern "C" fn cass_consistency_string(
+    consistency: CassConsistency,
+) -> CassStrNulTerminated<'static> {
+    CassStrNulTerminated::from_cstr(consistency.as_cstr())
 }
 
 impl CassWriteType {
@@ -55,6 +59,8 @@ impl CassWriteType {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn cass_write_type_string(write_type: CassWriteType) -> *const c_char {
-    write_type.as_cstr().as_ptr() as *const c_char
+pub unsafe extern "C" fn cass_write_type_string(
+    write_type: CassWriteType,
+) -> CassStrNulTerminated<'static> {
+    CassStrNulTerminated::from_cstr(write_type.as_cstr())
 }
