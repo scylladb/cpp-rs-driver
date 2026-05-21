@@ -10,7 +10,7 @@ use std::{
 };
 
 use crate::{
-    argconv::{CMut, CassOwnedSharedPtr, ptr_to_cstr_n},
+    argconv::{CMut, CassOwnedSharedPtr, CassStrLen, CassStrLenDelimited},
     cass_error::CassError,
     future::{
         CassFuture, cass_future_error_code, cass_future_error_message, cass_future_free,
@@ -29,28 +29,41 @@ pub(crate) fn setup_tracing() {
 macro_rules! assert_cass_error_eq {
     ($expr:expr, $error:expr $(,)?) => {{
         use crate::api::error::cass_error_desc;
-        use crate::argconv::ptr_to_cstr;
         let ___x = $expr;
-        assert_eq!(
-            ___x,
-            $error,
-            "expected \"{}\", instead got \"{}\"",
-            ptr_to_cstr(cass_error_desc($error)).unwrap(),
-            ptr_to_cstr(cass_error_desc(___x)).unwrap()
-        );
+        #[allow(unused_unsafe)] // Sometimes the macro is expanded in an `unsafe` context.
+        //
+        // SAFETY: `cass_error_desc()` is safe to call with any integer,
+        // including invalid error codes. It always returns a valid ASCII string.
+        unsafe {
+            let ___expected = cass_error_desc($error)
+                .to_str()
+                .expect("cass_error_desc() always returns a valid ASCII string");
+            let ___got = cass_error_desc(___x)
+                .to_str()
+                .expect("cass_error_desc() always returns a valid ASCII string");
+            assert_eq!(
+                ___x, $error,
+                "expected \"{___expected}\", instead got \"{___got}\"",
+            );
+        }
     }};
 }
 pub(crate) use assert_cass_error_eq;
 
 macro_rules! assert_cass_future_error_message_eq {
     ($cass_fut:ident, $error_msg_opt:expr) => {
-        use crate::argconv::ptr_to_cstr_n;
+        use crate::argconv::{CassStrLen, CassStrLenDelimited};
         use crate::future::cass_future_error_message;
 
         let mut ___message: *const c_char = ::std::ptr::null();
         let mut ___msg_len: size_t = 0;
         cass_future_error_message($cass_fut.borrow(), &mut ___message, &mut ___msg_len);
-        assert_eq!(ptr_to_cstr_n(___message, ___msg_len).ok(), $error_msg_opt);
+        assert_eq!(
+            CassStrLenDelimited::from_raw(___message)
+                .to_str(CassStrLen::from_raw(___msg_len))
+                .ok(),
+            $error_msg_opt,
+        );
     };
 }
 pub(crate) use assert_cass_future_error_message_eq;
@@ -61,7 +74,10 @@ pub(crate) unsafe fn cass_future_wait_check_and_free(fut: CassOwnedSharedPtr<Cas
         let mut message: *const c_char = std::ptr::null();
         let mut message_len: size_t = 0;
         unsafe { cass_future_error_message(fut.borrow(), &mut message, &mut message_len) };
-        eprintln!("{:?}", unsafe { ptr_to_cstr_n(message, message_len).ok() });
+        let msg_str = CassStrLenDelimited::from_raw(message);
+        eprintln!("{:?}", unsafe {
+            msg_str.to_str(CassStrLen::from_raw(message_len)).ok()
+        });
     }
     unsafe {
         assert_cass_error_eq!(cass_future_error_code(fut.borrow()), CassError::CASS_OK);

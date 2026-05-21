@@ -131,7 +131,7 @@ mod tests {
     use scylla_proxy::RunningProxy;
 
     use crate::{
-        argconv::str_to_c_str_n,
+        argconv::{CassStrLen, CassStrLenDelimited, str_to_c_str_n},
         cass_error::CassError,
         cluster::{cass_cluster_free, cass_cluster_new, cass_cluster_set_contact_points_n},
         future::cass_future_free,
@@ -203,7 +203,11 @@ mod tests {
                 let (c_ip, c_ip_len) = str_to_c_str_n(ip.as_str());
 
                 assert_cass_error_eq!(
-                    cass_cluster_set_contact_points_n(cluster_raw.borrow_mut(), c_ip, c_ip_len),
+                    cass_cluster_set_contact_points_n(
+                        cluster_raw.borrow_mut(),
+                        CassStrLenDelimited::from_raw(c_ip),
+                        CassStrLen::from_raw(c_ip_len)
+                    ),
                     CassError::CASS_OK
                 );
                 let session_raw = cass_session_new();

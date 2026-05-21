@@ -78,7 +78,7 @@ macro_rules! make_name_binder {
         #[allow(clippy::redundant_closure_call)]
         pub unsafe extern "C" fn $fn_by_name(
             this: CassBorrowedExclusivePtr<$this, CMut>,
-            name: *const c_char,
+            name: CassStrNulTerminated<'_>,
             $($arg: $t), *
         ) -> CassError {
             // For some reason detected as unused, which is not true
@@ -93,7 +93,7 @@ macro_rules! make_name_binder {
             // it as an empty string via SAFE_STRLEN), but we
             // purposefully diverge and return an error early instead of
             // silently binding to a bogus empty-named parameter.
-            let name = match unsafe { ptr_to_cstr(name) } {
+            let name = match unsafe { name.to_str() } {
                 Ok(name) if !name.is_empty() => name,
                 Ok(_) => {
                     tracing::error!("Provided empty name to {}!", stringify!($fn_by_name));
@@ -122,8 +122,8 @@ macro_rules! make_name_n_binder {
         #[allow(clippy::redundant_closure_call)]
         pub unsafe extern "C" fn $fn_by_name_n(
             this: CassBorrowedExclusivePtr<$this, CMut>,
-            name: *const c_char,
-            name_length: size_t,
+            name: CassStrLenDelimited<'_>,
+            name_length: CassStrLen,
             $($arg: $t), *
         ) -> CassError {
             // For some reason detected as unused, which is not true
@@ -138,7 +138,7 @@ macro_rules! make_name_n_binder {
             // it as an empty string via SAFE_STRLEN), but we
             // purposefully diverge and return an error early instead of
             // silently binding to a bogus empty-named parameter.
-            let name = match unsafe { ptr_to_cstr_n(name, name_length) } {
+            let name = match unsafe { name.to_str(name_length) } {
                 Ok(name) if !name.is_empty() => name,
                 Ok(_) => {
                     tracing::error!("Provided empty name to {}!", stringify!($fn_by_name_n));
@@ -271,15 +271,15 @@ macro_rules! invoke_binder_maker_macro_with_type {
             $this,
             $consume_v,
             $fn,
-            |v: *const std::os::raw::c_char| {
+            |v: CassStrNulTerminated<'_>| {
                 // cpp-driver treats NULL as empty string (via SAFE_STRLEN).
-                match unsafe { ptr_to_cstr(v) } {
+                match unsafe { v.to_str() } {
                     Ok(s) => Ok(Some(Text(s.to_string()))),
                     Err(PtrToStrError::NullPointer) => Ok(Some(Text(String::new()))),
                     Err(PtrToStrError::InvalidUtf8(_)) => Err(CassError::CASS_ERROR_LIB_BAD_PARAMS),
                 }
             },
-            [v @ *const std::os::raw::c_char]
+            [v @ CassStrNulTerminated<'_>]
         );
     };
     (string_n, $macro_name:ident, $this:ty, $consume_v:expr, $fn:ident) => {
@@ -287,16 +287,17 @@ macro_rules! invoke_binder_maker_macro_with_type {
             $this,
             $consume_v,
             $fn,
-            |v: *const std::os::raw::c_char, n| {
-                // cpp-driver treats NULL as empty string (via SAFE_STRLEN).
-                match unsafe { ptr_to_cstr_n(v, n) } {
+            |v: CassStrLenDelimited<'_>, n: CassStrLen| {
+                match unsafe { v.to_str(n) } {
                     Ok(s) => Ok(Some(Text(s.to_string()))),
-                    Err(PtrToStrError::NullPointer) if n != 0 => Err(CassError::CASS_ERROR_LIB_BAD_PARAMS),
-                    Err(PtrToStrError::NullPointer) => Ok(Some(Text(String::new()))),
+                    // cpp-driver treats NULL+0 as empty string (via SAFE_STRLEN).
+                    Err(PtrToStrError::NullPointer) if n.is_empty() => Ok(Some(Text(String::new()))),
+                    // NULL+n>0 is clearly a programmer error.
+                    Err(PtrToStrError::NullPointer) => Err(CassError::CASS_ERROR_LIB_BAD_PARAMS),
                     Err(PtrToStrError::InvalidUtf8(_)) => Err(CassError::CASS_ERROR_LIB_BAD_PARAMS),
                 }
             },
-            [v @ *const std::os::raw::c_char, n @ size_t]
+            [v @ CassStrLenDelimited<'_>, n @ CassStrLen]
         );
     };
     (bytes, $macro_name:ident, $this:ty, $consume_v:expr, $fn:ident) => {

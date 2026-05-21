@@ -239,19 +239,20 @@ pub unsafe extern "C" fn cass_uuid_string(uuid_raw: CassUuid, output: *mut c_cha
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_uuid_from_string(
-    value: *const c_char,
+    value: CassStrNulTerminated<'_>,
     output: *mut CassUuid,
 ) -> CassError {
-    unsafe { cass_uuid_from_string_n(value, strlen(value), output) }
+    let (value, value_length) = unsafe { value.as_len_delimited() };
+    unsafe { cass_uuid_from_string_n(value, value_length, output) }
 }
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_uuid_from_string_n(
-    value: *const c_char,
-    value_length: size_t,
+    value: CassStrLenDelimited<'_>,
+    value_length: CassStrLen,
     output: *mut CassUuid,
 ) -> CassError {
-    let value_str = match unsafe { ptr_to_cstr_n(value, value_length) } {
+    let value_str = match unsafe { value.to_str(value_length) } {
         Ok(s) => s,
         Err(PtrToStrError::NullPointer) => {
             tracing::error!("Provided null string pointer to cass_uuid_from_string(_n)!");
