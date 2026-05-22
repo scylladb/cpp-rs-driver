@@ -232,6 +232,7 @@ install-driver-dmg:
 	@shopt -s nullglob
 	dmg_files=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver_*_macos.dmg)
 	if [ "$${#dmg_files[@]}" -eq 0 ]; then echo "No driver DMG found"; exit 1; fi
+	if [ "$${#dmg_files[@]}" -gt 1 ]; then echo "Found more than one driver DMG: $${dmg_files[@]}"; exit 1; fi
 	dmg="$${dmg_files[0]}"
 	mount_point=$$(mktemp -d)
 	hdiutil attach "$$dmg" -mountpoint "$$mount_point" -nobrowse
