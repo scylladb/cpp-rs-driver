@@ -217,7 +217,7 @@ install-driver-pkg:
 
 install-driver-dev-dmg:
 	@shopt -s nullglob
-	dmg_files=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver_*_macos-scylla_cpp_driver-dev.dmg)
+	dmg_files=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver-dev_*_macos.dmg)
 	if [ "$${#dmg_files[@]}" -eq 0 ]; then echo "No driver dev DMG found"; exit 1; fi
 	dmg="$${dmg_files[0]}"
 	mount_point=$$(mktemp -d)
@@ -230,7 +230,7 @@ install-driver-dev-dmg:
 
 install-driver-dmg:
 	@shopt -s nullglob
-	dmg_files=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver_*_macos-scylla_cpp_driver.dmg)
+	dmg_files=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver_*_macos.dmg)
 	if [ "$${#dmg_files[@]}" -eq 0 ]; then echo "No driver DMG found"; exit 1; fi
 	dmg="$${dmg_files[0]}"
 	mount_point=$$(mktemp -d)
