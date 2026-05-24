@@ -29,7 +29,7 @@ int main(int argc, char* argv[]) {
   smoke_status_t result = SMOKE_ERR;
 
   cass_cluster_set_contact_points(cluster, contact_point);
-  cass_cluster_set_connect_timeout(cluster, 60000);
+  cass_cluster_set_connect_timeout(cluster, 120000);
 
   connect_future = cass_session_connect(session, cluster);
   if (cass_future_error_code(connect_future) != CASS_OK) {
