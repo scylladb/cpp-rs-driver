@@ -250,11 +250,17 @@ install-clang-format-if-missing: update-apt-cache-if-needed
 install-ccm-if-missing:
 	@$(CCM_BIN) list >/dev/null 2>&1 || (
 		echo "CCM not found in the system, install it."
-		python3 -m pip install --user git+https://github.com/scylladb/scylla-ccm.git@${CCM_COMMIT_ID}
+		tmp_ccm_dir=$$(mktemp -d) && \
+		trap 'rm -rf "$$tmp_ccm_dir"' EXIT && \
+		git clone --depth 1 --branch "${CCM_COMMIT_ID}" https://github.com/scylladb/scylla-ccm.git "$$tmp_ccm_dir" && \
+		python3 -m pip install --user "$$tmp_ccm_dir"
 	)
 
 install-ccm:
-	@python3 -m pip install --user git+https://github.com/scylladb/scylla-ccm.git@${CCM_COMMIT_ID}
+	@tmp_ccm_dir=$$(mktemp -d) && \
+	trap 'rm -rf "$$tmp_ccm_dir"' EXIT && \
+	git clone --depth 1 --branch "${CCM_COMMIT_ID}" https://github.com/scylladb/scylla-ccm.git "$$tmp_ccm_dir" && \
+	python3 -m pip install --user "$$tmp_ccm_dir"
 
 install-java8-if-missing:
 	@dpkg -l openjdk-8-jre >/dev/null 2>&1 && exit 0
