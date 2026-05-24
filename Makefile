@@ -8,9 +8,9 @@ ifeq ($(OS),Windows_NT)
     SHELL := pwsh.exe
     .SHELLFLAGS := -NoProfile -Command $$ErrorActionPreference = 'Stop';
 else
-    # Keep pip-installed tools like `ccm` visible to make recipes.
-    export PATH := $(HOME)/.local/bin:$(PATH)
-    CCM_BIN := $(shell command -v ccm 2>/dev/null || printf '%s' "$(HOME)/.local/bin/ccm")
+    # Keep the in-repo CCM shim and pip-installed tools visible to make recipes.
+    export PATH := $(CURDIR)/ci:$(HOME)/.local/bin:$(PATH)
+    CCM_BIN := ccm
 endif
 
 UNAME_S := $(shell uname -s)
