@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-user_ccm="$HOME/.local/bin/ccm"
+user_ccm="$(python3 -m site --user-base)/bin/ccm"
 if [ -x "$user_ccm" ]; then
   exec "$user_ccm" "$@"
 fi
