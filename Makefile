@@ -8,9 +8,10 @@ ifeq ($(OS),Windows_NT)
     SHELL := pwsh.exe
     .SHELLFLAGS := -NoProfile -Command $$ErrorActionPreference = 'Stop';
 else
-    # Prefer the pip-installed CCM script resolved from Python's user base.
+    # Prefer the repo-local CCM shim, which can fall back to the pip-installed
+    # package from Python's user base when the console script is unavailable.
     export PATH := $(HOME)/.local/bin:$(CURDIR)/ci:$(PATH)
-    CCM_BIN ?= $(shell python3 -m site --user-base)/bin/ccm
+    CCM_BIN ?= $(CURDIR)/ci/ccm
     export CCM_BIN
 endif
 
