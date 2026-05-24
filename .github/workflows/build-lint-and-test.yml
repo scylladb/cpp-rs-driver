@@ -60,21 +60,12 @@ jobs:
 
     strategy:
       matrix:
-        include:
-          - scylla-version: LTS-LATEST
-            scylla-filter: '^[0-9]{4}$.^[0-9]+$.^[0-9]+$ and LAST.1.LAST'
-          - scylla-version: LTS-PRIOR
-            scylla-filter: '^[0-9]{4}$.^[0-9]+$.^[0-9]+$ and LAST-1.1.LAST'
+        scylla-version: [LATEST, PRIOR]
       fail-fast: false
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Python 3
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
 
       - name: Update apt cache
         run: sudo apt-get update -y
@@ -83,13 +74,29 @@ jobs:
         run: |
           make install-ccm-if-missing
 
+      - name: Select scylla filter
+        id: scylla-filter
+        run: |
+          case "${{ matrix.scylla-version }}" in
+            LATEST)
+              printf 'value=%s\n' '^[0-9]{4}$.^[0-9]+$.^[0-9]+$ and LAST.LAST.LAST' >> "$GITHUB_OUTPUT"
+              ;;
+            PRIOR)
+              printf 'value=%s\n' '^[0-9]{4}$.^[0-9]+$.^[0-9]+$ and LAST.LAST.LAST-1' >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Unknown scylla version name ${{ matrix.scylla-version }}"
+              exit 1
+              ;;
+          esac
+
       - name: Get scylla version
         id: scylla-version
         uses: scylladb-actions/get-version@v0.4.5
         with:
           source: dockerhub-imagetag
           repo: scylladb/scylla
-          filters: ${{ matrix.scylla-filter }}
+          filters: ${{ steps.scylla-filter.outputs.value }}
 
       - name: Resolve scylla version
         id: scylla-version-value
@@ -165,11 +172,6 @@ jobs:
         with:
           java-version: ${{ matrix.java-version }}
           distribution: "adopt"
-
-      - name: Setup Python 3
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
 
       - name: Update apt cache
         run: sudo apt-get update -y
