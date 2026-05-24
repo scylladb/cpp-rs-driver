@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+user_ccm="$HOME/.local/bin/ccm"
+if [ -x "$user_ccm" ]; then
+  exec "$user_ccm" "$@"
+fi
+
 user_site="$(python3 -m site --user-site)"
 if [ -n "${PYTHONPATH:-}" ]; then
   export PYTHONPATH="${user_site}:${PYTHONPATH}"
@@ -8,4 +13,4 @@ else
   export PYTHONPATH="${user_site}"
 fi
 
-exec python3 -m ccmlib.bin "$@"
+exec python3 -c 'from ccmlib.bin import main; main()' "$@"
