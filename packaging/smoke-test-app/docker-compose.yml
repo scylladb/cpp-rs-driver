@@ -15,7 +15,7 @@ services:
       public:
         ipv4_address: 172.44.0.2
     command: |
-      --rpc-address 172.44.0.2
+      --rpc-address 127.0.0.1
       --listen-address 172.44.0.2
       --skip-wait-for-gossip-to-settle 0
       --ring-delay-ms 0
