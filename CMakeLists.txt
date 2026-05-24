@@ -304,7 +304,8 @@ set(CPACK_MONOLITHIC_INSTALL ON)
 set(CPACK_VERBATIM_VARIABLES ON)
 
 # Normalize package output names so generated artifacts share a consistent
-# `scylla_cpp_driver_<version>_<platform>.{deb,rpm,pkg,msi}` pattern.
+# `scylla_cpp_driver_<version>_<platform>` family. macOS DMGs use explicit
+# per-component file names to avoid CPack's default `-<component>` suffix.
 set(CPACK_MONOLITHIC_INSTALL OFF)
 if(WIN32)
   set(CPACK_MONOLITHIC_INSTALL ON)
@@ -383,7 +384,11 @@ elseif(APPLE)
   set(CPACK_GENERATOR "productbuild;DragNDrop")
   set(CPACK_DMG_COMPONENT_INSTALL ON)
   set(CPACK_PACKAGE_FILE_NAME
-    "${SCYLLA_DRIVER_ARTIFACT_BASE_NAME}_${PROJECT_VERSION_STRING}_macos")
+    "${SCYLLA_DRIVER_ARTIFACT_BASE_NAME}_${PROJECT_VERSION_STRING}")
+  set(CPACK_DMG_${SCYLLA_DRIVER_RUNTIME_COMPONENT_NAME_UPPER}_FILE_NAME
+    "${SCYLLA_DRIVER_RUNTIME_COMPONENT_NAME}_${PROJECT_VERSION_STRING}")
+  set(CPACK_DMG_${SCYLLA_DRIVER_DEV_COMPONENT_NAME_UPPER}_FILE_NAME
+    "${SCYLLA_DRIVER_DEV_COMPONENT_NAME}_${PROJECT_VERSION_STRING}")
   set(CPACK_PRODUCTBUILD_IDENTIFIER "com.scylladb.cpp-rs-driver")
   set(CPACK_PRODUCTBUILD_SIGNING_IDENTITY "")
   set(CPACK_PRODUCTBUILD_COMPONENT_INSTALL ON)
