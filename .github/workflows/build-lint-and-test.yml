@@ -78,18 +78,20 @@ jobs:
       - name: Select scylla filter
         id: scylla-filter
         run: |
+          # Select the latest stable patch on each release line and drop
+          # prerelease tags before taking the requested position.
           case "${{ matrix.scylla-version }}" in
             LATEST)
-              printf 'value=%s\n' '^[0-9]{4}$.^[0-9]+$.^[0-9]+$ and LAST.LAST.LAST' >> "$GITHUB_OUTPUT"
+              printf 'value=%s\n' '^[0-9]{4}$.^[2-9][0-9]*$.LAST and *.*.^[0-9]+$ and LAST' >> "$GITHUB_OUTPUT"
               ;;
             PRIOR)
-              printf 'value=%s\n' '^[0-9]{4}$.^[0-9]+$.^[0-9]+$ and LAST.LAST.LAST-1' >> "$GITHUB_OUTPUT"
+              printf 'value=%s\n' '^[0-9]{4}$.^[2-9][0-9]*$.LAST and *.*.^[0-9]+$ and LAST-1' >> "$GITHUB_OUTPUT"
               ;;
             LTS-LATEST)
-              printf 'value=%s\n' '^[0-9]{4}$.1$.^[0-9]+$ and LAST.LAST.LAST' >> "$GITHUB_OUTPUT"
+              printf 'value=%s\n' '^[0-9]{4}$.1.LAST and *.*.^[0-9]+$ and LAST' >> "$GITHUB_OUTPUT"
               ;;
             LTS-PRIOR)
-              printf 'value=%s\n' '^[0-9]{4}$.1$.^[0-9]+$ and LAST.LAST.LAST-1' >> "$GITHUB_OUTPUT"
+              printf 'value=%s\n' '^[0-9]{4}$.1.LAST and *.*.^[0-9]+$ and LAST-1' >> "$GITHUB_OUTPUT"
               ;;
             *)
               echo "Unknown scylla version name ${{ matrix.scylla-version }}"
@@ -107,7 +109,13 @@ jobs:
 
       - name: Resolve scylla version
         id: scylla-version-value
-        run: echo "value=${{ fromJson(steps.scylla-version.outputs.versions)[0] }}" | tee -a "$GITHUB_OUTPUT"
+        run: |
+          value='${{ fromJson(steps.scylla-version.outputs.versions)[0] }}'
+          if [ -z "$value" ]; then
+            echo "No Scylla version resolved for ${{ matrix.scylla-version }}" >&2
+            exit 1
+          fi
+          echo "value=$value" | tee -a "$GITHUB_OUTPUT"
 
       - name: Pull CCM image from the cache
         uses: actions/cache/restore@v4
