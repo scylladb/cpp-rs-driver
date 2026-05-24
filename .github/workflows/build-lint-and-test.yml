@@ -190,7 +190,9 @@ jobs:
 
       - name: Resolve cassandra version
         id: cassandra-version-value
-        run: echo "value=${{ fromJson(steps.cassandra-version.outputs.versions)[0] }}" | tee -a "$GITHUB_OUTPUT"
+        run: |
+          value=${{ fromJson(steps.cassandra-version.outputs.versions)[0] }}
+          echo "value=${value#cassandra-}" | tee -a "$GITHUB_OUTPUT"
 
       - name: Pull CCM image from the cache
         uses: actions/cache/restore@v4
