@@ -259,7 +259,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -726,7 +726,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -1057,7 +1057,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.12.1",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -1086,8 +1086,8 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "scylla"
-version = "1.5.0"
-source = "git+https://github.com/scylladb/scylla-rust-driver.git?rev=v1.5.0#d1a5c373a5fbab95f84635c25c5174480b7d6491"
+version = "1.6.0"
+source = "git+https://github.com/scylladb/scylla-rust-driver.git?rev=v1.6.0#33517599c1d4fcee899fe4fd40b1bfbd6bcb730e"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -1113,8 +1113,8 @@ dependencies = [
 
 [[package]]
 name = "scylla-cql"
-version = "1.5.0"
-source = "git+https://github.com/scylladb/scylla-rust-driver.git?rev=v1.5.0#d1a5c373a5fbab95f84635c25c5174480b7d6491"
+version = "1.6.0"
+source = "git+https://github.com/scylladb/scylla-rust-driver.git?rev=v1.6.0#33517599c1d4fcee899fe4fd40b1bfbd6bcb730e"
 dependencies = [
  "byteorder",
  "bytes",
@@ -1132,8 +1132,8 @@ dependencies = [
 
 [[package]]
 name = "scylla-macros"
-version = "1.5.0"
-source = "git+https://github.com/scylladb/scylla-rust-driver.git?rev=v1.5.0#d1a5c373a5fbab95f84635c25c5174480b7d6491"
+version = "1.6.0"
+source = "git+https://github.com/scylladb/scylla-rust-driver.git?rev=v1.6.0#33517599c1d4fcee899fe4fd40b1bfbd6bcb730e"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -1143,8 +1143,8 @@ dependencies = [
 
 [[package]]
 name = "scylla-proxy"
-version = "0.0.5"
-source = "git+https://github.com/scylladb/scylla-rust-driver.git?rev=v1.5.0#d1a5c373a5fbab95f84635c25c5174480b7d6491"
+version = "0.0.6"
+source = "git+https://github.com/scylladb/scylla-rust-driver.git?rev=v1.6.0#33517599c1d4fcee899fe4fd40b1bfbd6bcb730e"
 dependencies = [
  "bigdecimal",
  "byteorder",
@@ -1356,7 +1356,7 @@ dependencies = [
  "getrandom 0.4.1",
  "once_cell",
  "rustix 1.1.4",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

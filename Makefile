@@ -7,6 +7,14 @@ SHELL := bash
 ifeq ($(OS),Windows_NT)
     SHELL := pwsh.exe
     .SHELLFLAGS := -NoProfile -Command $$ErrorActionPreference = 'Stop';
+else
+    # Prefer the repo-local CCM shim, which can execute the cloned upstream tree
+    # and still fall back to a user-installed console script when present.
+    export PATH := $(HOME)/.local/bin:$(CURDIR)/ci:$(PATH)
+    CCM_SOURCE_DIR ?= $(HOME)/.ccm/scylla-ccm
+    export CCM_SOURCE_DIR
+    CCM_BIN ?= $(CURDIR)/ci/ccm
+    export CCM_BIN
 endif
 
 UNAME_S := $(shell uname -s)
@@ -176,6 +184,10 @@ ifndef CCM_COMMIT_ID
 	export CCM_COMMIT_ID := master
 endif
 
+ifndef CCM_PIP_DEPENDENCIES
+	CCM_PIP_DEPENDENCIES := ruamel-yaml psutil requests packaging boto3 tqdm urllib3
+endif
+
 ifndef SCYLLA_VERSION
 	SCYLLA_VERSION := release:2025.3
 endif
@@ -242,13 +254,19 @@ install-clang-format-if-missing: update-apt-cache-if-needed
 	)
 
 install-ccm-if-missing:
-	@ccm list >/dev/null 2>&1 || (
+	@$(CCM_BIN) list >/dev/null 2>&1 || (
 		echo "CCM not found in the system, install it."
-		pip3 install --user https://github.com/scylladb/scylla-ccm/archive/${CCM_COMMIT_ID}.zip
+		mkdir -p "$(dir $(CCM_SOURCE_DIR))" && \
+		rm -rf "$(CCM_SOURCE_DIR)" && \
+		git clone --depth 1 --branch "${CCM_COMMIT_ID}" https://github.com/scylladb/scylla-ccm.git "$(CCM_SOURCE_DIR)" && \
+		python3 -m pip install --user ${CCM_PIP_DEPENDENCIES}
 	)
 
 install-ccm:
-	@pip3 install --user https://github.com/scylladb/scylla-ccm/archive/${CCM_COMMIT_ID}.zip
+	@mkdir -p "$(dir $(CCM_SOURCE_DIR))" && \
+	rm -rf "$(CCM_SOURCE_DIR)" && \
+	git clone --depth 1 --branch "${CCM_COMMIT_ID}" https://github.com/scylladb/scylla-ccm.git "$(CCM_SOURCE_DIR)" && \
+	python3 -m pip install --user ${CCM_PIP_DEPENDENCIES}
 
 install-java8-if-missing:
 	@dpkg -l openjdk-8-jre >/dev/null 2>&1 && exit 0
@@ -431,14 +449,14 @@ download-ccm-scylla-image: install-ccm-if-missing
 	@echo "Downloading scylla ${SCYLLA_VERSION} CCM image"
 	@rm -rf /tmp/download-scylla.ccm || true
 	@mkdir /tmp/download-scylla.ccm || true
-	@ccm create ccm_1 -i 127.0.1. -n 3:0 -v "${SCYLLA_VERSION}" --scylla --config-dir=/tmp/download-scylla.ccm
+	@$(CCM_BIN) create ccm_1 -i 127.0.1. -n 3:0 -v "${SCYLLA_VERSION}" --scylla --config-dir=/tmp/download-scylla.ccm
 	@rm -rf /tmp/download-scylla.ccm
 
 download-ccm-cassandra-image: install-ccm-if-missing
 	@echo "Downloading cassandra ${CASSANDRA_VERSION} CCM image"
 	@rm -rf /tmp/download-cassandra.ccm || true
 	@mkdir /tmp/download-cassandra.ccm || true
-	@ccm create ccm_1 -i 127.0.1. -n 3:0 -v "${CASSANDRA_VERSION}" --config-dir=/tmp/download-cassandra.ccm
+	@$(CCM_BIN) create ccm_1 -i 127.0.1. -n 3:0 -v "${CASSANDRA_VERSION}" --config-dir=/tmp/download-cassandra.ccm
 	@rm -rf /tmp/download-cassandra.ccm
 
 run-test-integration-scylla: .prepare-environment-update-aio-max-nr

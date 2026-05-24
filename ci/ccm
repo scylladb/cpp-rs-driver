@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source_ccm="${CCM_SOURCE_DIR:-$HOME/.ccm/scylla-ccm}"
+if [ -n "$source_ccm" ] && [ -f "$source_ccm/ccm" ]; then
+  export PYTHONPATH="$source_ccm${PYTHONPATH:+:$PYTHONPATH}"
+  exec python3 "$source_ccm/ccm" "$@"
+fi
+
+user_ccm="$(python3 -m site --user-base)/bin/ccm"
+if [ -f "$user_ccm" ]; then
+  exec python3 "$user_ccm" "$@"
+fi
+
+user_site="$(python3 -m site --user-site)"
+if [ -n "${PYTHONPATH:-}" ]; then
+  export PYTHONPATH="${user_site}:${PYTHONPATH}"
+else
+  export PYTHONPATH="${user_site}"
+fi
+
+exec python3 -c 'from ccmlib.bin import main; main()' "$@"

@@ -20,6 +20,7 @@
 #define _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
 #include <stdlib.h>
+#include <io.h>
 
 // Enable memory leak detection for new operator
 #ifdef _DEBUG
@@ -47,6 +48,7 @@
 #endif
 #endif
 
+#include <cstdlib>
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -98,6 +100,33 @@ const std::vector<CCM::DseWorkload> CCM::Bridge::DEFAULT_DSE_WORKLOAD(
     DEFAULT_WORKLOAD, DEFAULT_WORKLOAD + sizeof(DEFAULT_WORKLOAD) / sizeof(DEFAULT_WORKLOAD[0]));
 
 using namespace CCM;
+
+namespace {
+
+#ifdef _WIN32
+bool is_executable(const std::string& path) { return _access(path.c_str(), 0) == 0; }
+#else
+bool is_executable(const std::string& path) { return access(path.c_str(), X_OK) == 0; }
+#endif
+
+std::string resolve_ccm_binary() {
+  const char* ccm_bin = std::getenv("CCM_BIN");
+  if (ccm_bin != NULL && *ccm_bin != '\0') {
+    return std::string(ccm_bin);
+  }
+
+  const char* home = std::getenv("HOME");
+  if (home != NULL && *home != '\0') {
+    std::string user_ccm = std::string(home) + "/.local/bin/ccm";
+    if (is_executable(user_ccm)) {
+      return user_ccm;
+    }
+  }
+
+  return std::string("ccm");
+}
+
+} // namespace
 
 CCM::Bridge::Bridge(
     CassVersion server_version /*= DEFAULT_CASSANDRA_VERSION*/, bool use_git /*= DEFAULT_USE_GIT*/,
@@ -1368,7 +1397,7 @@ std::string CCM::Bridge::read_libssh2_terminal() {
 std::string CCM::Bridge::execute_ccm_command(const std::vector<std::string>& command) {
   // Create the CCM command
   std::vector<std::string> ccm_command;
-  ccm_command.push_back("ccm");
+  ccm_command.push_back(resolve_ccm_binary());
   ccm_command.insert(ccm_command.end(), command.begin(), command.end());
   LOG(implode(ccm_command));
 
