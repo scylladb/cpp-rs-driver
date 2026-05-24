@@ -74,6 +74,9 @@ jobs:
         run: |
           make install-ccm-if-missing
 
+      - name: Add local bin to PATH
+        run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
       - name: Select scylla filter
         id: scylla-filter
         run: |
@@ -178,6 +181,9 @@ jobs:
 
       - name: Install CCM
         run: make install-ccm-if-missing
+
+      - name: Add local bin to PATH
+        run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Get cassandra version
         id: cassandra-version
