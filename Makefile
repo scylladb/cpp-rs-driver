@@ -8,8 +8,8 @@ ifeq ($(OS),Windows_NT)
     SHELL := pwsh.exe
     .SHELLFLAGS := -NoProfile -Command $$ErrorActionPreference = 'Stop';
 else
-    # Keep the in-repo CCM shim and pip-installed tools visible to make recipes.
-    export PATH := $(CURDIR)/ci:$(HOME)/.local/bin:$(PATH)
+    # Keep the pip-installed CCM script visible to make recipes, with the in-repo shim as fallback.
+    export PATH := $(HOME)/.local/bin:$(CURDIR)/ci:$(PATH)
     CCM_BIN := ccm
 endif
 
