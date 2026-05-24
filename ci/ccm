@@ -2,8 +2,8 @@
 set -euo pipefail
 
 user_ccm="$(python3 -m site --user-base)/bin/ccm"
-if [ -x "$user_ccm" ]; then
-  exec "$user_ccm" "$@"
+if [ -f "$user_ccm" ]; then
+  exec python3 "$user_ccm" "$@"
 fi
 
 user_site="$(python3 -m site --user-site)"
