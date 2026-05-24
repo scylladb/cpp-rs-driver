@@ -205,21 +205,20 @@ install-driver-rpm:
 
 install-driver-dev-pkg:
 	@shopt -s nullglob
-	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver-dev_*.pkg)
+	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver-dev_*_macos.pkg)
 	package_name="scylla-rs-driver dev PKG"
 	${INSTALL_PACKAGE_SCRIPT}
 
 install-driver-pkg:
 	@shopt -s nullglob
-	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver_*.pkg)
+	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver_*_macos.pkg)
 	package_name="scylla-rs-driver PKG"
 	${INSTALL_PACKAGE_SCRIPT}
 
 install-driver-dev-dmg:
 	@shopt -s nullglob
-	dmg_files=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver-dev_*.dmg)
+	dmg_files=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver_*_macos-scylla_cpp_driver-dev.dmg)
 	if [ "$${#dmg_files[@]}" -eq 0 ]; then echo "No driver dev DMG found"; exit 1; fi
-	if [ "$${#dmg_files[@]}" -gt 1 ]; then echo "Found more than one driver dev DMG: $${dmg_files[@]}"; exit 1; fi
 	dmg="$${dmg_files[0]}"
 	mount_point=$$(mktemp -d)
 	hdiutil attach "$$dmg" -mountpoint "$$mount_point" -nobrowse
@@ -231,9 +230,8 @@ install-driver-dev-dmg:
 
 install-driver-dmg:
 	@shopt -s nullglob
-	dmg_files=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver_*.dmg)
+	dmg_files=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver_*_macos-scylla_cpp_driver.dmg)
 	if [ "$${#dmg_files[@]}" -eq 0 ]; then echo "No driver DMG found"; exit 1; fi
-	if [ "$${#dmg_files[@]}" -gt 1 ]; then echo "Found more than one driver DMG: $${dmg_files[@]}"; exit 1; fi
 	dmg="$${dmg_files[0]}"
 	mount_point=$$(mktemp -d)
 	hdiutil attach "$$dmg" -mountpoint "$$mount_point" -nobrowse
@@ -244,9 +242,8 @@ install-driver-dmg:
 
 install-app-dmg:
 	@shopt -s nullglob
-	dmg_files=($(BUILD_DIR)/scylla-cpp-driver-smoke-app-*.dmg)
+	dmg_files=($(BUILD_DIR)/scylla-cpp-driver-smoke-app-*-macos.dmg)
 	if [ "$${#dmg_files[@]}" -eq 0 ]; then echo "No smoke-app DMG found"; exit 1; fi
-	if [ "$${#dmg_files[@]}" -gt 1 ]; then echo "Found more than one smoke-app DMG: $${dmg_files[@]}"; exit 1; fi
 	dmg="$${dmg_files[0]}"
 	mount_point=$$(mktemp -d)
 	hdiutil attach "$$dmg" -mountpoint "$$mount_point" -nobrowse

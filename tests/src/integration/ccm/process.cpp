@@ -16,9 +16,11 @@
 
 #include "process.hpp"
 
+#include <cstdlib>
 #include <iostream>
 #include <sstream>
 #include <string.h>
+#include <unistd.h>
 
 #include <uv.h>
 
@@ -30,6 +32,49 @@
 #define LOG_ERROR(message) LOG_MESSAGE(message, true)
 
 namespace utils {
+
+namespace {
+
+bool has_directory_separator(const std::string& file) {
+  return file.find('/') != std::string::npos;
+}
+
+bool is_executable(const std::string& file) { return access(file.c_str(), X_OK) == 0; }
+
+std::string resolve_executable(const std::string& file) {
+  if (file.empty() || has_directory_separator(file)) {
+    return file;
+  }
+
+  const char* path_env = getenv("PATH");
+  if (path_env == NULL) {
+    return file;
+  }
+
+  std::string path(path_env);
+  size_t offset = 0;
+  while (offset <= path.size()) {
+    size_t next = path.find(':', offset);
+    std::string directory = path.substr(offset, next - offset);
+    if (directory.empty()) {
+      directory = ".";
+    }
+
+    std::string candidate = directory + "/" + file;
+    if (is_executable(candidate)) {
+      return candidate;
+    }
+
+    if (next == std::string::npos) {
+      break;
+    }
+    offset = next + 1;
+  }
+
+  return file;
+}
+
+} // namespace
 
 Process::Result Process::execute(const Args& command) {
   Result result;
@@ -62,7 +107,8 @@ Process::Result Process::execute(const Args& command) {
   args.push_back(NULL);
   options.args = const_cast<char**>(&args[0]);
   options.exit_cb = Process::on_exit;
-  options.file = command[0].c_str();
+  std::string executable = resolve_executable(command[0]);
+  options.file = executable.c_str();
 
   // Spawn the process
   uv_process_t process;
