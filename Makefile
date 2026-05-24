@@ -10,6 +10,7 @@ ifeq ($(OS),Windows_NT)
 else
     # Keep pip-installed tools like `ccm` visible to make recipes.
     export PATH := $(HOME)/.local/bin:$(PATH)
+    CCM_BIN := $(shell command -v ccm 2>/dev/null || printf '%s' "$(HOME)/.local/bin/ccm")
 endif
 
 UNAME_S := $(shell uname -s)
@@ -245,7 +246,7 @@ install-clang-format-if-missing: update-apt-cache-if-needed
 	)
 
 install-ccm-if-missing:
-	@ccm list >/dev/null 2>&1 || (
+	@$(CCM_BIN) list >/dev/null 2>&1 || (
 		echo "CCM not found in the system, install it."
 		pip3 install --user https://github.com/scylladb/scylla-ccm/archive/${CCM_COMMIT_ID}.zip
 	)
@@ -434,14 +435,14 @@ download-ccm-scylla-image: install-ccm-if-missing
 	@echo "Downloading scylla ${SCYLLA_VERSION} CCM image"
 	@rm -rf /tmp/download-scylla.ccm || true
 	@mkdir /tmp/download-scylla.ccm || true
-	@ccm create ccm_1 -i 127.0.1. -n 3:0 -v "${SCYLLA_VERSION}" --scylla --config-dir=/tmp/download-scylla.ccm
+	@$(CCM_BIN) create ccm_1 -i 127.0.1. -n 3:0 -v "${SCYLLA_VERSION}" --scylla --config-dir=/tmp/download-scylla.ccm
 	@rm -rf /tmp/download-scylla.ccm
 
 download-ccm-cassandra-image: install-ccm-if-missing
 	@echo "Downloading cassandra ${CASSANDRA_VERSION} CCM image"
 	@rm -rf /tmp/download-cassandra.ccm || true
 	@mkdir /tmp/download-cassandra.ccm || true
-	@ccm create ccm_1 -i 127.0.1. -n 3:0 -v "${CASSANDRA_VERSION}" --config-dir=/tmp/download-cassandra.ccm
+	@$(CCM_BIN) create ccm_1 -i 127.0.1. -n 3:0 -v "${CASSANDRA_VERSION}" --config-dir=/tmp/download-cassandra.ccm
 	@rm -rf /tmp/download-cassandra.ccm
 
 run-test-integration-scylla: .prepare-environment-update-aio-max-nr
