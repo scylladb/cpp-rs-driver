@@ -8,9 +8,11 @@ ifeq ($(OS),Windows_NT)
     SHELL := pwsh.exe
     .SHELLFLAGS := -NoProfile -Command $$ErrorActionPreference = 'Stop';
 else
-    # Prefer the repo-local CCM shim, which can fall back to the pip-installed
-    # package from Python's user base when the console script is unavailable.
+    # Prefer the repo-local CCM shim, which can execute the cloned upstream tree
+    # and still fall back to a user-installed console script when present.
     export PATH := $(HOME)/.local/bin:$(CURDIR)/ci:$(PATH)
+    CCM_SOURCE_DIR ?= $(HOME)/.ccm/scylla-ccm
+    export CCM_SOURCE_DIR
     CCM_BIN ?= $(CURDIR)/ci/ccm
     export CCM_BIN
 endif
@@ -182,6 +184,10 @@ ifndef CCM_COMMIT_ID
 	export CCM_COMMIT_ID := master
 endif
 
+ifndef CCM_PIP_DEPENDENCIES
+	CCM_PIP_DEPENDENCIES := ruamel-yaml psutil requests packaging boto3 tqdm urllib3
+endif
+
 ifndef SCYLLA_VERSION
 	SCYLLA_VERSION := release:2025.3
 endif
@@ -250,17 +256,17 @@ install-clang-format-if-missing: update-apt-cache-if-needed
 install-ccm-if-missing:
 	@$(CCM_BIN) list >/dev/null 2>&1 || (
 		echo "CCM not found in the system, install it."
-		tmp_ccm_dir=$$(mktemp -d) && \
-		trap 'rm -rf "$$tmp_ccm_dir"' EXIT && \
-		git clone --depth 1 --branch "${CCM_COMMIT_ID}" https://github.com/scylladb/scylla-ccm.git "$$tmp_ccm_dir" && \
-		python3 -m pip install --user "$$tmp_ccm_dir"
+		mkdir -p "$(dir $(CCM_SOURCE_DIR))" && \
+		rm -rf "$(CCM_SOURCE_DIR)" && \
+		git clone --depth 1 --branch "${CCM_COMMIT_ID}" https://github.com/scylladb/scylla-ccm.git "$(CCM_SOURCE_DIR)" && \
+		python3 -m pip install --user ${CCM_PIP_DEPENDENCIES}
 	)
 
 install-ccm:
-	@tmp_ccm_dir=$$(mktemp -d) && \
-	trap 'rm -rf "$$tmp_ccm_dir"' EXIT && \
-	git clone --depth 1 --branch "${CCM_COMMIT_ID}" https://github.com/scylladb/scylla-ccm.git "$$tmp_ccm_dir" && \
-	python3 -m pip install --user "$$tmp_ccm_dir"
+	@mkdir -p "$(dir $(CCM_SOURCE_DIR))" && \
+	rm -rf "$(CCM_SOURCE_DIR)" && \
+	git clone --depth 1 --branch "${CCM_COMMIT_ID}" https://github.com/scylladb/scylla-ccm.git "$(CCM_SOURCE_DIR)" && \
+	python3 -m pip install --user ${CCM_PIP_DEPENDENCIES}
 
 install-java8-if-missing:
 	@dpkg -l openjdk-8-jre >/dev/null 2>&1 && exit 0
