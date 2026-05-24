@@ -72,8 +72,7 @@ jobs:
 
       - name: Install CCM
         run: |
-          export PATH="$HOME/.local/bin:$PATH"
-          make install-ccm-if-missing
+          PATH="$HOME/.local/bin:$PATH" make install-ccm-if-missing
 
       - name: Select scylla filter
         id: scylla-filter
@@ -127,8 +126,7 @@ jobs:
       - name: Download Scylla (${{ steps.scylla-version-value.outputs.value }}) image
         if: steps.pull-image.outputs.cache-hit != 'true'
         run: |
-          export PATH="$HOME/.local/bin:$PATH"
-          SCYLLA_VERSION="release:${{ steps.scylla-version-value.outputs.value }}" make download-ccm-scylla-image
+          PATH="$HOME/.local/bin:$PATH" SCYLLA_VERSION="release:${{ steps.scylla-version-value.outputs.value }}" make download-ccm-scylla-image
 
       - name: Save CCM image cache
         uses: actions/cache/save@v4
@@ -155,8 +153,7 @@ jobs:
       - name: Run integration tests on Scylla ${{ steps.scylla-version-value.outputs.value }}
         id: run-integration-tests
         run: |
-          export PATH="$HOME/.local/bin:$PATH"
-          SCYLLA_VERSION="release:${{ steps.scylla-version-value.outputs.value }}" make run-test-integration-scylla
+          PATH="$HOME/.local/bin:$PATH" SCYLLA_VERSION="release:${{ steps.scylla-version-value.outputs.value }}" make run-test-integration-scylla
 
       - name: Upload test logs
         uses: actions/upload-artifact@v4
@@ -197,8 +194,7 @@ jobs:
 
       - name: Install CCM
         run: |
-          export PATH="$HOME/.local/bin:$PATH"
-          make install-ccm-if-missing
+          PATH="$HOME/.local/bin:$PATH" make install-ccm-if-missing
 
       - name: Get cassandra version
         id: cassandra-version
@@ -227,8 +223,7 @@ jobs:
       - name: Download Cassandra (${{ steps.cassandra-version-value.outputs.value }}) image
         if: steps.pull-image.outputs.cache-hit != 'true'
         run: |
-          export PATH="$HOME/.local/bin:$PATH"
-          CASSANDRA_VERSION="${{ steps.cassandra-version-value.outputs.value }}" make download-ccm-cassandra-image
+          PATH="$HOME/.local/bin:$PATH" CASSANDRA_VERSION="${{ steps.cassandra-version-value.outputs.value }}" make download-ccm-cassandra-image
 
       - name: Save CCM image cache
         uses: actions/cache/save@v4
@@ -252,11 +247,10 @@ jobs:
       - name: Prepare environment
         run: make update-rust-tooling prepare-integration-test
 
-      - name: Run integration tests on Cassandra ${{ steps.cassandra-version.outputs.value }}
+      - name: Run integration tests on Cassandra ${{ steps.cassandra-version-value.outputs.value }}
         id: run-integration-tests
         run: |
-          export PATH="$HOME/.local/bin:$PATH"
-          CASSANDRA_VERSION="${{ steps.cassandra-version.outputs.value }}" make run-test-integration-cassandra
+          PATH="$HOME/.local/bin:$PATH" CASSANDRA_VERSION="${{ steps.cassandra-version-value.outputs.value }}" make run-test-integration-cassandra
 
       - name: Upload test logs
         uses: actions/upload-artifact@v4
