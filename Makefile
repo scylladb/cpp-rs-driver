@@ -7,6 +7,9 @@ SHELL := bash
 ifeq ($(OS),Windows_NT)
     SHELL := pwsh.exe
     .SHELLFLAGS := -NoProfile -Command $$ErrorActionPreference = 'Stop';
+else
+    # Keep pip-installed tools like `ccm` visible to make recipes.
+    export PATH := $(HOME)/.local/bin:$(PATH)
 endif
 
 UNAME_S := $(shell uname -s)
