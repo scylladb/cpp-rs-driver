@@ -221,7 +221,7 @@ install-app-msi:
 install-driver-dev-deb:
 	@shopt -s nullglob
 	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver-dev_*.deb)
-	package_name="scylla-rs-driver dev DEB"
+	package_name="scylla-cpp-driver-dev DEB"
 	${VALIDATE_SINGLE_PACKAGE}
 	${MAYBE_SUDO}
 	runtime_packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver_*.deb)
@@ -235,13 +235,13 @@ install-driver-dev-deb:
 install-driver-deb:
 	@shopt -s nullglob;
 	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver_*.deb)
-	package_name="scylla-rs-driver DEB"
+	package_name="scylla-cpp-driver DEB"
 	${INSTALL_PACKAGE_SCRIPT}
 
 install-driver-dev-rpm:
 	@shopt -s nullglob
 	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver-devel_*.rpm)
-	package_name="scylla-rs-driver dev RPM"
+	package_name="scylla-cpp-driver-devel RPM"
 	${VALIDATE_SINGLE_PACKAGE}
 	${MAYBE_SUDO}
 	runtime_packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver_*.rpm)
@@ -255,13 +255,13 @@ install-driver-dev-rpm:
 install-driver-rpm:
 	@shopt -s nullglob
 	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver_*.rpm)
-	package_name="scylla-rs-driver RPM"
+	package_name="scylla-cpp-driver RPM"
 	${INSTALL_PACKAGE_SCRIPT}
 
 verify-driver-dev-deb:
 	@shopt -s nullglob
 	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver-dev_*.deb)
-	package_name="scylla-rs-driver dev DEB"
+	package_name="scylla-cpp-driver-dev DEB"
 	${VALIDATE_SINGLE_PACKAGE}
 	version=$$(dpkg-deb -f "$$package" Version)
 	depends=$$(dpkg-deb -f "$$package" Depends)
@@ -274,7 +274,7 @@ verify-driver-dev-deb:
 verify-driver-dev-rpm:
 	@shopt -s nullglob
 	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver-devel_*.rpm)
-	package_name="scylla-rs-driver dev RPM"
+	package_name="scylla-cpp-driver-devel RPM"
 	${VALIDATE_SINGLE_PACKAGE}
 	version=$$(rpm -qp --queryformat '%{VERSION}-%{RELEASE}' "$$package")
 	requires=$$(rpm -qp --requires "$$package")
@@ -287,13 +287,13 @@ verify-driver-dev-rpm:
 install-driver-dev-pkg:
 	@shopt -s nullglob
 	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver-dev_*.pkg)
-	package_name="scylla-rs-driver dev PKG"
+	package_name="scylla-cpp-driver-dev PKG"
 	${INSTALL_PACKAGE_SCRIPT}
 
 install-driver-pkg:
 	@shopt -s nullglob
 	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver_*.pkg)
-	package_name="scylla-rs-driver PKG"
+	package_name="scylla-cpp-driver PKG"
 	${INSTALL_PACKAGE_SCRIPT}
 
 install-driver-dev-dmg:
@@ -385,37 +385,37 @@ remove-app-rpm:
 remove-driver-dev-deb:
 	@shopt -s nullglob
 	packages=(${MAKEFILE_PATH}/../../build/*-dev*.deb)
-	package_name="scylla-rs-driver dev DEB"
+	package_name="scylla-cpp-driver-dev DEB"
 	${REMOVE_PACKAGE_SCRIPT}
 
 remove-driver-deb:
 	@shopt -s nullglob
 	packages=(${MAKEFILE_PATH}/../../build/*scylla_cpp_driver_*.deb)
-	package_name="scylla-rs-driver DEB"
+	package_name="scylla-cpp-driver DEB"
 	${REMOVE_PACKAGE_SCRIPT}
 
 remove-driver-dev-rpm:
 	@shopt -s nullglob
 	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver-devel_*.rpm)
-	package_name="scylla-rs-driver dev RPM"
+	package_name="scylla-cpp-driver-devel RPM"
 	${REMOVE_PACKAGE_SCRIPT}
 
 remove-driver-rpm:
 	@shopt -s nullglob
 	packages=(${MAKEFILE_PATH}/../../build/*-cpp_driver.rpm)
-	package_name="scylla-rs-driver RPM"
+	package_name="scylla-cpp-driver RPM"
 	${REMOVE_PACKAGE_SCRIPT}
 
 remove-driver-dev-pkg:
 	@shopt -s nullglob
 	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver-dev_*.pkg)
-	package_name="scylla-rs-driver dev PKG"
+	package_name="scylla-cpp-driver-dev PKG"
 	${REMOVE_PACKAGE_SCRIPT}
 
 remove-driver-pkg:
 	@shopt -s nullglob
 	packages=(${MAKEFILE_PATH}/../../build/*-scylla_cpp_driver.pkg)
-	package_name="scylla-rs-driver PKG"
+	package_name="scylla-cpp-driver PKG"
 	${REMOVE_PACKAGE_SCRIPT}
 
 remove-driver-dev-dmg:
