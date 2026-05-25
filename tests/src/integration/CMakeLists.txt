@@ -62,8 +62,8 @@ target_include_directories(cassandra-integration-tests PRIVATE
   ${CASS_INCLUDES})
 
 target_link_libraries(cassandra-integration-tests
-  ${CASS_LIBS}
   ${PROJECT_LIB_NAME_TARGET}
+  ${CASS_LIBS}
   ${INTEGRATION_TESTS_LIBSSH2_LIBRARIES})
 
 set_target_properties(cassandra-integration-tests PROPERTIES
@@ -83,4 +83,7 @@ set_target_properties(cassandra-integration-tests PROPERTIES
 
 if(LIBSSH2_LIBRARY_NAME) # Handle ExternalProject dependency
   add_dependencies(cassandra-integration-tests ${LIBSSH2_LIBRARY_NAME})
+endif()
+if(LIBUV_LIBRARY_NAME) # Handle ExternalProject dependency
+  add_dependencies(cassandra-integration-tests ${LIBUV_LIBRARY_NAME})
 endif()

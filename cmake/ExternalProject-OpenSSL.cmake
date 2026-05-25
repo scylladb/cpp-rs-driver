@@ -44,6 +44,10 @@ endif()
 
 # OpenSSL external project variables
 set(OPENSSL_LIBRARY_NAME "openssl-${OPENSSL_VERSION}-library")
+set(SCYLLA_OPENSSL_EXTERNAL_PROJECT ON CACHE BOOL
+  "Whether Scylla builds OpenSSL via ExternalProject" FORCE)
+set(SCYLLA_OPENSSL_EXTERNAL_TARGET "${OPENSSL_LIBRARY_NAME}" CACHE STRING
+  "Name of the ExternalProject target that builds OpenSSL" FORCE)
 set(OPENSSL_PROJECT_PREFIX ${CMAKE_BINARY_DIR}/external/openssl)
 set(OPENSSL_ARCHIVE_URL_PREFIX "https://github.com/openssl/openssl/archive/")
 set(OPENSSL_ARCHIVE_URL_SUFFIX ".tar.gz")

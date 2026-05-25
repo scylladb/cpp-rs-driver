@@ -9,7 +9,6 @@ on:
 env:
   CARGO_TERM_COLOR: always
   # Should include `INTEGRATION_TEST_BIN` from the `Makefile`
-  # TODO: Remove `build/libscylla-cpp-driver.*` after https://github.com/scylladb/cpp-rs-driver/issues/164 is fixed.
   INTEGRATION_TEST_BIN: |
     build/cassandra-integration-tests
     build/libscylla-cpp-driver.*
@@ -44,6 +43,11 @@ jobs:
       - name: Build integration test binary
         id: build-integration-test-bin
         run: make build-integration-test-bin
+
+      - name: Verify static linking builds (regression test for issue #164)
+        run: |
+          make build-static-integration-test-bin
+          rm -rf build-static
 
       - name: Save integration test binary
         uses: actions/cache/save@v4
