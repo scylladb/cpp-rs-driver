@@ -5,7 +5,7 @@ other information / procedures useful for maintainers. It is heavily inspired by
 
 ## Documentation
 
-TODO (no docs written yet)
+Comprehensive Sphinx-compatible documentation lives at /docs.
 Note: Due to API compatibility, cpp-driver docs apply to cpp-rs-driver in general. Though, some discrepancies should be well-documented in cpp-rs-driver (some of them are already mentioned in `cassandra.h`).
 
 ## Version bump commit
