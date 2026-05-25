@@ -4,9 +4,17 @@ SPACE := ${EMPTY} ${EMPTY}
 
 SHELL := bash
 .SHELLFLAGS := -ec
+
+CCM_INSTALL_DIR ?= $(HOME)/.local/share/scylla-ccm
+CCM_REPOSITORY ?= https://github.com/scylladb/scylla-ccm.git
+
 ifeq ($(OS),Windows_NT)
     SHELL := pwsh.exe
     .SHELLFLAGS := -NoProfile -Command $$ErrorActionPreference = 'Stop';
+else
+    export PATH := $(CCM_INSTALL_DIR):$(HOME)/.local/bin:$(PATH)
+    export PERL5LIB := $(CCM_INSTALL_DIR):$(PERL5LIB)
+    export PYTHONPATH := $(CCM_INSTALL_DIR):$(PYTHONPATH)
 endif
 
 UNAME_S := $(shell uname -s)
@@ -244,11 +252,21 @@ install-clang-format-if-missing: update-apt-cache-if-needed
 install-ccm-if-missing:
 	@ccm list >/dev/null 2>&1 || (
 		echo "CCM not found in the system, install it."
-		pip3 install --user https://github.com/scylladb/scylla-ccm/archive/${CCM_COMMIT_ID}.zip
+		$(MAKE) install-ccm
 	)
 
 install-ccm:
-	@pip3 install --user https://github.com/scylladb/scylla-ccm/archive/${CCM_COMMIT_ID}.zip
+	@echo "Installing CCM from ${CCM_REPOSITORY}@${CCM_COMMIT_ID}"
+	rm -rf "${CCM_INSTALL_DIR}.tmp"
+	mkdir -p "$$(dirname "${CCM_INSTALL_DIR}")"
+	git clone --filter=blob:none --depth 1 --no-checkout "${CCM_REPOSITORY}" "${CCM_INSTALL_DIR}.tmp"
+	git -C "${CCM_INSTALL_DIR}.tmp" fetch --depth 1 origin "${CCM_COMMIT_ID}"
+	git -C "${CCM_INSTALL_DIR}.tmp" checkout --detach FETCH_HEAD
+	pip3 install --user ruamel-yaml psutil requests packaging boto3 tqdm urllib3
+	chmod +x "${CCM_INSTALL_DIR}.tmp/ccm"
+	rm -rf "${CCM_INSTALL_DIR}"
+	mv "${CCM_INSTALL_DIR}.tmp" "${CCM_INSTALL_DIR}"
+	ccm list >/dev/null
 
 install-java8-if-missing:
 	@dpkg -l openjdk-8-jre >/dev/null 2>&1 && exit 0

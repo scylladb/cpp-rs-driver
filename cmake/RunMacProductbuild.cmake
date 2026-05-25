@@ -40,9 +40,9 @@ if(DEFINED CPACK_EXECUTABLE AND NOT CPACK_EXECUTABLE STREQUAL "")
   set(_cpack_executable "${CPACK_EXECUTABLE}")
 endif()
 
-# Split CPACK_PACKAGE_FILE_NAME (e.g. "scylla_cpp_driver_0.1.0") into:
+# Split CPACK_PACKAGE_FILE_NAME (e.g. "scylla_cpp_driver_0.1.0_macos") into:
 #   _base_name = "scylla_cpp_driver"   (component/package name)
-#   _suffix    = "0.1.0"               (version)
+#   _suffix    = "0.1.0_macos"         (version + platform)
 # The regex anchors on the last underscore followed by a digit (start of version).
 string(REGEX MATCH "^(.+)_([0-9].*)$" _matched "${CPACK_PACKAGE_FILE_NAME}")
 if(NOT _matched)

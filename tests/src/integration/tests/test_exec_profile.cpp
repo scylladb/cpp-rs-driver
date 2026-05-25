@@ -267,9 +267,12 @@ CASSANDRA_INTEGRATION_TEST_F(ExecutionProfileTest, RequestTimeout) {
   ASSERT_EQ(CASS_OK, result.error_code());
 
   // Execute a batched query with assigned profile (should timeout)
-  // NOTE: Selects are not allowed in batches but is OK for this test case
+  Statement batch_statement(
+      format_string("INSERT INTO %s (key, value) VALUES (?, ?)", table_name_.c_str()), 2);
+  batch_statement.bind<Text>(0, Text(test_name_ + "_batch_timeout"));
+  batch_statement.bind<Integer>(1, Integer(1000));
   Batch batch;
-  batch.add(statement);
+  batch.add(batch_statement);
   batch.set_execution_profile("request_timeout");
   batch.set_sleep_time(10); // Simulate >=10ms latency (well above 1ms timeout)
   result = session_.execute(batch, false);
