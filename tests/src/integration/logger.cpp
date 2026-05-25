@@ -32,11 +32,13 @@ using namespace test::driver;
 #ifdef _WIN32
 #define FILE_MODE 0
 #define LOCALTIME(tm, time) localtime_s(tm, time)
+#define GMTIME(tm, time) gmtime_s(tm, time)
 #include <io.h>
 #define IS_STDERR_TTY() _isatty(_fileno(stderr))
 #else
 #define FILE_MODE S_IRWXU | S_IRWXG | S_IROTH
 #define LOCALTIME(tm, time) localtime_r(time, tm)
+#define GMTIME(tm, time) gmtime_r(time, tm)
 #include <unistd.h>
 #define IS_STDERR_TTY() isatty(STDERR_FILENO)
 #endif
@@ -147,7 +149,14 @@ void Logger::log(const CassLogMessage* log, void* data) {
       default: color = "\033[31m"; break;
     }
   }
-  std::cerr << log->time_ms << " [" << color << severity << reset << "] "
+  cass_uint64_t const epoch_secs = log->time_ms / 1000;
+  unsigned short const ms = log->time_ms % 1000;
+  time_t const raw = static_cast<time_t>(epoch_secs);
+  struct tm utc;
+  GMTIME(&utc, &raw);
+  char ts[24];
+  strftime(ts, sizeof(ts), "%Y-%m-%dT%H:%M:%S", &utc);
+  std::cerr << ts << "." << std::setfill('0') << std::setw(3) << ms << "Z" << " [" << color << severity << reset << "] "
             << dim << "(" << log->file << ":" << log->line << ")" << reset
             << " " << message << std::endl;
 
