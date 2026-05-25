@@ -523,24 +523,34 @@ endif
 #   make test-package-msi          # Test MSI packages (Windows)
 # =============================================================================
 
+define MAYBE_SUDO
+	if [ "$$(id -u)" -eq 0 ]; then SUDO=""; else SUDO="sudo"; fi
+endef
+
 SMOKE_TEST_DIR := packaging/smoke-test-app
 
 # DEB package testing (Ubuntu/Debian)
 test-package-deb: build-package
 	@echo "=== Testing DEB packages ==="
+	$(MAYBE_SUDO)
+	$$SUDO rm -rf $(SMOKE_TEST_DIR)/build
+	$(MAKE) -C $(SMOKE_TEST_DIR) verify-driver-dev-deb
+	$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-dev-deb || true
+	$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-deb || true
 	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-dev-deb
-	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-deb
 	$(MAKE) -C $(SMOKE_TEST_DIR) build-package CPACK_GENERATORS=DEB
 	$(MAKE) -C $(SMOKE_TEST_DIR) install-app-deb
 	$(MAKE) -C $(SMOKE_TEST_DIR) test-app-package
 	@echo "=== DEB package test completed successfully ==="
 	$(MAKE) -C $(SMOKE_TEST_DIR) remove-app-deb || true
-	$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-deb || true
 	$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-dev-deb || true
+	$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-deb || true
 
 # RPM package testing (runs in Fedora container for compatibility)
 test-package-rpm: build-package
 	@echo "=== Testing RPM packages in Fedora container ==="
+	$(MAYBE_SUDO)
+	$$SUDO rm -rf $(SMOKE_TEST_DIR)/build
 	docker compose -f $(SMOKE_TEST_DIR)/docker-compose.yml up -d --wait
 	docker run --rm \
 		-v "$(CURRENT_DIR):/workspace" \
@@ -549,9 +559,11 @@ test-package-rpm: build-package
 		fedora:latest \
 		bash -c ' \
 			set -euo pipefail; \
-			dnf -y install make cmake gcc-c++ findutils rpm-build; \
+			dnf -y install make cmake gcc-c++ findutils rpm-build createrepo_c; \
+			$(MAKE) -C $(SMOKE_TEST_DIR) verify-driver-dev-rpm; \
+			$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-dev-rpm || true; \
+			$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-rpm || true; \
 			$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-dev-rpm; \
-			$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-rpm; \
 			pc_file=$$(find /usr -name "scylla-cpp-driver.pc" 2>/dev/null | head -1); \
 			if [ -n "$$pc_file" ]; then \
 				pc_dir=$$(dirname "$$pc_file"); \
@@ -580,15 +592,20 @@ SCYLLA_HOST ?= 127.0.0.1
 SKIP_DOCKER_COMPOSE ?=
 test-package-rpm-native: build-package
 	@echo "=== Testing RPM packages (native) ==="
+	$(MAYBE_SUDO)
+	$$SUDO rm -rf $(SMOKE_TEST_DIR)/build
+	dnf -y install createrepo_c
+	$(MAKE) -C $(SMOKE_TEST_DIR) verify-driver-dev-rpm
+	$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-dev-rpm || true
+	$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-rpm || true
 	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-dev-rpm
-	$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-rpm
 	$(MAKE) -C $(SMOKE_TEST_DIR) build-package CPACK_GENERATORS=RPM
 	$(MAKE) -C $(SMOKE_TEST_DIR) install-app-rpm
 	$(MAKE) -C $(SMOKE_TEST_DIR) test-app-package SCYLLA_HOST=$(SCYLLA_HOST) SKIP_DOCKER_COMPOSE=$(SKIP_DOCKER_COMPOSE)
 	@echo "=== RPM package test completed successfully ==="
 	$(MAKE) -C $(SMOKE_TEST_DIR) remove-app-rpm || true
-	$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-rpm || true
 	$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-dev-rpm || true
+	$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-rpm || true
 
 # macOS PKG package testing
 test-package-pkg: build-package
@@ -629,7 +646,8 @@ test-package-msi: .windows-setup-wix build-package
 # Combined Linux package testing (DEB + RPM)
 test-package-linux:
 	$(MAKE) test-package-deb
-	rm -rf $(SMOKE_TEST_DIR)/build
+	$(MAYBE_SUDO)
+	$$SUDO rm -rf $(SMOKE_TEST_DIR)/build
 	$(MAKE) test-package-rpm
 
 # Windows package testing (MSI)
@@ -638,7 +656,8 @@ test-package-windows: test-package-msi
 # Combined macOS package testing (PKG + DMG)
 test-package-macos:
 	$(MAKE) test-package-pkg
-	rm -rf $(SMOKE_TEST_DIR)/build
+	$(MAYBE_SUDO)
+	$$SUDO rm -rf $(SMOKE_TEST_DIR)/build
 	$(MAKE) test-package-dmg
 
 # OS-specific default test-package target
