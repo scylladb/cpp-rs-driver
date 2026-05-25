@@ -42,11 +42,11 @@ endif
 define VALIDATE_SINGLE_PACKAGE
 	set -euo pipefail
 	if [ "$${#packages[@]}" -eq 0 ]; then
-		echo "No ${package_name} package found"
+		echo "No $${package_name} package found"
 		exit 1
 	fi
 	if [ "$${#packages[@]}" -gt 1 ]; then
-		echo "Found more than one file for ${package_name}: $${packages[@]}"
+		echo "Found more than one file for $${package_name}: $${packages[@]}"
 		exit 1
 	fi
 	package=$${packages[0]}
