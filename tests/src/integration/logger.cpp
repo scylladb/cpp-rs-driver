@@ -125,7 +125,11 @@ void Logger::log(const CassLogMessage* log, void* data) {
   // Create the formatted log message and output to the file
   std::string severity = cass_log_level_string(log->severity);
   logger->output_ << date.str() << " " << time.str() << " " << severity << ": " << message << " ("
-                  << log->file << ":" << log->line << ") " << std::endl;
+                   << log->file << ":" << log->line << ") " << std::endl;
+
+  // Also log to stderr so that CI output captures driver logs in real-time.
+  std::cerr << log->time_ms << " [" << severity << "] ("
+            << log->file << ":" << log->line << ") " << message << std::endl;
 
   // Determine if the log message matches any of the criteria
   for (std::vector<std::string>::const_iterator iterator = logger->search_criteria_.begin();
