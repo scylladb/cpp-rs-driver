@@ -32,9 +32,13 @@ using namespace test::driver;
 #ifdef _WIN32
 #define FILE_MODE 0
 #define LOCALTIME(tm, time) localtime_s(tm, time)
+#include <io.h>
+#define IS_STDERR_TTY() _isatty(_fileno(stderr))
 #else
 #define FILE_MODE S_IRWXU | S_IRWXG | S_IROTH
 #define LOCALTIME(tm, time) localtime_r(time, tm)
+#include <unistd.h>
+#define IS_STDERR_TTY() isatty(STDERR_FILENO)
 #endif
 
 Logger::Logger()
@@ -128,8 +132,24 @@ void Logger::log(const CassLogMessage* log, void* data) {
                    << log->file << ":" << log->line << ") " << std::endl;
 
   // Also log to stderr so that CI output captures driver logs in real-time.
-  std::cerr << log->time_ms << " [" << severity << "] ("
-            << log->file << ":" << log->line << ") " << message << std::endl;
+  static bool use_color = IS_STDERR_TTY();
+  const char* color = "";
+  const char* reset = "";
+  const char* dim = "";
+  if (use_color) {
+    reset = "\033[0m";
+    dim = "\033[2m";
+    switch (log->severity) {
+      case CASS_LOG_TRACE: color = "\033[35m"; break;
+      case CASS_LOG_DEBUG: color = "\033[34m"; break;
+      case CASS_LOG_INFO: color = "\033[32m"; break;
+      case CASS_LOG_WARN: color = "\033[33m"; break;
+      default: color = "\033[31m"; break;
+    }
+  }
+  std::cerr << log->time_ms << " [" << color << severity << reset << "] "
+            << dim << "(" << log->file << ":" << log->line << ")" << reset
+            << " " << message << std::endl;
 
   // Determine if the log message matches any of the criteria
   for (std::vector<std::string>::const_iterator iterator = logger->search_criteria_.begin();
