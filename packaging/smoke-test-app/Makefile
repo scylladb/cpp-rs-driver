@@ -42,11 +42,11 @@ endif
 define VALIDATE_SINGLE_PACKAGE
 	set -euo pipefail
 	if [ "$${#packages[@]}" -eq 0 ]; then
-		echo "No ${package_name} package found"
+		echo "No $${package_name} package found"
 		exit 1
 	fi
 	if [ "$${#packages[@]}" -gt 1 ]; then
-		echo "Found more than one file for ${package_name}: $${packages[@]}"
+		echo "Found more than one file for $${package_name}: $${packages[@]}"
 		exit 1
 	fi
 	package=$${packages[0]}
@@ -110,6 +110,37 @@ define REMOVE_PACKAGE_SCRIPT
 	fi
 endef
 
+# Shared setup for temporary local repositories used by dev-package tests.
+define PREPARE_TEMP_REPO
+	repo_dir=$$(mktemp -d)
+	cleanup() { $$SUDO rm -rf "$$repo_dir"; }
+	trap cleanup EXIT
+	cp "$$package" "$$repo_dir"/
+	cp "$${runtime_packages[0]}" "$$repo_dir"/
+endef
+
+define PREPARE_TEMP_DEB_REPO
+	# Step 1: create a throw-away apt repository workspace and stage both packages.
+	$(PREPARE_TEMP_REPO)
+
+	# Step 2: generate apt metadata so dependency resolution can see both packages.
+	(cd "$$repo_dir" && dpkg-scanpackages . /dev/null > Packages && gzip -9c Packages > Packages.gz)
+	mkdir -p "$$repo_dir/lists/partial"
+	chmod -R a+rX "$$repo_dir"
+	$$SUDO chown -R _apt:root "$$repo_dir/lists"
+	echo "deb [trusted=yes] file:$$repo_dir ./" > "$$repo_dir/sources.list"
+	$$SUDO apt-get -o Acquire::Languages=none -o Dir::Etc::sourcelist="$$repo_dir/sources.list" -o Dir::Etc::sourceparts=- -o Dir::State::lists="$$repo_dir/lists" update
+endef
+
+define PREPARE_TEMP_RPM_REPO
+	# Step 1: create a throw-away dnf repository workspace and stage both packages.
+	$(PREPARE_TEMP_REPO)
+
+	# Step 2: generate repo metadata so dnf can resolve the runtime dependency.
+	createrepo_c "$$repo_dir" >/dev/null
+	chmod -R a+rX "$$repo_dir"
+endef
+
 ifeq ($(OS_TYPE),windows)
 build-package:
 	@pwsh.exe -NoProfile -Command "\$$ErrorActionPreference = 'Stop'; \$$env:PKG_CONFIG_PATH = '$(DRIVER_INSTALL_PATH)/lib/pkgconfig'; cmake -S . -B '$(BUILD_DIR)' -G 'Visual Studio 17 2022' -A x64 -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) $(CMAKE_FLAGS); cmake --build '$(BUILD_DIR)' --config $(BUILD_TYPE); Push-Location '$(BUILD_DIR)'; foreach (\$$gen in '$(CPACK_GENERATORS)'.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries)) { cpack -G \$$gen -C $(BUILD_TYPE) }; Pop-Location"
@@ -158,6 +189,14 @@ else
 .prepare-for-test:
 endif
 
+# Smoke-test packaging flow:
+# - build the smoke app package from this tree
+# - install the driver runtime or dev artifact under test
+# - install the smoke app package and run it against ScyllaDB
+#
+# The dev-package helpers create throw-away local repositories so apt/dnf
+# resolve the runtime package from the packages produced by this build.
+
 install-app-pkg:
 	@shopt -s nullglob
 	packages=($(BUILD_DIR)/scylla-cpp-driver-smoke-app-*.pkg)
@@ -182,37 +221,79 @@ install-app-msi:
 install-driver-dev-deb:
 	@shopt -s nullglob
 	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver-dev_*.deb)
-	package_name="scylla-rs-driver dev DEB"
-	${INSTALL_PACKAGE_SCRIPT}
+	package_name="scylla-cpp-driver-dev DEB"
+	${VALIDATE_SINGLE_PACKAGE}
+	${MAYBE_SUDO}
+	runtime_packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver_*.deb)
+	if [ "$${#runtime_packages[@]}" -ne 1 ]; then echo "No scylla-rs-driver runtime DEB package found"; exit 1; fi
+	${PREPARE_TEMP_DEB_REPO}
+	# Install the dev package from the temporary repo and exercise apt's resolver.
+	$$SUDO apt-get -o Acquire::Languages=none -o Dir::Etc::sourcelist="$$repo_dir/sources.list" -o Dir::Etc::sourceparts=- -o Dir::State::lists="$$repo_dir/lists" install -y scylla-cpp-driver-dev
+	dpkg -s scylla-cpp-driver >/dev/null
+	dpkg -s scylla-cpp-driver-dev >/dev/null
 
 install-driver-deb:
 	@shopt -s nullglob;
 	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver_*.deb)
-	package_name="scylla-rs-driver DEB"
+	package_name="scylla-cpp-driver DEB"
 	${INSTALL_PACKAGE_SCRIPT}
 
 install-driver-dev-rpm:
 	@shopt -s nullglob
 	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver-devel_*.rpm)
-	package_name="scylla-rs-driver dev RPM"
-	${INSTALL_PACKAGE_SCRIPT}
+	package_name="scylla-cpp-driver-devel RPM"
+	${VALIDATE_SINGLE_PACKAGE}
+	${MAYBE_SUDO}
+	runtime_packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver_*.rpm)
+	if [ "$${#runtime_packages[@]}" -ne 1 ]; then echo "No scylla-rs-driver runtime RPM package found"; exit 1; fi
+	${PREPARE_TEMP_RPM_REPO}
+	# Install the dev package from the temporary repo and exercise dnf's resolver.
+	$$SUDO dnf -y --repofrompath=scylla-local,"file://$$repo_dir" --nogpgcheck install scylla-cpp-driver-devel
+	rpm -q scylla-cpp-driver >/dev/null
+	rpm -q scylla-cpp-driver-devel >/dev/null
 
 install-driver-rpm:
 	@shopt -s nullglob
 	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver_*.rpm)
-	package_name="scylla-rs-driver RPM"
+	package_name="scylla-cpp-driver RPM"
 	${INSTALL_PACKAGE_SCRIPT}
+
+verify-driver-dev-deb:
+	@shopt -s nullglob
+	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver-dev_*.deb)
+	package_name="scylla-cpp-driver-dev DEB"
+	${VALIDATE_SINGLE_PACKAGE}
+	version=$$(dpkg-deb -f "$$package" Version)
+	depends=$$(dpkg-deb -f "$$package" Depends)
+	if [[ "$$depends" != *"scylla-cpp-driver (= $$version)"* ]]; then
+		echo "ERROR: $$package_name is missing its runtime dependency"
+		echo "Depends: $$depends"
+		exit 1
+	fi
+
+verify-driver-dev-rpm:
+	@shopt -s nullglob
+	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver-devel_*.rpm)
+	package_name="scylla-cpp-driver-devel RPM"
+	${VALIDATE_SINGLE_PACKAGE}
+	version=$$(rpm -qp --queryformat '%{VERSION}-%{RELEASE}' "$$package")
+	requires=$$(rpm -qp --requires "$$package")
+	if ! printf '%s\n' "$$requires" | grep -Fxq "scylla-cpp-driver = $$version"; then
+		echo "ERROR: $$package_name is missing its runtime dependency"
+		printf '%s\n' "$$requires"
+		exit 1
+	fi
 
 install-driver-dev-pkg:
 	@shopt -s nullglob
 	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver-dev_*.pkg)
-	package_name="scylla-rs-driver dev PKG"
+	package_name="scylla-cpp-driver-dev PKG"
 	${INSTALL_PACKAGE_SCRIPT}
 
 install-driver-pkg:
 	@shopt -s nullglob
 	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver_*.pkg)
-	package_name="scylla-rs-driver PKG"
+	package_name="scylla-cpp-driver PKG"
 	${INSTALL_PACKAGE_SCRIPT}
 
 install-driver-dev-dmg:
@@ -304,37 +385,37 @@ remove-app-rpm:
 remove-driver-dev-deb:
 	@shopt -s nullglob
 	packages=(${MAKEFILE_PATH}/../../build/*-dev*.deb)
-	package_name="scylla-rs-driver dev DEB"
+	package_name="scylla-cpp-driver-dev DEB"
 	${REMOVE_PACKAGE_SCRIPT}
 
 remove-driver-deb:
 	@shopt -s nullglob
 	packages=(${MAKEFILE_PATH}/../../build/*scylla_cpp_driver_*.deb)
-	package_name="scylla-rs-driver DEB"
+	package_name="scylla-cpp-driver DEB"
 	${REMOVE_PACKAGE_SCRIPT}
 
 remove-driver-dev-rpm:
 	@shopt -s nullglob
 	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver-devel_*.rpm)
-	package_name="scylla-rs-driver dev RPM"
+	package_name="scylla-cpp-driver-devel RPM"
 	${REMOVE_PACKAGE_SCRIPT}
 
 remove-driver-rpm:
 	@shopt -s nullglob
 	packages=(${MAKEFILE_PATH}/../../build/*-cpp_driver.rpm)
-	package_name="scylla-rs-driver RPM"
+	package_name="scylla-cpp-driver RPM"
 	${REMOVE_PACKAGE_SCRIPT}
 
 remove-driver-dev-pkg:
 	@shopt -s nullglob
 	packages=(${MAKEFILE_PATH}/../../build/scylla_cpp_driver-dev_*.pkg)
-	package_name="scylla-rs-driver dev PKG"
+	package_name="scylla-cpp-driver-dev PKG"
 	${REMOVE_PACKAGE_SCRIPT}
 
 remove-driver-pkg:
 	@shopt -s nullglob
 	packages=(${MAKEFILE_PATH}/../../build/*-scylla_cpp_driver.pkg)
-	package_name="scylla-rs-driver PKG"
+	package_name="scylla-cpp-driver PKG"
 	${REMOVE_PACKAGE_SCRIPT}
 
 remove-driver-dev-dmg:
