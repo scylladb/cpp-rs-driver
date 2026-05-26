@@ -501,10 +501,10 @@ cpack -G DEB -C Release   # Creates a .deb file
 cpack -G RPM -C Release   # Creates a .rpm file
 ```
 
-You can then install the resulting package with your package manager:
+You can then install the resulting runtime and development packages with your package manager:
 ```shell
-sudo apt install ./scylla-cpp-driver*.deb    # Debian/Ubuntu
-sudo dnf install ./scylla-cpp-driver*.rpm    # Fedora/RHEL
+sudo apt install ./scylla_cpp_driver_<VERSION>_amd64.deb ./scylla_cpp_driver-dev_<VERSION>_amd64.deb    # Debian/Ubuntu
+sudo dnf install ./scylla_cpp_driver_<VERSION>_x86_64.rpm ./scylla_cpp_driver-devel_<VERSION>_x86_64.rpm    # Fedora/RHEL
 ```
 
 ### macOS

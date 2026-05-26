@@ -40,18 +40,18 @@ sudo dnf remove cassandra-cpp-driver
 sudo dnf remove scylla-cpp-driver
 ```
 
-<!-- FIXME: Note that there is only a `dev` package for Ubuntu. Is it expected? -->
-<!-- Also, the name is `cpp-driver`, not `cpp-rs-driver`. -->
 ```bash
 # Example: Ubuntu/Debian:
-wget https://github.com/scylladb/cpp-rs-driver/releases/download/<LATEST_VERSION>/libscylla-cpp-driver-dev_<LATEST_VERSION>.deb
+wget https://github.com/scylladb/cpp-rs-driver/releases/download/<LATEST_VERSION>/scylla_cpp_driver_<LATEST_VERSION>_amd64.deb \
+     https://github.com/scylladb/cpp-rs-driver/releases/download/<LATEST_VERSION>/scylla_cpp_driver-dev_<LATEST_VERSION>_amd64.deb
 sudo apt update
-sudo apt install -y ./libscylla-cpp-driver-dev_<LATEST_VERSION>.deb
+sudo apt install -y ./scylla_cpp_driver_<LATEST_VERSION>_amd64.deb ./scylla_cpp_driver-dev_<LATEST_VERSION>_amd64.deb
 
 
 # Example: Rocky/RedHat:
-wget https://github.com/scylladb/cpp-rs-driver/releases/download/<LATEST_VERSION>/scylla-cpp-rs-driver-<LATEST_VERSION>.rpm https://github.com/scylladb/cpp-rs-driver/releases/download/<LATEST_VERSION>/scylla-cpp-rs-driver-devel-<LATEST_VERSION>.rpm
-sudo dnf install -y ./scylla-cpp-rs-driver-<LATEST_VERSION>.rpm ./scylla-cpp-rs-driver-devel-<LATEST_VERSION>.rpm
+wget https://github.com/scylladb/cpp-rs-driver/releases/download/<LATEST_VERSION>/scylla_cpp_driver_<LATEST_VERSION>_x86_64.rpm \
+     https://github.com/scylladb/cpp-rs-driver/releases/download/<LATEST_VERSION>/scylla_cpp_driver-devel_<LATEST_VERSION>_x86_64.rpm
+sudo dnf install -y ./scylla_cpp_driver_<LATEST_VERSION>_x86_64.rpm ./scylla_cpp_driver-devel_<LATEST_VERSION>_x86_64.rpm
 ```
 
 ## Connecting
