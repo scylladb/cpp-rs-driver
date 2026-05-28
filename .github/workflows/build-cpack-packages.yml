@@ -42,7 +42,7 @@ jobs:
     name: Linux DEB packages
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Build and test DEB packages
         run: make test-package-deb
@@ -51,7 +51,7 @@ jobs:
         if: inputs.save-artifacts
         run: make collect-package-artifacts
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: inputs.save-artifacts
         with:
           name: linux-deb-packages
@@ -77,9 +77,9 @@ jobs:
       - name: Install dependencies
         run: dnf -y install git make cmake gcc-c++ findutils rpm-build ninja-build pkgconf-pkg-config openssl-devel clang
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1
 
       - name: Build and test RPM packages
         run: make test-package-rpm-native SCYLLA_HOST=scylla SKIP_DOCKER_COMPOSE=1
@@ -88,7 +88,7 @@ jobs:
         if: inputs.save-artifacts
         run: make collect-package-artifacts
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: inputs.save-artifacts
         with:
           name: linux-rpm-packages
@@ -99,9 +99,9 @@ jobs:
     name: macOS packages
     runs-on: macos-15-intel
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1
 
       - name: Install GNU make
         run: brew install make
@@ -113,7 +113,7 @@ jobs:
         if: inputs.save-artifacts
         run: gmake collect-package-artifacts
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: inputs.save-artifacts
         with:
           name: macos-packages
@@ -124,7 +124,7 @@ jobs:
     name: Windows packages
     runs-on: windows-2022
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Build and test Windows packages (MSI)
         run: make test-package-windows
@@ -133,7 +133,7 @@ jobs:
         if: inputs.save-artifacts
         run: make collect-package-artifacts
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: inputs.save-artifacts
         with:
           name: windows-packages

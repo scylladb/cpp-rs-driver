@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Update apt cache
         run: sudo apt-get update -y
@@ -46,7 +46,7 @@ jobs:
         run: make build-integration-test-bin
 
       - name: Save integration test binary
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         id: save-integration-test-bin
         with:
           path: ${{ env.INTEGRATION_TEST_BIN }}
@@ -65,10 +65,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup Python 3
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.11"
 
@@ -102,7 +102,7 @@ jobs:
           fi
 
       - name: Pull CCM image from the cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         id: pull-image
         with:
           path: ~/.ccm/scylla-repository
@@ -113,14 +113,14 @@ jobs:
         run: SCYLLA_VERSION="release:${{ steps.scylla-version.outputs.value }}" make download-ccm-scylla-image
 
       - name: Save CCM image cache
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         if: steps.pull-image.outputs.cache-hit != 'true'
         with:
           path: ~/.ccm/scylla-repository
           key: image-scylla-${{ runner.os }}-${{ steps.scylla-version.outputs.value }}
 
       - name: Pull integration test binary
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         id: restore-integration-test-bin
         with:
           path: ${{ env.INTEGRATION_TEST_BIN }}
@@ -134,14 +134,14 @@ jobs:
         run: SCYLLA_VERSION="release:${{ steps.scylla-version.outputs.value }}" make run-test-integration-scylla
 
       - name: Upload test logs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: steps.run-integration-tests.outcome == 'failure'
         with:
           name: test-logs-scylla-${{ matrix.scylla-version }}
           path: ./log/*
 
       - name: Upload CCM logs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: failure()
         with:
           name: ccm-log-scylla-${{ matrix.scylla-version }}
@@ -159,16 +159,16 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up JDK ${{ matrix.java-version }}
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
           java-version: ${{ matrix.java-version }}
           distribution: "adopt"
 
       - name: Setup Python 3
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.11"
 
@@ -190,7 +190,7 @@ jobs:
           fi
 
       - name: Pull CCM image from the cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         id: pull-image
         with:
           path: ~/.ccm/repository
@@ -201,14 +201,14 @@ jobs:
         run: CASSANDRA_VERSION="${{ steps.cassandra-version.outputs.value }}" make download-ccm-cassandra-image
 
       - name: Save CCM image cache
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         if: steps.pull-image.outputs.cache-hit != 'true'
         with:
           path: ~/.ccm/repository
           key: image-cassandra-${{ runner.os }}-${{ steps.cassandra-version.outputs.value }}
 
       - name: Pull integration test binary
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         id: restore-integration-test-bin
         with:
           path: ${{ env.INTEGRATION_TEST_BIN }}
@@ -222,14 +222,14 @@ jobs:
         run: CASSANDRA_VERSION="${{ steps.cassandra-version.outputs.value }}" make run-test-integration-cassandra
 
       - name: Upload test logs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: steps.run-integration-tests.outcome == 'failure'
         with:
           name: test-logs-cassandra-${{ matrix.cassandra-version }}
           path: ./log/*
 
       - name: Upload CCM logs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: failure()
         with:
           name: ccm-log-cassandra-${{ matrix.java-version }}-${{ matrix.cassandra-version }}
