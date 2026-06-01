@@ -216,9 +216,8 @@ void handle_query_result(CassFuture* future) {
 [cpp-rs-driver-releases]: https://github.com/scylladb/cpp-rs-driver/releases
 
 [built from source]: https://cpp-rs-driver.docs.scylladb.com/stable/topics/building/
-[prepared statements]: https://cpp-rs-driver.docs.scylladb.com/stable/topics/basics/prepared-statements/
+[prepared statements]: https://cpp-rs-driver.docs.scylladb.com/stable/topics/using/prepared-statements/
 
-[`cass_int32_t`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/cassandra.h#cass-int32-t
 [`cass_result_first_row()`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassResult#cass-result-first-row
 [`CassCluster`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassCluster
 [`CassSession`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassSession

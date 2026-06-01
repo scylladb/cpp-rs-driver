@@ -146,9 +146,9 @@ The driver inherits almost all the features of C/C++ and Rust drivers, such as:
  * Retry policies
  * SSL
  * Authentication
- * [Tuples](https://cpp-rs-driver.docs.scylladb.com/stable/topics/basics/data-types/tuples/) and [UDTs](http://https://cpp-rs-driver.docs.scylladb.com/stable/topics/basics/data-types/user-defined-types/)
- * [Nested collections](https://cpp-rs-driver.docs.scylladb.com/stable/topics/basics/binding-parameters/#nested-collections)
- * [Data types](https://cpp-rs-driver.docs.scylladb.com/stable/topics/basics/data-types/)
+ * [Tuples](https://cpp-rs-driver.docs.scylladb.com/stable/topics/using/data-types/tuples/) and [UDTs](https://cpp-rs-driver.docs.scylladb.com/stable/topics/using/data-types/user-defined-types/)
+ * [Nested collections](https://cpp-rs-driver.docs.scylladb.com/stable/topics/using/binding-parameters/#nested-collections)
+ * [Data types](https://cpp-rs-driver.docs.scylladb.com/stable/topics/using/data-types/)
  * Schema metadata (keyspace metadata, materialized views, etc.)
 
 # Limitations
