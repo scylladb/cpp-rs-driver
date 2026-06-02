@@ -1,12 +1,12 @@
 use bytes::BytesMut;
 use libc::c_char;
-use scylla_cpp_driver::api::error::{CassError, cass_error_desc};
-use scylla_cpp_driver::api::future::{
+use scylladb::api::error::{CassError, cass_error_desc};
+use scylladb::api::future::{
     CassFuture, cass_future_error_code, cass_future_error_message, cass_future_free,
     cass_future_wait,
 };
-use scylla_cpp_driver::argconv::{CMut, CassOwnedSharedPtr, CassStrLen, CassStrLenDelimited};
-use scylla_cpp_driver::types::size_t;
+use scylladb::argconv::{CMut, CassOwnedSharedPtr, CassStrLen, CassStrLenDelimited};
+use scylladb::types::size_t;
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::net::SocketAddr;

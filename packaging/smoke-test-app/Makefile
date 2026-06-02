@@ -342,7 +342,7 @@ install-driver-msi:
 install-driver-dev-msi: install-driver-msi
 
 verify-driver-dev-msi:
-	@pwsh.exe -NoProfile -Command "\$$ErrorActionPreference = 'Stop'; \$$installPath = '$(DRIVER_INSTALL_PATH)'; \$$headerPath = Join-Path \$$installPath 'include\cassandra.h'; if (-not (Test-Path \$$headerPath)) { throw 'ERROR: cassandra.h header not found at \$$headerPath - dev package may not be installed' }; \$$pkgConfigPath = Join-Path \$$installPath 'lib\pkgconfig\scylla-cpp-driver.pc'; if (-not (Test-Path \$$pkgConfigPath)) { throw 'ERROR: scylla-cpp-driver.pc not found at \$$pkgConfigPath - dev package may not be installed' }; Write-Host 'Dev package verification successful'"
+	@pwsh.exe -NoProfile -Command "\$$ErrorActionPreference = 'Stop'; \$$installPath = '$(DRIVER_INSTALL_PATH)'; \$$headerPath = Join-Path \$$installPath 'include\cassandra.h'; if (-not (Test-Path \$$headerPath)) { throw 'ERROR: cassandra.h header not found at \$$headerPath - dev package may not be installed' }; \$$pkgConfigPath = Join-Path \$$installPath 'lib\pkgconfig\scylladb.pc'; if (-not (Test-Path \$$pkgConfigPath)) { throw 'ERROR: scylladb.pc not found at \$$pkgConfigPath - dev package may not be installed' }; Write-Host 'Dev package verification successful'"
 
 ifeq ($(OS_TYPE),macos)
 install-driver: install-driver-pkg
@@ -420,10 +420,10 @@ remove-driver-pkg:
 
 remove-driver-dev-dmg:
 	sudo rm -f /usr/local/include/cassandra.h 2>/dev/null || true
-	sudo rm -f /usr/local/lib/pkgconfig/scylla-cpp-driver.pc 2>/dev/null || true
+	sudo rm -f /usr/local/lib/pkgconfig/scylladb.pc 2>/dev/null || true
 
 remove-driver-dmg:
-	sudo rm -f /usr/local/lib/libscylla-cpp-driver.* 2>/dev/null || true
+	sudo rm -f /usr/local/lib/libscylladb.* 2>/dev/null || true
 
 remove-app-dmg:
 	sudo rm -f /usr/local/bin/scylla-cpp-driver-smoke-test 2>/dev/null || true

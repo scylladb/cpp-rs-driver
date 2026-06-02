@@ -728,8 +728,8 @@ pub trait RefFFI: Sized + origin_sealed::FromRefSealed {
     ///
     /// ## Why this method is unsafe? - Example
     /// ```
-    /// # use scylla_cpp_driver::argconv::{CConst, CassBorrowedSharedPtr};
-    /// # use scylla_cpp_driver::argconv::{FFI, FromRef, RefFFI};
+    /// # use scylladb::argconv::{CConst, CassBorrowedSharedPtr};
+    /// # use scylladb::argconv::{FFI, FromRef, RefFFI};
     /// # use std::sync::{Arc, Weak};
     ///
     /// struct Foo;
@@ -844,8 +844,8 @@ impl<T> origin_sealed::FromRefSealed for T where T: FFI<Origin = FromRef> {}
 impl<T> RefFFI for T where T: FFI<Origin = FromRef> {}
 
 /// ```compile_fail,E0499
-/// # use scylla_cpp_driver::argconv::{CassOwnedExclusivePtr, CassBorrowedExclusivePtr, CMut};
-/// # use scylla_cpp_driver::argconv::{FFI, BoxFFI, FromBox};
+/// # use scylladb::argconv::{CassOwnedExclusivePtr, CassBorrowedExclusivePtr, CMut};
+/// # use scylladb::argconv::{FFI, BoxFFI, FromBox};
 /// struct Foo;
 /// impl FFI for Foo {
 ///     type Origin = FromBox;
@@ -860,8 +860,8 @@ impl<T> RefFFI for T where T: FFI<Origin = FromRef> {}
 fn _test_box_ffi_cannot_have_two_mutable_references() {}
 
 /// ```compile_fail,E0502
-/// # use scylla_cpp_driver::argconv::{CassOwnedExclusivePtr, CassBorrowedSharedPtr, CassBorrowedExclusivePtr, CConst, CMut};
-/// # use scylla_cpp_driver::argconv::{FFI, BoxFFI, FromBox};
+/// # use scylladb::argconv::{CassOwnedExclusivePtr, CassBorrowedSharedPtr, CassBorrowedExclusivePtr, CConst, CMut};
+/// # use scylladb::argconv::{FFI, BoxFFI, FromBox};
 /// struct Foo;
 /// impl FFI for Foo {
 ///     type Origin = FromBox;
@@ -876,8 +876,8 @@ fn _test_box_ffi_cannot_have_two_mutable_references() {}
 fn _test_box_ffi_cannot_have_mutable_and_immutable_references_at_the_same_time() {}
 
 /// ```compile_fail,E0505
-/// # use scylla_cpp_driver::argconv::{CassOwnedExclusivePtr, CassBorrowedSharedPtr, CMut};
-/// # use scylla_cpp_driver::argconv::{FFI, BoxFFI, FromBox};
+/// # use scylladb::argconv::{CassOwnedExclusivePtr, CassBorrowedSharedPtr, CMut};
+/// # use scylladb::argconv::{FFI, BoxFFI, FromBox};
 /// struct Foo;
 /// impl FFI for Foo {
 ///     type Origin = FromBox;
@@ -891,8 +891,8 @@ fn _test_box_ffi_cannot_have_mutable_and_immutable_references_at_the_same_time()
 fn _test_box_ffi_cannot_free_while_having_borrowed_pointer() {}
 
 /// ```compile_fail,E0505
-/// # use scylla_cpp_driver::argconv::{CassOwnedSharedPtr, CassBorrowedSharedPtr, CConst};
-/// # use scylla_cpp_driver::argconv::{FFI, ArcFFI, FromArc};
+/// # use scylladb::argconv::{CassOwnedSharedPtr, CassBorrowedSharedPtr, CConst};
+/// # use scylladb::argconv::{FFI, ArcFFI, FromArc};
 /// # use std::sync::Arc;
 /// struct Foo;
 /// impl FFI for Foo {
@@ -907,8 +907,8 @@ fn _test_box_ffi_cannot_free_while_having_borrowed_pointer() {}
 fn _test_arc_ffi_cannot_clone_after_free() {}
 
 /// ```compile_fail,E0505
-/// # use scylla_cpp_driver::argconv::{CassBorrowedSharedPtr, CConst};
-/// # use scylla_cpp_driver::argconv::{FFI, ArcFFI, FromArc};
+/// # use scylladb::argconv::{CassBorrowedSharedPtr, CConst};
+/// # use scylladb::argconv::{FFI, ArcFFI, FromArc};
 /// # use std::sync::Arc;
 /// struct Foo;
 /// impl FFI for Foo {

@@ -2,43 +2,41 @@ use itertools::Itertools as _;
 use scylla::frame::types::Consistency;
 use scylla::statement::SerialConsistency;
 use scylla::statement::batch::BatchType;
-use scylla_cpp_driver::api::batch::{
+use scylla_cql::frame::protocol_features::ProtocolFeatures;
+use scylla_proxy::{
+    Condition, ProxyError, Reaction, RequestFrame, RequestOpcode, RequestReaction, RequestRule,
+    TargetShard, WorkerError,
+};
+use scylladb::api::batch::{
     CassBatch, CassBatchType, cass_batch_add_statement, cass_batch_new, cass_batch_set_consistency,
     cass_batch_set_execution_profile, cass_batch_set_serial_consistency,
 };
-use scylla_cpp_driver::api::cluster::{
+use scylladb::api::cluster::{
     cass_cluster_free, cass_cluster_new, cass_cluster_set_connection_heartbeat_interval,
     cass_cluster_set_consistency, cass_cluster_set_contact_points,
     cass_cluster_set_execution_profile, cass_cluster_set_retry_policy,
     cass_cluster_set_serial_consistency,
 };
-use scylla_cpp_driver::api::consistency::CassConsistency;
-use scylla_cpp_driver::api::error::CassError;
-use scylla_cpp_driver::api::execution_profile::{
+use scylladb::api::consistency::CassConsistency;
+use scylladb::api::error::CassError;
+use scylladb::api::execution_profile::{
     cass_execution_profile_free, cass_execution_profile_new,
     cass_execution_profile_set_consistency, cass_execution_profile_set_serial_consistency,
 };
-use scylla_cpp_driver::api::future::{cass_future_error_code, cass_future_get_prepared};
-use scylla_cpp_driver::api::prepared::{cass_prepared_bind, cass_prepared_free};
-use scylla_cpp_driver::api::retry_policy::{
-    cass_retry_policy_fallthrough_new, cass_retry_policy_free,
-};
-use scylla_cpp_driver::api::session::{
+use scylladb::api::future::{cass_future_error_code, cass_future_get_prepared};
+use scylladb::api::prepared::{cass_prepared_bind, cass_prepared_free};
+use scylladb::api::retry_policy::{cass_retry_policy_fallthrough_new, cass_retry_policy_free};
+use scylladb::api::session::{
     CassSession, cass_session_close, cass_session_connect, cass_session_execute,
     cass_session_execute_batch, cass_session_free, cass_session_new, cass_session_prepare,
     cass_session_prepare_from_existing,
 };
-use scylla_cpp_driver::api::statement::{
+use scylladb::api::statement::{
     CassStatement, cass_statement_new, cass_statement_set_consistency,
     cass_statement_set_execution_profile, cass_statement_set_serial_consistency,
 };
-use scylla_cpp_driver::argconv::{
+use scylladb::argconv::{
     CConst, CMut, CassBorrowedExclusivePtr, CassBorrowedSharedPtr, CassStrNulTerminated,
-};
-use scylla_cql::frame::protocol_features::ProtocolFeatures;
-use scylla_proxy::{
-    Condition, ProxyError, Reaction, RequestFrame, RequestOpcode, RequestReaction, RequestRule,
-    TargetShard, WorkerError,
 };
 use std::sync::Arc;
 use tokio::sync::mpsc::{self, UnboundedReceiver};

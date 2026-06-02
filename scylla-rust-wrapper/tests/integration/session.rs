@@ -5,7 +5,11 @@ use std::{
 
 use rusty_fork::rusty_fork_test;
 use scylla::errors::DbError;
-use scylla_cpp_driver::{
+use scylla_cql::Consistency;
+use scylla_proxy::{
+    Condition, ProxyError, RequestOpcode, RequestReaction, RequestRule, RunningProxy, WorkerError,
+};
+use scylladb::{
     api::{
         batch::{
             CassBatch, CassBatchType, cass_batch_add_statement, cass_batch_free, cass_batch_new,
@@ -44,10 +48,6 @@ use scylla_cpp_driver::{
         ArcFFI, CConst, CMut, CassBorrowedExclusivePtr, CassBorrowedSharedPtr, CassStrNulTerminated,
     },
     types::cass_bool_t,
-};
-use scylla_cql::Consistency;
-use scylla_proxy::{
-    Condition, ProxyError, RequestOpcode, RequestReaction, RequestRule, RunningProxy, WorkerError,
 };
 use tracing::instrument::WithSubscriber as _;
 
