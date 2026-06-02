@@ -32,15 +32,9 @@ using namespace test::driver;
 #ifdef _WIN32
 #define FILE_MODE 0
 #define LOCALTIME(tm, time) localtime_s(tm, time)
-#define GMTIME(tm, time) gmtime_s(tm, time)
-#include <io.h>
-#define IS_STDERR_TTY() _isatty(_fileno(stderr))
 #else
 #define FILE_MODE S_IRWXU | S_IRWXG | S_IROTH
 #define LOCALTIME(tm, time) localtime_r(time, tm)
-#define GMTIME(tm, time) gmtime_r(time, tm)
-#include <unistd.h>
-#define IS_STDERR_TTY() isatty(STDERR_FILENO)
 #endif
 
 Logger::Logger()
@@ -131,34 +125,7 @@ void Logger::log(const CassLogMessage* log, void* data) {
   // Create the formatted log message and output to the file
   std::string severity = cass_log_level_string(log->severity);
   logger->output_ << date.str() << " " << time.str() << " " << severity << ": " << message << " ("
-                   << log->file << ":" << log->line << ") " << std::endl;
-
-  // Also log to stderr so that CI output captures driver logs in real-time.
-  static bool use_color = IS_STDERR_TTY();
-  const char* color = "";
-  const char* reset = "";
-  const char* dim = "";
-  if (use_color) {
-    reset = "\033[0m";
-    dim = "\033[2m";
-    switch (log->severity) {
-      case CASS_LOG_TRACE: color = "\033[35m"; break;
-      case CASS_LOG_DEBUG: color = "\033[34m"; break;
-      case CASS_LOG_INFO: color = "\033[32m"; break;
-      case CASS_LOG_WARN: color = "\033[33m"; break;
-      default: color = "\033[31m"; break;
-    }
-  }
-  cass_uint64_t const epoch_secs = log->time_ms / 1000;
-  unsigned short const ms = log->time_ms % 1000;
-  time_t const raw = static_cast<time_t>(epoch_secs);
-  struct tm utc;
-  GMTIME(&utc, &raw);
-  char ts[24];
-  strftime(ts, sizeof(ts), "%Y-%m-%dT%H:%M:%S", &utc);
-  std::cerr << ts << "." << std::setfill('0') << std::setw(3) << ms << "Z" << " [" << color << severity << reset << "] "
-            << dim << "(" << log->file << ":" << log->line << ")" << reset
-            << " " << message << std::endl;
+                  << log->file << ":" << log->line << ") " << std::endl;
 
   // Determine if the log message matches any of the criteria
   for (std::vector<std::string>::const_iterator iterator = logger->search_criteria_.begin();
