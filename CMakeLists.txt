@@ -66,6 +66,7 @@ option(CASS_USE_STATIC_LIBS "Link static libraries when building executables" OF
 option(CASS_USE_STD_ATOMIC "Use std::atomic library" ON)
 option(CASS_USE_TIMERFD "Use timerfd (Linux only)" ON)
 option(CASS_USE_LIBUV "Use libuv" OFF)
+option(CASS_INSTALL_CASSANDRA_COMPAT "Install cassandra compatibility symlinks" ON)
 
 set(CASS_CPP_STANDARD "11" CACHE STRING "C++ standard (11, 14, 17, etc.)")
 

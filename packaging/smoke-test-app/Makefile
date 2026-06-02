@@ -421,6 +421,8 @@ remove-driver-pkg:
 remove-driver-dev-dmg:
 	sudo rm -f /usr/local/include/cassandra.h 2>/dev/null || true
 	sudo rm -f /usr/local/lib/pkgconfig/scylladb.pc 2>/dev/null || true
+	sudo rm -f /usr/local/lib/pkgconfig/cassandra.pc 2>/dev/null || true
+	sudo rm -f /usr/local/lib/libcassandra.* 2>/dev/null || true
 
 remove-driver-dmg:
 	sudo rm -f /usr/local/lib/libscylladb.* 2>/dev/null || true

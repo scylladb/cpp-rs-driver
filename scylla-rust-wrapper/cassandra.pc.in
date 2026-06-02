@@ -1,0 +1,11 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: cassandra
+Description: ScyllaDB CPP RS Driver (cassandra compatibility)
+Version: @version@
+Libs: -L${libdir} -lscylladb
+Cflags: -I${includedir}
+URL: https://github.com/scylladb/cpp-rs-driver/
