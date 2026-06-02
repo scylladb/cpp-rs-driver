@@ -424,7 +424,7 @@ impl ResolvableFuture {
         // Check if the callback is already set (in such case we must error out).
         // If it is not set, we store the callback in the state, so that no different
         // callback can be set.
-        {
+        let should_invoke_callback = {
             let mut lock = self.state.lock().unwrap();
             if lock.callback.is_some() {
                 // Another callback has been already set
@@ -434,9 +434,11 @@ impl ResolvableFuture {
             // Store the callback, so that no other callback can be set from now on.
             // Rationale: only one callback can be set for the whole lifetime of a future.
             lock.callback = Some(bound_cb);
-        }
 
-        if self.result.get().is_some() {
+            self.result.get().is_some()
+        };
+
+        if should_invoke_callback {
             // The value is already available, we need to call the callback ourselves
             bound_cb.invoke(self_ptr);
             return CassError::CASS_OK;
