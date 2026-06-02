@@ -892,4 +892,129 @@ mod tests {
             let _ = unsafe { Box::from_raw(flag_ptr) };
         }
     }
+
+    /// Regression test for a race condition where the callback could be invoked
+    /// twice: once by the resolution path and once by `set_callback` itself.
+    /// The race window was between `set_callback` releasing the state lock
+    /// (after storing the callback) and checking `result.get().is_some()`.
+    ///
+    /// The race scenario:
+    /// 1. The async future completes, and the resolution task tries to acquire
+    ///    the state lock.
+    /// 2. `set_callback` acquires the lock first, stores the callback, releases
+    ///    the lock.
+    /// 3. The resolution task immediately acquires the lock, sets result, reads
+    ///    the callback, releases the lock, and invokes the callback.
+    /// 4. `set_callback` checks `result.get().is_some()` → true, invokes callback
+    ///    again (BUG: double invocation).
+    ///
+    /// To trigger this, we ensure the async task has already produced its result
+    /// (but not yet acquired the state lock to store it) by the time
+    /// `set_callback` is called, creating lock contention.
+    #[test]
+    #[ntest::timeout(30000)]
+    fn test_cass_future_callback_invoked_exactly_once() {
+        use std::sync::Barrier;
+        use std::sync::atomic::{AtomicU32, Ordering};
+
+        unsafe extern "C" fn counting_cb(
+            _fut: CassBorrowedSharedPtr<CassFuture, CMut>,
+            data: *mut c_void,
+        ) {
+            let counter = unsafe { &*(data as *const AtomicU32) };
+            counter.fetch_add(1, Ordering::SeqCst);
+        }
+
+        // Use a multi-threaded runtime so the spawned future task can race
+        // with the thread that calls set_callback.
+        let runtime: Arc<crate::runtime::Runtime> = Arc::new(
+            tokio::runtime::Builder::new_multi_thread()
+                .worker_threads(4)
+                .enable_all()
+                .build()
+                .unwrap()
+                .into(),
+        );
+
+        const THREADS: usize = 8;
+        const ITERATIONS_PER_THREAD: usize = 1250;
+
+        // Run attempts from multiple OS threads concurrently to increase
+        // scheduling contention and make the race more likely to manifest.
+        let handles: Vec<_> = (0..THREADS)
+            .map(|_| {
+                let runtime = Arc::clone(&runtime);
+                thread::spawn(move || {
+                    for _ in 0..ITERATIONS_PER_THREAD {
+                        let counter = Arc::new(AtomicU32::new(0));
+
+                        let barrier = Arc::new(Barrier::new(2));
+                        let barrier_clone = Arc::clone(&barrier);
+
+                        let fut = async move {
+                            tokio::task::spawn_blocking(move || {
+                                barrier_clone.wait();
+                            })
+                            .await
+                            .unwrap();
+                            Ok(CassResultValue::Empty)
+                        };
+
+                        let cass_fut = CassFuture::make_raw(
+                            Arc::clone(&runtime),
+                            fut,
+                            #[cfg(cpp_integration_testing)]
+                            None,
+                        );
+
+                        // Release the barrier (letting the async task resolve)
+                        // and immediately call set_callback — racing against
+                        // the resolution path.
+                        barrier.wait();
+                        #[allow(clippy::disallowed_methods)]
+                        let counter_ptr = Arc::as_ptr(&counter) as *mut c_void;
+                        unsafe {
+                            assert_cass_error_eq!(
+                                cass_future_set_callback(
+                                    cass_fut.borrow(),
+                                    Some(counting_cb),
+                                    counter_ptr,
+                                ),
+                                CassError::CASS_OK
+                            );
+                        }
+
+                        // Wait for the future to be fully resolved.
+                        unsafe { cass_future_wait(cass_fut.borrow()) };
+
+                        // Spin-wait for the callback to be invoked at least once.
+                        let deadline = std::time::Instant::now() + Duration::from_millis(100);
+                        while counter.load(Ordering::SeqCst) == 0 {
+                            assert!(
+                                std::time::Instant::now() < deadline,
+                                "Callback was never invoked"
+                            );
+                            std::thread::yield_now();
+                        }
+
+                        // Give a brief moment for a spurious second invocation.
+                        std::thread::yield_now();
+
+                        assert_eq!(
+                            counter.load(Ordering::SeqCst),
+                            1,
+                            "Callback was invoked {} times instead of exactly once",
+                            counter.load(Ordering::SeqCst)
+                        );
+
+                        unsafe { cass_future_free(cass_fut) };
+                    }
+                })
+            })
+            .collect();
+
+        for handle in handles {
+            handle.join().unwrap();
+        }
+    }
 }
