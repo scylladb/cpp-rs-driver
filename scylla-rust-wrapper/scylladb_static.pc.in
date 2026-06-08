@@ -3,9 +3,10 @@ exec_prefix=@exec_prefix@
 libdir=@libdir@
 includedir=@includedir@
 
-Name: scylla-cpp-rs-driver
+Name: scylladb
 Description: ScyllaDB CPP RS Driver
 Version: @version@
-Libs: -L${libdir} -lscylla-cpp-driver
+Requires: openssl
+Libs: -L${libdir} -lscylladb_static
 Cflags: -I${includedir}
 URL: https://github.com/scylladb/cpp-rs-driver/

@@ -9,7 +9,7 @@ get_filename_component(CPP_DRIVER_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 get_filename_component(CPP_DRIVER_ROOT "${CPP_DRIVER_ROOT}/.." ABSOLUTE)
 
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(SCYLLA_CPP_DRIVER REQUIRED IMPORTED_TARGET scylla-cpp-driver)
+pkg_check_modules(SCYLLA_CPP_DRIVER REQUIRED IMPORTED_TARGET scylladb)
 
 option(SCYLLA_SMOKE_BUILD_STATIC
   "Build statically linked smoke test executable" OFF)
@@ -19,7 +19,7 @@ if(DEFINED PKG_CONFIG_USE_STATIC_LIBS)
   set(_pkg_config_use_static_libs_saved "${PKG_CONFIG_USE_STATIC_LIBS}")
 endif()
 set(PKG_CONFIG_USE_STATIC_LIBS ON)
-pkg_check_modules(SCYLLA_CPP_DRIVER_STATIC IMPORTED_TARGET scylla-cpp-driver_static)
+pkg_check_modules(SCYLLA_CPP_DRIVER_STATIC IMPORTED_TARGET scylladb_static)
 if(_pkg_config_use_static_libs_saved)
   set(PKG_CONFIG_USE_STATIC_LIBS "${_pkg_config_use_static_libs_saved}")
 else()
@@ -191,13 +191,13 @@ if(SCYLLA_SMOKE_BUILD_STATIC)
     message(FATAL_ERROR "pkg-config executable not available for static linkage")
   endif()
   execute_process(
-    COMMAND ${PKG_CONFIG_EXECUTABLE} --libs --static scylla-cpp-driver_static
+    COMMAND ${PKG_CONFIG_EXECUTABLE} --libs --static scylladb_static
     OUTPUT_VARIABLE _smoke_static_libs_output
     RESULT_VARIABLE _smoke_static_libs_result
     OUTPUT_STRIP_TRAILING_WHITESPACE)
   if(NOT _smoke_static_libs_result EQUAL 0 OR _smoke_static_libs_output STREQUAL "")
     message(FATAL_ERROR
-      "Unable to resolve static link flags from scylla-cpp-driver_static pkg-config metadata")
+      "Unable to resolve static link flags from scylladb_static pkg-config metadata")
   endif()
   separate_arguments(_smoke_static_link_libraries UNIX_COMMAND "${_smoke_static_libs_output}")
   if(NOT WIN32)

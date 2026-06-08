@@ -19,30 +19,30 @@
 #    │                          │     │                              │
 #    │ OUTPUT:                  │     │ OUTPUT:                      │
 #    │  .../<profile>/          │     │  .../<profile>/              │
-#    │  libscylla_cpp_driver.a  │     │  libscylla_cpp_driver.so     │
+#    │  libscylladb.a           │     │  libscylladb.so              │
 #    └────────────┬─────────────┘     └──────────────┬───────────────┘
 #                 │                                  │
 #    ┌────────────▼─────────────┐     ┌──────────────▼───────────────┐
-#    │ scylla_cpp_driver        │     │ scylla_cpp_driver            │
+#    │ scylladb                 │     │ scylladb                     │
 #    │ _staticlib_target        │     │ _cdylib_target               │
 #    │ (custom target, ALL)     │     │ (custom target, ALL)         │
 #    └────────────┬─────────────┘     └──────────────┬───────────────┘
 #                 │                                  │
 #    ┌────────────▼─────────────┐     ┌──────────────▼───────────────┐
-#    │ scylla_cpp_driver        │     │ scylla_cpp_driver            │
+#    │ scylladb                 │     │ scylladb                     │
 #    │ _staticlib               │     │ _cdylib                      │
 #    │ (STATIC IMPORTED)        │     │ (SHARED IMPORTED)            │
 #    │                          │     │                              │
 #    │ IMPORTED_LOCATION:       │     │ IMPORTED_LOCATION:           │
 #    │  .../<profile>/          │     │  .../<profile>/              │
-#    │  libscylla_cpp_driver.a  │     │  libscylla_cpp_driver.so     │
+#    │  libscylladb.a           │     │  libscylladb.so              │
 #    └────────────┬─────────────┘     └──────────────┬───────────────┘
 #                 │                                  │
 #      $<TARGET_FILE:…>                   $<TARGET_FILE:…>
 #      (used by create_copy)              (used by create_copy)
 #                 │                                  │
 #    ┌────────────▼─────────────┐     ┌──────────────▼───────────────┐
-#    │ libscylla-cpp-driver     │     │ libscylla-cpp-driver         │
+#    │ libscylladb              │     │ libscylladb                  │
 #    │ _static.a_copy           │     │ .so.X.Y.Z_copy              │
 #    │ (custom target, ALL)     │     │ (custom target, ALL)         │
 #    │                          │     │                              │
@@ -51,12 +51,12 @@
 #    └────────────┬─────────────┘     └──────────────┬───────────────┘
 #                 │                                  │
 #    ┌────────────▼─────────────┐     ┌──────────────▼───────────────┐
-#    │ scylla-cpp-driver_static │     │ scylla-cpp-driver            │
+#    │ scylladb_static          │     │ scylladb                     │
 #    │ (STATIC IMPORTED)        │     │ (SHARED IMPORTED)            │
 #    │                          │     │                              │
 #    │ IMPORTED_LOCATION:       │     │ IMPORTED_LOCATION:           │
-#    │  build/libscylla-cpp-    │     │  build/libscylla-cpp-        │
-#    │  driver_static.a         │     │  driver.so.X.Y.Z            │
+#    │  build/libscylladb       │     │  build/libscylladb           │
+#    │  _static.a               │     │  .so.X.Y.Z                  │
 #    └────────────┬─────────────┘     │                              │
 #                 │                   │ + symlinks:                  │
 #                 │                   │  .so.X  →  .so.X.Y.Z       │
@@ -80,19 +80,18 @@
 #         _cdylib_target                  artifacts; give the build system a
 #         (custom targets, ALL)           named handle to order on.
 #
-#  (3)   scylla_cpp_driver_staticlib /   IMPORTED targets wrapping the raw cargo
-#         scylla_cpp_driver_cdylib       output paths. Exist solely so that
+#  (3)   scylladb_staticlib /            IMPORTED targets wrapping the raw cargo
+#         scylladb_cdylib                output paths. Exist solely so that
 #         (IMPORTED libraries)            create_copy can use $<TARGET_FILE:…>
 #                                         generator expressions to get the path.
 #
-#  (4)   _copy targets                    Copy + rename from Cargo's underscore
-#         (custom targets, ALL)           naming (libscylla_cpp_driver.so) to
-#                                         conventional C library naming
-#                                         (libscylla-cpp-driver.so.X.Y.Z) in
-#                                         the build root.
+#  (4)   _copy targets                    Copy + rename from Cargo's output
+#         (custom targets, ALL)           (libscylladb.so) to versioned naming
+#                                         (libscylladb.so.X.Y.Z) in the build
+#                                         root.
 #
-#  (5)   scylla-cpp-driver_static /       Final IMPORTED targets pointing at the
-#         scylla-cpp-driver               renamed copies. These are what the
+#  (5)   scylladb_static /                Final IMPORTED targets pointing at the
+#         scylladb                        renamed copies. These are what the
 #         (IMPORTED libraries)            rest of the build system links against.
 #
 # ============================================================================

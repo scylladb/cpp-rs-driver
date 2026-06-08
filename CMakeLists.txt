@@ -66,6 +66,7 @@ option(CASS_USE_STATIC_LIBS "Link static libraries when building executables" OF
 option(CASS_USE_STD_ATOMIC "Use std::atomic library" ON)
 option(CASS_USE_TIMERFD "Use timerfd (Linux only)" ON)
 option(CASS_USE_LIBUV "Use libuv" OFF)
+option(CASS_INSTALL_CASSANDRA_COMPAT "Install cassandra compatibility symlinks" ON)
 
 set(CASS_CPP_STANDARD "11" CACHE STRING "C++ standard (11, 14, 17, etc.)")
 
@@ -105,12 +106,12 @@ if(CASS_BUILD_EXAMPLES)
 endif()
 
 # Determine which driver target should be used as a dependency
-set(PROJECT_LIB_NAME_TARGET scylla-cpp-driver)
+set(PROJECT_LIB_NAME_TARGET scylladb)
 if(CASS_USE_STATIC_LIBS OR
    (WIN32 AND (CASS_BUILD_INTEGRATION_TESTS OR CASS_BUILD_UNIT_TESTS)))
   set(CASS_USE_STATIC_LIBS ON) # Not all driver internals are exported for test executable (e.g. CASS_EXPORT)
   set(CASS_BUILD_STATIC ON)
-  set(PROJECT_LIB_NAME_TARGET scylla-cpp-driver_static)
+  set(PROJECT_LIB_NAME_TARGET scylladb_static)
 endif()
 
 # Ensure the driver is configured to build

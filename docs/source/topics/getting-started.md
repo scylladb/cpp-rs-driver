@@ -27,19 +27,6 @@ Packages are available for some platforms - see the [Installation section](insta
 
 They are available for download from the [Releases][cpp-rs-driver-releases] section.
 
-NOTE: If you have Datastax or ScyllaDB C/C++ Driver installed, you need to remove it first:
-
-```bash
-# Ubuntu/Debian:
-sudo apt remove cassandra-cpp-driver
-sudo apt remove scylla-cpp-driver
-
-
-# Rocky/RedHat:
-sudo dnf remove cassandra-cpp-driver
-sudo dnf remove scylla-cpp-driver
-```
-
 ```bash
 # Example: Ubuntu/Debian:
 wget https://github.com/scylladb/cpp-rs-driver/releases/download/<LATEST_VERSION>/scylla_cpp_driver_<LATEST_VERSION>_amd64.deb \
@@ -52,6 +39,83 @@ sudo apt install -y ./scylla_cpp_driver_<LATEST_VERSION>_amd64.deb ./scylla_cpp_
 wget https://github.com/scylladb/cpp-rs-driver/releases/download/<LATEST_VERSION>/scylla_cpp_driver_<LATEST_VERSION>_x86_64.rpm \
      https://github.com/scylladb/cpp-rs-driver/releases/download/<LATEST_VERSION>/scylla_cpp_driver-devel_<LATEST_VERSION>_x86_64.rpm
 sudo dnf install -y ./scylla_cpp_driver_<LATEST_VERSION>_x86_64.rpm ./scylla_cpp_driver-devel_<LATEST_VERSION>_x86_64.rpm
+```
+
+NOTE: The package is named `scylla-cpp-driver` while the library file is
+`libscylladb`. This is intentional — the package name reflects the project,
+while the library name follows the convention established by `libcassandra`.
+
+## Linking
+
+### New users
+
+Link with `-lscylladb`, or use pkg-config:
+
+```bash
+pkg-config --cflags --libs scylladb        # shared
+pkg-config --cflags --libs scylladb_static  # static
+```
+
+CMake example using pkg-config:
+
+```cmake
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(SCYLLADB REQUIRED IMPORTED_TARGET scylladb)
+target_link_libraries(my_app PRIVATE PkgConfig::SCYLLADB)
+```
+
+### Upgrading from CPP RS Driver 1.0.x
+
+The library was renamed from `libscylla-cpp-driver` to `libscylladb` in
+version 1.1.0. Update your build system accordingly:
+
+| What                  | Old                              | New                    |
+|-----------------------|----------------------------------|------------------------|
+| Shared library        | `libscylla-cpp-driver.so`        | `libscylladb.so`       |
+| Static library        | `libscylla-cpp-driver_static.a`  | `libscylladb_static.a` |
+| Linker flag (shared)  | `-lscylla-cpp-driver`            | `-lscylladb`           |
+| Linker flag (static)  | `-lscylla-cpp-driver_static`     | `-lscylladb_static`    |
+| pkg-config module     | `scylla-cpp-driver`              | `scylladb`             |
+| pkg-config (static)   | `scylla-cpp-driver_static`       | `scylladb_static`      |
+| SONAME                | `libscylla-cpp-driver.so.1`      | `libscylladb.so.1`     |
+
+Package names (DEB/RPM) remain `scylla-cpp-driver` / `scylla-cpp-driver-dev`.
+
+### Migrating from ScyllaDB CPP Driver (C++ fork)
+
+The ScyllaDB CPP Driver produced `libscylla-cpp-driver.so` (with a
+`libcassandra.so` symlink). The CPP RS Driver replaces it with
+`libscylladb.so`. A `libcassandra` compatibility symlink is installed by
+default, so builds using `-lcassandra` will continue to work. For new
+integrations, prefer `-lscylladb`.
+
+Remove the old driver before installing:
+
+```bash
+# Ubuntu/Debian:
+sudo apt remove scylla-cpp-driver
+
+# Rocky/RedHat:
+sudo dnf remove scylla-cpp-driver
+```
+
+### Migrating from DataStax CPP Driver
+
+The DataStax driver produced `libcassandra.so`. The CPP RS Driver installs
+a `libcassandra` compatibility symlink and a `cassandra.pc` pkg-config
+file, so existing build systems using `-lcassandra` or
+`pkg-config cassandra` will work without changes.
+
+For new integrations, prefer `-lscylladb` / `pkg-config scylladb`.
+
+Remove the old driver before installing:
+
+```bash
+# Ubuntu/Debian:
+sudo apt remove cassandra-cpp-driver
+
+# Rocky/RedHat:
+sudo dnf remove cassandra-cpp-driver
 ```
 
 ## Connecting

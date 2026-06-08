@@ -564,12 +564,12 @@ test-package-rpm: build-package
 			$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-dev-rpm || true; \
 			$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-rpm || true; \
 			$(MAKE) -C $(SMOKE_TEST_DIR) install-driver-dev-rpm; \
-			pc_file=$$(find /usr -name "scylla-cpp-driver.pc" 2>/dev/null | head -1); \
+			pc_file=$$(find /usr -name "scylladb.pc" 2>/dev/null | head -1); \
 			if [ -n "$$pc_file" ]; then \
 				pc_dir=$$(dirname "$$pc_file"); \
 				export PKG_CONFIG_PATH="$${pc_dir}:$${PKG_CONFIG_PATH:-}"; \
 			fi; \
-			lib_dir=$$(find /usr -name "libscylla-cpp-driver.so*" 2>/dev/null | head -1 | xargs dirname 2>/dev/null || true); \
+			lib_dir=$$(find /usr -name "libscylladb.so*" 2>/dev/null | head -1 | xargs dirname 2>/dev/null || true); \
 			if [ -n "$$lib_dir" ]; then \
 				export LD_LIBRARY_PATH="$${lib_dir}:$${LD_LIBRARY_PATH:-}"; \
 			fi; \
