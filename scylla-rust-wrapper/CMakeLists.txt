@@ -99,6 +99,76 @@ if(CASS_BUILD_STATIC)
   if(CASS_INSTALL_CASSANDRA_COMPAT AND NOT WIN32)
     create_symlink(${INSTALL_NAME_STATIC} ${CASSANDRA_COMPAT_STATIC_SYMLINK})
   endif()
+
+  # The Rust staticlib contains unresolved references to OpenSSL and system
+  # libraries.  Declare them as transitive (INTERFACE) dependencies so that
+  # any target linking against scylladb_static automatically pulls
+  # in the required symbols in the correct order.
+  #
+  # NOTE: Some of these libraries (e.g. OpenSSL, ws2_32, crypt32, userenv on
+  # Windows) also appear in CASS_LIBS (populated by cmake/Dependencies.cmake).
+  # This causes them to appear twice on the linker command line, which is
+  # intentional and harmless -- linkers silently ignore duplicate inputs --
+  # but it keeps the static target self-contained so it works correctly even
+  # when linked outside the integration-test build where CASS_LIBS is set.
+
+  # ## `INTERFACE_LINK_LIBRARIES` on an IMPORTED target
+  # For an **IMPORTED** target (which `scylladb_static` is — `add_library(scylladb_static STATIC IMPORTED GLOBAL)`),
+  # the `INTERFACE_LINK_LIBRARIES` property means: "when something links against this target,
+  # also link against these libraries. This is actually the **correct** property to use here. The distinction:
+  # - `LINK_LIBRARIES` — libraries used to build the target itself (irrelevant for IMPORTED targets
+  #   since they're pre-built)
+  # - `INTERFACE_LINK_LIBRARIES` — libraries that **consumers** of this target must also link against
+  #
+  # Since `scylladb_static` is a pre-built static archive, it doesn't get "built" by CMake — it's already compiled.
+  # But any executable that links against it (like `cassandra-integration-tests`) needs to also link
+  # `-lssl -lcrypto -ldl -lm -lpthread` to resolve the symbols that the archive references.
+  # That's exactly what `INTERFACE_LINK_LIBRARIES` communicates.
+  #
+  # The word "INTERFACE" in CMake doesn't mean "public API" in the C++ sense — it means "propagated to consumers."
+  # For an IMPORTED static library, ALL transitive dependencies are necessarily interface dependencies because
+  # the static archive is opaque to CMake (it can't see inside it to know what symbols are needed).
+  set(_STATIC_INTERFACE_LIBS "")
+
+  if(CASS_USE_OPENSSL AND OPENSSL_LIBRARIES)
+    list(APPEND _STATIC_INTERFACE_LIBS ${OPENSSL_LIBRARIES})
+  endif()
+
+  if(WIN32)
+    # Windows system libraries required by Rust runtime and its dependencies
+    list(APPEND _STATIC_INTERFACE_LIBS ws2_32 bcrypt ntdll userenv crypt32 secur32 ncrypt)
+  elseif(APPLE)
+    list(APPEND _STATIC_INTERFACE_LIBS ${CMAKE_DL_LIBS} m)
+    find_package(Threads)
+    if(Threads_FOUND)
+      list(APPEND _STATIC_INTERFACE_LIBS Threads::Threads)
+    endif()
+    # CoreFoundation is needed by the iana-time-zone crate on macOS
+    find_library(COREFOUNDATION_LIBRARY CoreFoundation)
+    if(COREFOUNDATION_LIBRARY)
+      list(APPEND _STATIC_INTERFACE_LIBS ${COREFOUNDATION_LIBRARY})
+    endif()
+    # SystemConfiguration and Security may also be needed on macOS
+    find_library(SYSTEMCONFIGURATION_LIBRARY SystemConfiguration)
+    if(SYSTEMCONFIGURATION_LIBRARY)
+      list(APPEND _STATIC_INTERFACE_LIBS ${SYSTEMCONFIGURATION_LIBRARY})
+    endif()
+    find_library(SECURITY_LIBRARY Security)
+    if(SECURITY_LIBRARY)
+      list(APPEND _STATIC_INTERFACE_LIBS ${SECURITY_LIBRARY})
+    endif()
+  else() # non-Windows and non-Apple - assume Unix-like, such as Linux
+    list(APPEND _STATIC_INTERFACE_LIBS ${CMAKE_DL_LIBS} m)
+    find_package(Threads)
+    if(Threads_FOUND)
+      list(APPEND _STATIC_INTERFACE_LIBS Threads::Threads)
+    endif()
+  endif()
+
+  if(_STATIC_INTERFACE_LIBS)
+    set_target_properties(scylladb_static PROPERTIES
+      INTERFACE_LINK_LIBRARIES "${_STATIC_INTERFACE_LIBS}")
+  endif()
 endif()
 
 #-------------------------------------
