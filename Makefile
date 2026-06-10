@@ -560,7 +560,7 @@ test-package-rpm: build-package
 		fedora:latest \
 		bash -c ' \
 			set -euo pipefail; \
-			dnf -y install make cmake gcc-c++ findutils rpm-build createrepo_c; \
+			dnf -y install make cmake gcc-c++ findutils rpm-build zlib-devel createrepo_c; \
 			$(MAKE) -C $(SMOKE_TEST_DIR) verify-driver-dev-rpm; \
 			$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-dev-rpm || true; \
 			$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-rpm || true; \
