@@ -31,6 +31,7 @@ if(CASS_BUILD_INTEGRATION_TESTS OR CASS_BUILD_EXAMPLES)
   set(CMAKE_Rust_FLAGS "${CMAKE_Rust_FLAGS} --cfg cpp_integration_testing")
 endif()
 
+# Shared library names and linker flags differ across platforms, so set them up here.
 if(APPLE)
   set(INSTALL_NAME_SHARED "libscylladb.${PROJECT_VERSION_STRING}.dylib")
   set(INSTALL_NAME_SHARED_SYMLINK_VERSION "libscylladb.${PROJECT_VERSION_MAJOR}.dylib")
@@ -44,7 +45,7 @@ elseif(WIN32)
   set(CMAKE_Rust_FLAGS_SONAME "")
   set(CASSANDRA_COMPAT_SHARED_SYMLINK "cassandra.dll")
   set(CASSANDRA_COMPAT_STATIC_SYMLINK "cassandra_static.lib")
-else()
+else() # Assume Unix-like (e.g. Linux).
   set(INSTALL_NAME_SHARED "libscylladb.so.${PROJECT_VERSION_STRING}")
   set(INSTALL_NAME_SHARED_SYMLINK_VERSION "libscylladb.so.${PROJECT_VERSION_MAJOR}")
   set(INSTALL_NAME_SHARED_SYMLINK_NO_VERSION "libscylladb.so")
@@ -52,16 +53,21 @@ else()
   set(CASSANDRA_COMPAT_SHARED_SYMLINK "libcassandra.so")
   set(CASSANDRA_COMPAT_STATIC_SYMLINK "libcassandra_static.a")
 endif()
+
+# Static library names are more consistent across platforms, but still differ on Windows.
 if(WIN32)
   set(INSTALL_NAME_STATIC "scylladb_static.lib")
 else()
   set(INSTALL_NAME_STATIC "libscylladb_static.a")
 endif()
+
+# Make rustc pass the SONAME flag to the linker when building the shared library.
 if(DEFINED CMAKE_Rust_FLAGS)
   set(CMAKE_Rust_FLAGS "${CMAKE_Rust_FLAGS} ${CMAKE_Rust_FLAGS_SONAME}")
 else()
   set(CMAKE_Rust_FLAGS "${CMAKE_Rust_FLAGS_SONAME}")
 endif()
+
 if(CASS_BUILD_SHARED)
   cargo_build(NAME scylladb CRATE_TYPE cdylib)
   create_copy($<TARGET_FILE:scylladb_cdylib> ${INSTALL_NAME_SHARED})
@@ -83,6 +89,7 @@ if(CASS_BUILD_SHARED)
     endif()
   endif()
 endif()
+
 if(CASS_BUILD_STATIC)
   cargo_build(NAME scylladb CRATE_TYPE staticlib)
   create_copy($<TARGET_FILE:scylladb_staticlib> ${INSTALL_NAME_STATIC})
