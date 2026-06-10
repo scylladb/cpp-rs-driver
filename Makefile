@@ -193,7 +193,7 @@ endif
 FULL_RUSTFLAGS := --cfg scylla_unstable --cfg cpp_integration_testing
 
 CURRENT_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
-BUILD_DIR := "${CURRENT_DIR}build"
+BUILD_DIR := $(CURRENT_DIR)build
 INTEGRATION_TEST_BIN := ${BUILD_DIR}/cassandra-integration-tests
 CMAKE_FLAGS ?=
 CMAKE_BUILD_TYPE ?= Release
