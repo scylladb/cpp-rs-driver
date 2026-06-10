@@ -197,6 +197,7 @@ BUILD_DIR := $(CURRENT_DIR)build
 INTEGRATION_TEST_BIN := ${BUILD_DIR}/cassandra-integration-tests
 CMAKE_FLAGS ?=
 CMAKE_BUILD_TYPE ?= Release
+OPENSSL_WIN_VERSION ?= 1.1.1u
 
 ifeq ($(OS_TYPE),macos)
   CMAKE_INSTALL_PREFIX ?= /usr/local
@@ -345,7 +346,7 @@ endif
 
 .package-configure: .package-build-prepare
 ifeq ($(OS_TYPE),windows)
-	cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) -DOPENSSL_VERSION=1.1.1u $(CMAKE_FLAGS)
+	cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) -DOPENSSL_VERSION=$(OPENSSL_WIN_VERSION) $(CMAKE_FLAGS)
 else
 	cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) -DCMAKE_INSTALL_PREFIX=$(CMAKE_INSTALL_PREFIX) $(CMAKE_FLAGS)
 endif
