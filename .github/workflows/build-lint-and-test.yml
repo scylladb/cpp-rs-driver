@@ -47,6 +47,9 @@ jobs:
         id: build-integration-test-bin
         run: make build-integration-test-bin
 
+      - name: Verify static driver links against OpenSSL 3.0 (issue #455)
+        run: make verify-openssl-3.0-compat
+
       - name: Save integration test binary
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         id: save-integration-test-bin
