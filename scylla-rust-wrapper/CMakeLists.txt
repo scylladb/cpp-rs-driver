@@ -128,46 +128,92 @@ if(CASS_BUILD_STATIC)
   # The word "INTERFACE" in CMake doesn't mean "public API" in the C++ sense — it means "propagated to consumers."
   # For an IMPORTED static library, ALL transitive dependencies are necessarily interface dependencies because
   # the static archive is opaque to CMake (it can't see inside it to know what symbols are needed).
+  #
+  # ## Comparison with `Libs.private` in pkg-config
+  #
+  # This is the CMake equivalent of `Libs.private` in the `.pc` file — both say
+  # "consumers need these additional libraries when linking statically."
+  # The naming is confusing but semantically correct:
+  # - pkg-config: `Libs.private` = "needed by consumers for static linking"
+  # - CMake: `INTERFACE_LINK_LIBRARIES` on IMPORTED STATIC = "needed by consumers"
   set(_STATIC_INTERFACE_LIBS "")
+
+  # These variables are used to generate the static library pkg-config file,
+  # and are separate from _STATIC_INTERFACE_LIBS because pkg-config requires
+  # a different format (e.g. "-lssl -lcrypto" instead of a list of library paths).
+  set(scylladb_static_requires_private "")
+  set(scylladb_static_libs_private "")
 
   if(CASS_USE_OPENSSL AND OPENSSL_LIBRARIES)
     list(APPEND _STATIC_INTERFACE_LIBS ${OPENSSL_LIBRARIES})
+    list(APPEND scylladb_static_requires_private openssl)
   endif()
 
   if(WIN32)
     # Windows system libraries required by Rust runtime and its dependencies
     list(APPEND _STATIC_INTERFACE_LIBS ws2_32 bcrypt ntdll userenv crypt32 secur32 ncrypt)
+    list(APPEND scylladb_static_libs_private
+      "-lws2_32" "-lbcrypt" "-lntdll" "-luserenv" "-lcrypt32" "-lsecur32" "-lncrypt")
   elseif(APPLE)
     list(APPEND _STATIC_INTERFACE_LIBS ${CMAKE_DL_LIBS} m)
+    if(CMAKE_DL_LIBS)
+      list(APPEND scylladb_static_libs_private "-l${CMAKE_DL_LIBS}")
+    endif()
+    list(APPEND scylladb_static_libs_private "-lm")
     find_package(Threads)
     if(Threads_FOUND)
       list(APPEND _STATIC_INTERFACE_LIBS Threads::Threads)
+      if(CMAKE_THREAD_LIBS_INIT)
+        list(APPEND scylladb_static_libs_private "${CMAKE_THREAD_LIBS_INIT}")
+      endif()
     endif()
     # CoreFoundation is needed by the iana-time-zone crate on macOS
     find_library(COREFOUNDATION_LIBRARY CoreFoundation)
     if(COREFOUNDATION_LIBRARY)
       list(APPEND _STATIC_INTERFACE_LIBS ${COREFOUNDATION_LIBRARY})
+      list(APPEND scylladb_static_libs_private "-framework CoreFoundation")
     endif()
     # SystemConfiguration and Security may also be needed on macOS
     find_library(SYSTEMCONFIGURATION_LIBRARY SystemConfiguration)
     if(SYSTEMCONFIGURATION_LIBRARY)
       list(APPEND _STATIC_INTERFACE_LIBS ${SYSTEMCONFIGURATION_LIBRARY})
+      list(APPEND scylladb_static_libs_private "-framework SystemConfiguration")
     endif()
     find_library(SECURITY_LIBRARY Security)
     if(SECURITY_LIBRARY)
       list(APPEND _STATIC_INTERFACE_LIBS ${SECURITY_LIBRARY})
+      list(APPEND scylladb_static_libs_private "-framework Security")
     endif()
   else() # non-Windows and non-Apple - assume Unix-like, such as Linux
     list(APPEND _STATIC_INTERFACE_LIBS ${CMAKE_DL_LIBS} m)
+    if(CMAKE_DL_LIBS)
+      list(APPEND scylladb_static_libs_private "-l${CMAKE_DL_LIBS}")
+    endif()
+    list(APPEND scylladb_static_libs_private "-lm")
     find_package(Threads)
     if(Threads_FOUND)
       list(APPEND _STATIC_INTERFACE_LIBS Threads::Threads)
+      if(CMAKE_THREAD_LIBS_INIT)
+        list(APPEND scylladb_static_libs_private "${CMAKE_THREAD_LIBS_INIT}")
+      endif()
     endif()
   endif()
 
   if(_STATIC_INTERFACE_LIBS)
     set_target_properties(scylladb_static PROPERTIES
       INTERFACE_LINK_LIBRARIES "${_STATIC_INTERFACE_LIBS}")
+  endif()
+
+  if(scylladb_static_requires_private)
+    list(REMOVE_DUPLICATES scylladb_static_requires_private)
+    string(JOIN " " scylladb_static_requires_private
+      ${scylladb_static_requires_private})
+  endif()
+
+  if(scylladb_static_libs_private)
+    list(REMOVE_DUPLICATES scylladb_static_libs_private)
+    string(JOIN " " scylladb_static_libs_private
+      ${scylladb_static_libs_private})
   endif()
 endif()
 
