@@ -31,6 +31,7 @@ if(CASS_BUILD_INTEGRATION_TESTS OR CASS_BUILD_EXAMPLES)
   set(CMAKE_Rust_FLAGS "${CMAKE_Rust_FLAGS} --cfg cpp_integration_testing")
 endif()
 
+# Shared library names and linker flags differ across platforms, so set them up here.
 if(APPLE)
   set(INSTALL_NAME_SHARED "libscylladb.${PROJECT_VERSION_STRING}.dylib")
   set(INSTALL_NAME_SHARED_SYMLINK_VERSION "libscylladb.${PROJECT_VERSION_MAJOR}.dylib")
@@ -44,7 +45,7 @@ elseif(WIN32)
   set(CMAKE_Rust_FLAGS_SONAME "")
   set(CASSANDRA_COMPAT_SHARED_SYMLINK "cassandra.dll")
   set(CASSANDRA_COMPAT_STATIC_SYMLINK "cassandra_static.lib")
-else()
+else() # Assume Unix-like (e.g. Linux).
   set(INSTALL_NAME_SHARED "libscylladb.so.${PROJECT_VERSION_STRING}")
   set(INSTALL_NAME_SHARED_SYMLINK_VERSION "libscylladb.so.${PROJECT_VERSION_MAJOR}")
   set(INSTALL_NAME_SHARED_SYMLINK_NO_VERSION "libscylladb.so")
@@ -52,16 +53,21 @@ else()
   set(CASSANDRA_COMPAT_SHARED_SYMLINK "libcassandra.so")
   set(CASSANDRA_COMPAT_STATIC_SYMLINK "libcassandra_static.a")
 endif()
+
+# Static library names are more consistent across platforms, but still differ on Windows.
 if(WIN32)
   set(INSTALL_NAME_STATIC "scylladb_static.lib")
 else()
   set(INSTALL_NAME_STATIC "libscylladb_static.a")
 endif()
+
+# Make rustc pass the SONAME flag to the linker when building the shared library.
 if(DEFINED CMAKE_Rust_FLAGS)
   set(CMAKE_Rust_FLAGS "${CMAKE_Rust_FLAGS} ${CMAKE_Rust_FLAGS_SONAME}")
 else()
   set(CMAKE_Rust_FLAGS "${CMAKE_Rust_FLAGS_SONAME}")
 endif()
+
 if(CASS_BUILD_SHARED)
   cargo_build(NAME scylladb CRATE_TYPE cdylib)
   create_copy($<TARGET_FILE:scylladb_cdylib> ${INSTALL_NAME_SHARED})
@@ -83,6 +89,7 @@ if(CASS_BUILD_SHARED)
     endif()
   endif()
 endif()
+
 if(CASS_BUILD_STATIC)
   cargo_build(NAME scylladb CRATE_TYPE staticlib)
   create_copy($<TARGET_FILE:scylladb_staticlib> ${INSTALL_NAME_STATIC})
@@ -91,6 +98,146 @@ if(CASS_BUILD_STATIC)
   set_target_properties(scylladb_static PROPERTIES IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/${INSTALL_NAME_STATIC})
   if(CASS_INSTALL_CASSANDRA_COMPAT AND NOT WIN32)
     create_symlink(${INSTALL_NAME_STATIC} ${CASSANDRA_COMPAT_STATIC_SYMLINK})
+  endif()
+
+  # The Rust staticlib contains unresolved references to OpenSSL and system
+  # libraries.  Declare them as transitive (INTERFACE) dependencies so that
+  # any target linking against scylladb_static automatically pulls
+  # in the required symbols in the correct order.
+  #
+  # NOTE: Some of these libraries (e.g. OpenSSL, ws2_32, crypt32, userenv on
+  # Windows) also appear in CASS_LIBS (populated by cmake/Dependencies.cmake).
+  # This causes them to appear twice on the linker command line, which is
+  # intentional and harmless -- linkers silently ignore duplicate inputs --
+  # but it keeps the static target self-contained so it works correctly even
+  # when linked outside the integration-test build where CASS_LIBS is set.
+
+  # ## `INTERFACE_LINK_LIBRARIES` on an IMPORTED target
+  # For an **IMPORTED** target (which `scylladb_static` is — `add_library(scylladb_static STATIC IMPORTED GLOBAL)`),
+  # the `INTERFACE_LINK_LIBRARIES` property means: "when something links against this target,
+  # also link against these libraries. This is actually the **correct** property to use here. The distinction:
+  # - `LINK_LIBRARIES` — libraries used to build the target itself (irrelevant for IMPORTED targets
+  #   since they're pre-built)
+  # - `INTERFACE_LINK_LIBRARIES` — libraries that **consumers** of this target must also link against
+  #
+  # Since `scylladb_static` is a pre-built static archive, it doesn't get "built" by CMake — it's already compiled.
+  # But any executable that links against it (like `cassandra-integration-tests`) needs to also link
+  # `-lssl -lcrypto -ldl -lm -lpthread` to resolve the symbols that the archive references.
+  # That's exactly what `INTERFACE_LINK_LIBRARIES` communicates.
+  #
+  # The word "INTERFACE" in CMake doesn't mean "public API" in the C++ sense — it means "propagated to consumers."
+  # For an IMPORTED static library, ALL transitive dependencies are necessarily interface dependencies because
+  # the static archive is opaque to CMake (it can't see inside it to know what symbols are needed).
+  #
+  # ## Comparison with `Libs.private` in pkg-config
+  #
+  # This is the CMake equivalent of `Libs.private` in the `.pc` file — both say
+  # "consumers need these additional libraries when linking statically."
+  # The naming is confusing but semantically correct:
+  # - pkg-config: `Libs.private` = "needed by consumers for static linking"
+  # - CMake: `INTERFACE_LINK_LIBRARIES` on IMPORTED STATIC = "needed by consumers"
+  set(_STATIC_INTERFACE_LIBS "")
+
+  # These variables are used to generate the static library pkg-config file,
+  # and are separate from _STATIC_INTERFACE_LIBS because pkg-config requires
+  # a different format (e.g. "-lssl -lcrypto" instead of a list of library paths).
+  set(scylladb_static_requires_private "")
+  set(scylladb_static_libs_private "")
+
+  if(CASS_USE_OPENSSL AND OPENSSL_LIBRARIES)
+    list(APPEND _STATIC_INTERFACE_LIBS ${OPENSSL_LIBRARIES})
+    list(APPEND scylladb_static_requires_private openssl)
+  endif()
+
+  if(WIN32)
+    # Windows system libraries required by Rust runtime and its dependencies
+    list(APPEND _STATIC_INTERFACE_LIBS ws2_32 bcrypt ntdll userenv crypt32 secur32 ncrypt)
+    list(APPEND scylladb_static_libs_private
+      "-lws2_32" "-lbcrypt" "-lntdll" "-luserenv" "-lcrypt32" "-lsecur32" "-lncrypt")
+  elseif(APPLE)
+    list(APPEND _STATIC_INTERFACE_LIBS ${CMAKE_DL_LIBS} m)
+    if(CMAKE_DL_LIBS)
+      list(APPEND scylladb_static_libs_private "-l${CMAKE_DL_LIBS}")
+    endif()
+    list(APPEND scylladb_static_libs_private "-lm")
+    find_package(Threads)
+    if(Threads_FOUND)
+      list(APPEND _STATIC_INTERFACE_LIBS Threads::Threads)
+      if(CMAKE_THREAD_LIBS_INIT)
+        list(APPEND scylladb_static_libs_private "${CMAKE_THREAD_LIBS_INIT}")
+      endif()
+    endif()
+    # CoreFoundation is needed by the iana-time-zone crate on macOS
+    find_library(COREFOUNDATION_LIBRARY CoreFoundation)
+    if(COREFOUNDATION_LIBRARY)
+      list(APPEND _STATIC_INTERFACE_LIBS ${COREFOUNDATION_LIBRARY})
+      list(APPEND scylladb_static_libs_private "-framework CoreFoundation")
+    endif()
+    # SystemConfiguration and Security may also be needed on macOS
+    find_library(SYSTEMCONFIGURATION_LIBRARY SystemConfiguration)
+    if(SYSTEMCONFIGURATION_LIBRARY)
+      list(APPEND _STATIC_INTERFACE_LIBS ${SYSTEMCONFIGURATION_LIBRARY})
+      list(APPEND scylladb_static_libs_private "-framework SystemConfiguration")
+    endif()
+    find_library(SECURITY_LIBRARY Security)
+    if(SECURITY_LIBRARY)
+      list(APPEND _STATIC_INTERFACE_LIBS ${SECURITY_LIBRARY})
+      list(APPEND scylladb_static_libs_private "-framework Security")
+    endif()
+  else() # non-Windows and non-Apple - assume Unix-like, such as Linux
+    list(APPEND _STATIC_INTERFACE_LIBS ${CMAKE_DL_LIBS} m)
+    if(CMAKE_DL_LIBS)
+      list(APPEND scylladb_static_libs_private "-l${CMAKE_DL_LIBS}")
+    endif()
+    list(APPEND scylladb_static_libs_private "-lm")
+    find_package(Threads)
+    if(Threads_FOUND)
+      list(APPEND _STATIC_INTERFACE_LIBS Threads::Threads)
+      if(CMAKE_THREAD_LIBS_INIT)
+        list(APPEND scylladb_static_libs_private "${CMAKE_THREAD_LIBS_INIT}")
+      endif()
+    endif()
+  endif()
+
+  if(_STATIC_INTERFACE_LIBS)
+    set_target_properties(scylladb_static PROPERTIES
+      INTERFACE_LINK_LIBRARIES "${_STATIC_INTERFACE_LIBS}")
+  endif()
+
+  if(scylladb_static_requires_private)
+    list(REMOVE_DUPLICATES scylladb_static_requires_private)
+    string(JOIN " " scylladb_static_requires_private
+      ${scylladb_static_requires_private})
+  endif()
+
+  if(scylladb_static_libs_private)
+    list(REMOVE_DUPLICATES scylladb_static_libs_private)
+    string(JOIN " " scylladb_static_libs_private
+      ${scylladb_static_libs_private})
+  endif()
+endif()
+
+#-------------------------------------
+# Build metadata
+#-------------------------------------
+
+# Generate BUILD_INFO capturing the build environment. The script is
+# bash-specific; if bash is unavailable the target is skipped silently.
+find_program(BASH_EXECUTABLE bash)
+if(BASH_EXECUTABLE)
+  add_custom_command(
+    OUTPUT ${CMAKE_BINARY_DIR}/BUILD_INFO
+    COMMAND ${BASH_EXECUTABLE} ${CASS_ROOT_DIR}/ci/generate-build-info.sh
+            ${CMAKE_BINARY_DIR}/BUILD_INFO
+    WORKING_DIRECTORY ${CASS_ROOT_DIR}
+    COMMENT "Generating BUILD_INFO"
+    VERBATIM
+  )
+  add_custom_target(build_info ALL DEPENDS ${CMAKE_BINARY_DIR}/BUILD_INFO)
+  if(TARGET scylladb_staticlib_target)
+    add_dependencies(build_info scylladb_staticlib_target)
+  elseif(TARGET scylladb_cdylib_target)
+    add_dependencies(build_info scylladb_cdylib_target)
   endif()
 endif()
 
@@ -151,6 +298,13 @@ if(CASS_INSTALL_HEADER)
   # Headers go to dev package
   install(FILES ${CASS_API_HEADER_FILES}
     DESTINATION ${INSTALL_HEADER_DIR}
+    COMPONENT ${SCYLLA_DRIVER_DEV_COMPONENT_NAME})
+endif()
+
+# Build metadata goes to dev package
+if(TARGET build_info)
+  install(FILES ${CMAKE_BINARY_DIR}/BUILD_INFO
+    DESTINATION share/doc/scylla-cpp-driver
     COMPONENT ${SCYLLA_DRIVER_DEV_COMPONENT_NAME})
 endif()
 

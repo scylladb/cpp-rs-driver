@@ -193,10 +193,11 @@ endif
 FULL_RUSTFLAGS := --cfg scylla_unstable --cfg cpp_integration_testing
 
 CURRENT_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
-BUILD_DIR := "${CURRENT_DIR}build"
+BUILD_DIR := $(CURRENT_DIR)build
 INTEGRATION_TEST_BIN := ${BUILD_DIR}/cassandra-integration-tests
 CMAKE_FLAGS ?=
 CMAKE_BUILD_TYPE ?= Release
+OPENSSL_WIN_VERSION ?= 1.1.1u
 
 ifeq ($(OS_TYPE),macos)
   CMAKE_INSTALL_PREFIX ?= /usr/local
@@ -274,6 +275,49 @@ build-integration-test-bin-if-missing:
 	@cd "${BUILD_DIR}"
 	cmake -DCASS_BUILD_INTEGRATION_TESTS=ON -DCMAKE_BUILD_TYPE=Release .. && (make -j 4 || make)
 
+# =============================================================================
+# OpenSSL 3.0 Compatibility Verification
+# =============================================================================
+# Regression test for issue #455: ensures the static driver archive can link
+# against OpenSSL 3.0 (our minimum supported version). Rather than rebuilding
+# from source, this target uses the artifact already produced by the default
+# build (which enables both shared and static). If the archive references
+# symbols only available in OpenSSL >3.0 (e.g. due to build environment
+# contamination), the link fails.
+#
+# This target is Linux/amd64-only (matches our release artifact platform).
+# =============================================================================
+
+OPENSSL_3_0_COMPAT_SYSROOT := /tmp/openssl-3.0-compat-sysroot
+OPENSSL_3_0_LIBSSL_DEV_URL := https://launchpad.net/ubuntu/+archive/primary/+files/libssl-dev_3.0.2-0ubuntu1_amd64.deb
+OPENSSL_3_0_LIBSSL_DEV_SHA256 := f3671a9f01aa92928db200b3d28f1acb782366882fe318a940649bd02363ceb6
+OPENSSL_3_0_LIBSSL_DEV_PATH := /tmp/libssl-dev_3.0.2.deb
+
+verify-openssl-3.0-compat:
+	@echo "=== Verifying static driver links against OpenSSL 3.0 (issue #455) ==="
+	rm -rf "$(OPENSSL_3_0_COMPAT_SYSROOT)"
+	DESTDIR="$(OPENSSL_3_0_COMPAT_SYSROOT)" cmake --install "$(BUILD_DIR)"
+	curl -fL -o "$(OPENSSL_3_0_LIBSSL_DEV_PATH)" "$(OPENSSL_3_0_LIBSSL_DEV_URL)"
+	echo "$(OPENSSL_3_0_LIBSSL_DEV_SHA256)  $(OPENSSL_3_0_LIBSSL_DEV_PATH)" | sha256sum --check
+	dpkg-deb -x "$(OPENSSL_3_0_LIBSSL_DEV_PATH)" "$(OPENSSL_3_0_COMPAT_SYSROOT)"
+	rm -f "$(OPENSSL_3_0_COMPAT_SYSROOT)/usr/lib/x86_64-linux-gnu/libssl.so"
+	rm -f "$(OPENSSL_3_0_COMPAT_SYSROOT)/usr/lib/x86_64-linux-gnu/libcrypto.so"
+	PKG_CONFIG_SYSROOT_DIR="$(OPENSSL_3_0_COMPAT_SYSROOT)" \
+	PKG_CONFIG_PATH="$(OPENSSL_3_0_COMPAT_SYSROOT)/usr/local/lib/x86_64-linux-gnu/pkgconfig:$(OPENSSL_3_0_COMPAT_SYSROOT)/usr/lib/x86_64-linux-gnu/pkgconfig" \
+	pkg-config --libs --static scylladb_static
+	cc \
+		$$(PKG_CONFIG_SYSROOT_DIR="$(OPENSSL_3_0_COMPAT_SYSROOT)" \
+		   PKG_CONFIG_PATH="$(OPENSSL_3_0_COMPAT_SYSROOT)/usr/local/lib/x86_64-linux-gnu/pkgconfig:$(OPENSSL_3_0_COMPAT_SYSROOT)/usr/lib/x86_64-linux-gnu/pkgconfig" \
+		   pkg-config --cflags scylladb_static) \
+		examples/ssl/ssl.c \
+		$$(PKG_CONFIG_SYSROOT_DIR="$(OPENSSL_3_0_COMPAT_SYSROOT)" \
+		   PKG_CONFIG_PATH="$(OPENSSL_3_0_COMPAT_SYSROOT)/usr/local/lib/x86_64-linux-gnu/pkgconfig:$(OPENSSL_3_0_COMPAT_SYSROOT)/usr/lib/x86_64-linux-gnu/pkgconfig" \
+		   pkg-config --libs --static scylladb_static) \
+		-o /tmp/openssl-3.0-compat-link-test
+	@echo "=== OpenSSL 3.0 compatibility verified ==="
+	rm -rf "$(OPENSSL_3_0_COMPAT_SYSROOT)" \
+		"$(OPENSSL_3_0_LIBSSL_DEV_PATH)" /tmp/openssl-3.0-compat-link-test
+
 build-examples:
 	@echo "Building examples to ${EXAMPLES_DIR}"
 	@mkdir "${BUILD_DIR}" >/dev/null 2>&1 || true
@@ -345,7 +389,7 @@ endif
 
 .package-configure: .package-build-prepare
 ifeq ($(OS_TYPE),windows)
-	cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) -DOPENSSL_VERSION=1.1.1u $(CMAKE_FLAGS)
+	cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) -DOPENSSL_VERSION=$(OPENSSL_WIN_VERSION) $(CMAKE_FLAGS)
 else
 	cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE) -DCMAKE_INSTALL_PREFIX=$(CMAKE_INSTALL_PREFIX) $(CMAKE_FLAGS)
 endif
@@ -559,7 +603,7 @@ test-package-rpm: build-package
 		fedora:latest \
 		bash -c ' \
 			set -euo pipefail; \
-			dnf -y install make cmake gcc-c++ findutils rpm-build createrepo_c; \
+			dnf -y install make cmake gcc-c++ findutils rpm-build zlib-devel createrepo_c; \
 			$(MAKE) -C $(SMOKE_TEST_DIR) verify-driver-dev-rpm; \
 			$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-dev-rpm || true; \
 			$(MAKE) -C $(SMOKE_TEST_DIR) remove-driver-rpm || true; \

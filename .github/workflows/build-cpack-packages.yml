@@ -47,6 +47,9 @@ jobs:
       - name: Build and test DEB packages
         run: make test-package-deb
 
+      - name: Verify static driver links against OpenSSL 3.0 (issue #455)
+        run: make verify-openssl-3.0-compat
+
       - name: Collect artifacts
         if: inputs.save-artifacts
         run: make collect-package-artifacts
