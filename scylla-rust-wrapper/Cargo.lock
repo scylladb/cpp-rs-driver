@@ -259,7 +259,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -726,7 +726,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1056,7 +1056,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.12.1",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1085,8 +1085,8 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "scylla"
-version = "1.6.0"
-source = "git+https://github.com/scylladb/scylla-rust-driver.git?rev=e04a12a9950cb3d051288541d5439835098c5cc2#e04a12a9950cb3d051288541d5439835098c5cc2"
+version = "1.7.0"
+source = "git+https://github.com/scylladb/scylla-rust-driver.git?rev=v1.7.0#5ecb2de4a76159ef306553bf478927112f24016b"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -1101,6 +1101,7 @@ dependencies = [
  "rand 0.9.2",
  "rand_pcg",
  "scylla-cql",
+ "scylla-cql-core",
  "smallvec",
  "socket2 0.5.10",
  "thiserror 2.0.18",
@@ -1112,15 +1113,15 @@ dependencies = [
 
 [[package]]
 name = "scylla-cql"
-version = "1.6.0"
-source = "git+https://github.com/scylladb/scylla-rust-driver.git?rev=e04a12a9950cb3d051288541d5439835098c5cc2#e04a12a9950cb3d051288541d5439835098c5cc2"
+version = "1.7.0"
+source = "git+https://github.com/scylladb/scylla-rust-driver.git?rev=v1.7.0#5ecb2de4a76159ef306553bf478927112f24016b"
 dependencies = [
  "byteorder",
  "bytes",
  "chrono",
  "itertools 0.14.0",
  "lz4_flex",
- "scylla-macros",
+ "scylla-cql-core",
  "snap",
  "stable_deref_trait",
  "thiserror 2.0.18",
@@ -1130,9 +1131,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "scylla-cql-core"
+version = "1.7.0"
+source = "git+https://github.com/scylladb/scylla-rust-driver.git?rev=v1.7.0#5ecb2de4a76159ef306553bf478927112f24016b"
+dependencies = [
+ "byteorder",
+ "bytes",
+ "chrono",
+ "itertools 0.14.0",
+ "scylla-macros",
+ "thiserror 2.0.18",
+ "uuid",
+]
+
+[[package]]
 name = "scylla-macros"
-version = "1.6.0"
-source = "git+https://github.com/scylladb/scylla-rust-driver.git?rev=e04a12a9950cb3d051288541d5439835098c5cc2#e04a12a9950cb3d051288541d5439835098c5cc2"
+version = "1.7.0"
+source = "git+https://github.com/scylladb/scylla-rust-driver.git?rev=v1.7.0#5ecb2de4a76159ef306553bf478927112f24016b"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -1143,7 +1158,7 @@ dependencies = [
 [[package]]
 name = "scylla-proxy"
 version = "0.0.6"
-source = "git+https://github.com/scylladb/scylla-rust-driver.git?rev=e04a12a9950cb3d051288541d5439835098c5cc2#e04a12a9950cb3d051288541d5439835098c5cc2"
+source = "git+https://github.com/scylladb/scylla-rust-driver.git?rev=v1.7.0#5ecb2de4a76159ef306553bf478927112f24016b"
 dependencies = [
  "bigdecimal",
  "byteorder",
@@ -1355,7 +1370,7 @@ dependencies = [
  "getrandom 0.4.1",
  "once_cell",
  "rustix 1.1.4",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
