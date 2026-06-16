@@ -218,6 +218,30 @@ if(CASS_BUILD_STATIC)
 endif()
 
 #-------------------------------------
+# Build metadata
+#-------------------------------------
+
+# Generate BUILD_INFO capturing the build environment. The script is
+# bash-specific; if bash is unavailable the target is skipped silently.
+find_program(BASH_EXECUTABLE bash)
+if(BASH_EXECUTABLE)
+  add_custom_command(
+    OUTPUT ${CMAKE_BINARY_DIR}/BUILD_INFO
+    COMMAND ${BASH_EXECUTABLE} ${CASS_ROOT_DIR}/ci/generate-build-info.sh
+            ${CMAKE_BINARY_DIR}/BUILD_INFO
+    WORKING_DIRECTORY ${CASS_ROOT_DIR}
+    COMMENT "Generating BUILD_INFO"
+    VERBATIM
+  )
+  add_custom_target(build_info ALL DEPENDS ${CMAKE_BINARY_DIR}/BUILD_INFO)
+  if(TARGET scylladb_staticlib_target)
+    add_dependencies(build_info scylladb_staticlib_target)
+  elseif(TARGET scylladb_cdylib_target)
+    add_dependencies(build_info scylladb_cdylib_target)
+  endif()
+endif()
+
+#-------------------------------------
 # Installation
 #-------------------------------------
 
