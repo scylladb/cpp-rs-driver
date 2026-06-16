@@ -301,6 +301,13 @@ if(CASS_INSTALL_HEADER)
     COMPONENT ${SCYLLA_DRIVER_DEV_COMPONENT_NAME})
 endif()
 
+# Build metadata goes to dev package
+if(TARGET build_info)
+  install(FILES ${CMAKE_BINARY_DIR}/BUILD_INFO
+    DESTINATION share/doc/scylla-cpp-driver
+    COMPONENT ${SCYLLA_DRIVER_DEV_COMPONENT_NAME})
+endif()
+
 # Install the dynamic/shared library
 if(CASS_BUILD_SHARED)
   # Versioned shared library goes to runtime package
