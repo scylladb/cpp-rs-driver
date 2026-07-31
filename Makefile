@@ -495,6 +495,18 @@ endif
 	valgrind --error-exitcode=123 --leak-check=full --errors-for-leak-kinds=definite build/cassandra-integration-tests --scylla --version=${SCYLLA_VERSION} --category=CASSANDRA --verbose=ccm --gtest_filter="${SCYLLA_TEST_FILTER}"
 	@echo "Running timeout sensitive tests on scylla ${SCYLLA_VERSION}"
 	build/cassandra-integration-tests --scylla --version=${SCYLLA_VERSION} --category=CASSANDRA --verbose=ccm --gtest_filter="${SCYLLA_NO_VALGRIND_TEST_FILTER}"
+	@echo "Running Rust CCM integration tests on scylla ${SCYLLA_VERSION}"
+	@cd ${CURRENT_DIR}/scylla-rust-wrapper
+	@# These tests start real, TLS-enabled clusters via CCM and drive the
+	@# driver through its C API. `SCYLLA_TEST_CLUSTER` selects the CCM version
+	@# (see the scylla-ccm-bridge crate). Ignored tests (documenting not-yet
+	@# implemented behavior) are intentionally not run.
+	@#
+	@# Prefer a fully-qualified SCYLLA_VERSION (e.g. release:2025.3.8 rather
+	@# than release:2025.3): scylla-ccm re-resolves the version on every `ccm`
+	@# invocation, and a partial one forces it to list an S3 bucket and sleep
+	@# for a random 0-5 seconds each time, which dominates the test runtime.
+	SCYLLA_TEST_CLUSTER="${SCYLLA_VERSION}" CCM_ROOT_DIR=/tmp/ccm-rust RUSTFLAGS="${FULL_RUSTFLAGS}" cargo test --test integration ccm
 
 run-test-integration-cassandra: install-java8-if-missing
 ifdef DONT_REBUILD_INTEGRATION_BIN
