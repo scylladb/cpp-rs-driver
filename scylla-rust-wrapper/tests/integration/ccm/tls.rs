@@ -7,6 +7,7 @@
 
 use std::ffi::CString;
 use std::net::{IpAddr, Ipv4Addr};
+use std::os::raw::c_char;
 use std::sync::Arc;
 
 use futures::StreamExt as _;
@@ -31,7 +32,8 @@ use scylladb::api::session::{
     cass_session_new,
 };
 use scylladb::api::ssl::{
-    cass_ssl_add_trusted_cert, cass_ssl_free, cass_ssl_new, cass_ssl_set_verify_flags,
+    cass_ssl_add_trusted_cert, cass_ssl_free, cass_ssl_new, cass_ssl_set_cert,
+    cass_ssl_set_private_key, cass_ssl_set_verify_flags,
 };
 use scylladb::api::statement::{cass_statement_free, cass_statement_new};
 use scylladb::argconv::CassStrNulTerminated;
@@ -189,6 +191,7 @@ unsafe fn connect_and_healthcheck(
     contact_points: &str,
     verify_flags: Option<i32>,
     trust_ca_pem: Option<&str>,
+    client_cert_and_key_pem: Option<(&str, &str)>,
 ) -> CassError {
     unsafe {
         let mut cluster_raw = cass_cluster_new();
@@ -210,6 +213,29 @@ unsafe fn connect_and_healthcheck(
                 cass_ssl_add_trusted_cert(
                     ssl_raw.borrow(),
                     CassStrNulTerminated::from_cstr(&ca_pem_c),
+                ),
+            );
+        }
+        if let Some((cert_pem, key_pem)) = client_cert_and_key_pem {
+            let cert_pem_c = CString::new(cert_pem).unwrap();
+            assert_cass_error_eq(
+                CassError::CASS_OK,
+                cass_ssl_set_cert(
+                    ssl_raw.borrow(),
+                    CassStrNulTerminated::from_cstr(&cert_pem_c),
+                ),
+            );
+
+            let key_pem_c = CString::new(key_pem).unwrap();
+            // The rcgen-generated key is unencrypted, but the C API still
+            // requires a non-null password pointer, so pass an empty string.
+            let mut empty_password: [c_char; 1] = [0];
+            assert_cass_error_eq(
+                CassError::CASS_OK,
+                cass_ssl_set_private_key(
+                    ssl_raw.borrow(),
+                    CassStrNulTerminated::from_cstr(&key_pem_c),
+                    empty_password.as_mut_ptr(),
                 ),
             );
         }
@@ -260,6 +286,7 @@ async fn try_tls_connect(
     cluster: &Cluster,
     verify_flags: Option<i32>,
     trust_ca_pem: Option<String>,
+    client_cert_and_key_pem: Option<(String, String)>,
 ) -> CassError {
     let contact_points = cluster
         .nodes()
@@ -269,7 +296,14 @@ async fn try_tls_connect(
         .join(",");
 
     tokio::task::spawn_blocking(move || unsafe {
-        connect_and_healthcheck(&contact_points, verify_flags, trust_ca_pem.as_deref())
+        connect_and_healthcheck(
+            &contact_points,
+            verify_flags,
+            trust_ca_pem.as_deref(),
+            client_cert_and_key_pem
+                .as_ref()
+                .map(|(cert, key)| (cert.as_str(), key.as_str())),
+        )
     })
     .await
     .unwrap()
@@ -302,6 +336,7 @@ async fn connect_tls_no_client_auth() {
                 cluster,
                 Some(CASS_SSL_VERIFY_PEER_IDENTITY),
                 Some(ca_pem.clone()),
+                None,
             )
             .await,
         );
@@ -309,18 +344,18 @@ async fn connect_tls_no_client_auth() {
         // NONE: verification disabled -> connects even without a trusted CA.
         assert_cass_error_eq(
             CassError::CASS_OK,
-            try_tls_connect(cluster, Some(CASS_SSL_VERIFY_NONE), None).await,
+            try_tls_connect(cluster, Some(CASS_SSL_VERIFY_NONE), None, None).await,
         );
 
         // default: verification disabled -> connects even without a trusted CA.
         assert_cass_error_eq(
             CassError::CASS_OK,
-            try_tls_connect(cluster, None, None).await,
+            try_tls_connect(cluster, None, None, None).await,
         );
 
         // PEER_IDENTITY without a trusted CA -> certificate chain validation
         // fails, so the connection is rejected.
-        let err = try_tls_connect(cluster, Some(CASS_SSL_VERIFY_PEER_IDENTITY), None).await;
+        let err = try_tls_connect(cluster, Some(CASS_SSL_VERIFY_PEER_IDENTITY), None, None).await;
         assert_ne!(
             err,
             CassError::CASS_OK,
@@ -358,6 +393,7 @@ async fn tls_verifies_hostname() {
             cluster,
             Some(CASS_SSL_VERIFY_PEER_IDENTITY),
             Some(ca_pem.clone()),
+            None,
         )
         .await;
         assert_ne!(
@@ -370,9 +406,75 @@ async fn tls_verifies_hostname() {
         // connection succeeds.
         assert_cass_error_eq(
             CassError::CASS_OK,
-            try_tls_connect(cluster, Some(CASS_SSL_VERIFY_NONE), Some(ca_pem)).await,
+            try_tls_connect(cluster, Some(CASS_SSL_VERIFY_NONE), Some(ca_pem), None).await,
         );
     }
 
     run_ccm_tls_test(prepare_cert, async |c| c, test).await
+}
+
+/// Checks that the driver can still connect when the server requires client
+/// authentication (`require_client_auth = true`): connecting without a client
+/// certificate must fail, while connecting with a certificate/key signed by the
+/// trusted CA must succeed.
+///
+/// Port of the Rust Driver's `test_connect_tls_with_client_auth`.
+#[tokio::test]
+async fn connect_tls_with_client_auth() {
+    setup_tracing();
+
+    // Each node's certificate has a SAN matching its own broadcast RPC address.
+    fn prepare_cert(mut params: CertificateParams, node: &Node) -> CertificateParams {
+        params
+            .subject_alt_names
+            .push(SanType::IpAddress(node.broadcast_rpc_address()));
+        params
+    }
+
+    async fn require_client_auth(mut cluster: Cluster) -> Cluster {
+        cluster
+            .updateconf([("client_encryption_options.require_client_auth", "true")])
+            .await
+            .unwrap();
+        cluster
+    }
+
+    async fn test(ca: &CertifiedIssuer<'static, KeyPair>, cluster: &mut Cluster) {
+        let ca_pem = ca.pem();
+
+        // Sanity check: without a client certificate, the server rejects us.
+        let err = try_tls_connect(
+            cluster,
+            Some(CASS_SSL_VERIFY_PEER_IDENTITY),
+            Some(ca_pem.clone()),
+            None,
+        )
+        .await;
+        assert_ne!(
+            err,
+            CassError::CASS_OK,
+            "expected connection to fail: server requires client authentication"
+        );
+
+        // With a client certificate and key signed by the trusted CA, we
+        // authenticate successfully and connect.
+        let client_key = KeyPair::generate().unwrap();
+        let client_cert = CertificateParams::new(vec![])
+            .unwrap()
+            .signed_by(&client_key, ca)
+            .unwrap();
+
+        assert_cass_error_eq(
+            CassError::CASS_OK,
+            try_tls_connect(
+                cluster,
+                Some(CASS_SSL_VERIFY_PEER_IDENTITY),
+                Some(ca_pem),
+                Some((client_cert.pem(), client_key.serialize_pem())),
+            )
+            .await,
+        );
+    }
+
+    run_ccm_tls_test(prepare_cert, require_client_auth, test).await
 }
