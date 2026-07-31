@@ -27,6 +27,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyhow"
+version = "1.0.104"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
+
+[[package]]
 name = "arc-swap"
 version = "1.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1029,6 +1035,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "scylla-ccm-bridge"
+version = "0.0.1"
+source = "git+https://github.com/scylladb/scylla-rust-driver.git?rev=9ab7216d4d32eb249dbd9929c9d3592711b800da#9ab7216d4d32eb249dbd9929c9d3592711b800da"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "futures",
+ "itertools 0.15.0",
+ "rand 0.9.5",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
 name = "scylla-cql"
 version = "1.7.0"
 source = "git+https://github.com/scylladb/scylla-rust-driver.git?rev=9ab7216d4d32eb249dbd9929c9d3592711b800da#9ab7216d4d32eb249dbd9929c9d3592711b800da"
@@ -1107,6 +1130,7 @@ dependencies = [
  "rand 0.8.7",
  "rusty-fork",
  "scylla",
+ "scylla-ccm-bridge",
  "scylla-cql",
  "scylla-proxy",
  "thiserror 1.0.69",

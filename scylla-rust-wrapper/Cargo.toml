@@ -40,6 +40,7 @@ chrono = "0.4.20"
 [dev-dependencies]
 scylla-proxy = { git = "https://github.com/scylladb/scylla-rust-driver.git", rev = "9ab7216d4d32eb249dbd9929c9d3592711b800da" }
 scylla-cql = { git = "https://github.com/scylladb/scylla-rust-driver.git", rev = "9ab7216d4d32eb249dbd9929c9d3592711b800da" }
+scylla-ccm-bridge = { git = "https://github.com/scylladb/scylla-rust-driver.git", rev = "9ab7216d4d32eb249dbd9929c9d3592711b800da" }
 bytes = "1.10.0"
 itertools = "0.10.3"
 assert_matches = "1.5.0"
