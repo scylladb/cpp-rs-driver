@@ -509,7 +509,10 @@ endif
 
 run-test-unit: install-cargo-if-missing
 	@cd ${CURRENT_DIR}/scylla-rust-wrapper
-	RUSTFLAGS="${FULL_RUSTFLAGS}" cargo test
+	@# The `ccm` tests require a running CCM environment and a real cluster,
+	@# so they are excluded here. They are run as part of the integration
+	@# test targets instead (see `run-test-integration-scylla`).
+	RUSTFLAGS="${FULL_RUSTFLAGS}" cargo test -- --skip ccm
 
 # Currently not used.
 CQLSH := cqlsh
