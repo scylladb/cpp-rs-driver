@@ -6,6 +6,7 @@
 //! tests, adapted to drive this driver through the C API.
 
 use std::ffi::CString;
+use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 
 use futures::StreamExt as _;
@@ -324,6 +325,52 @@ async fn connect_tls_no_client_auth() {
             err,
             CassError::CASS_OK,
             "expected connection to fail when the server CA is not trusted"
+        );
+    }
+
+    run_ccm_tls_test(prepare_cert, async |c| c, test).await
+}
+
+/// Verifies that identity verification is actually enforced: if a node presents
+/// a certificate whose subject alternative name does not match the node's IP
+/// address, the driver must refuse to connect under `PEER_IDENTITY`, while
+/// still connecting under `NONE` (which disables verification entirely).
+///
+/// Port of the Rust Driver's `test_tls_verifies_hostname`.
+#[tokio::test]
+async fn tls_verifies_hostname() {
+    setup_tracing();
+
+    // Every node gets a certificate with a SAN that does not match its IP.
+    fn prepare_cert(mut params: CertificateParams, _node: &Node) -> CertificateParams {
+        params
+            .subject_alt_names
+            .push(SanType::IpAddress(IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1))));
+        params
+    }
+
+    async fn test(ca: &CertifiedIssuer<'static, KeyPair>, cluster: &mut Cluster) {
+        let ca_pem = ca.pem();
+
+        // PEER_IDENTITY: chain is valid but the SAN does not match the node IP
+        // -> identity verification fails, so the connection is rejected.
+        let err = try_tls_connect(
+            cluster,
+            Some(CASS_SSL_VERIFY_PEER_IDENTITY),
+            Some(ca_pem.clone()),
+        )
+        .await;
+        assert_ne!(
+            err,
+            CassError::CASS_OK,
+            "expected connection to fail: certificate SAN does not match the node IP"
+        );
+
+        // NONE: verification disabled -> the SAN mismatch is ignored and the
+        // connection succeeds.
+        assert_cass_error_eq(
+            CassError::CASS_OK,
+            try_tls_connect(cluster, Some(CASS_SSL_VERIFY_NONE), Some(ca_pem)).await,
         );
     }
 
