@@ -46,6 +46,7 @@ use super::warn_if_partial_cluster_version;
 // The Rust constants in the driver are crate-private, so we redefine the ABI
 // values here, exactly as a C consumer would use them.
 const CASS_SSL_VERIFY_NONE: i32 = 0x00;
+const CASS_SSL_VERIFY_PEER_CERT: i32 = 0x01;
 const CASS_SSL_VERIFY_PEER_IDENTITY: i32 = 0x02;
 
 fn cluster_3_nodes() -> ClusterOptions {
@@ -477,4 +478,47 @@ async fn connect_tls_with_client_auth() {
     }
 
     run_ccm_tls_test(prepare_cert, require_client_auth, test).await
+}
+
+/// Documents the *desired* semantics of `CASS_SSL_VERIFY_PEER_CERT`: it should
+/// validate the certificate chain only, without checking the peer identity
+/// (IP SAN). This is not implemented yet — currently `PEER_CERT` is equivalent
+/// to `PEER_IDENTITY` because the underlying Rust driver always verifies the
+/// node IP. The test is therefore `#[ignore]`d; un-ignore it once chain-only
+/// `PEER_CERT` support lands.
+#[tokio::test]
+#[ignore = "PEER_CERT currently behaves like PEER_IDENTITY (verifies the IP SAN); \
+            chain-only PEER_CERT support is not implemented yet"]
+async fn tls_peer_cert_verifies_chain_only() {
+    setup_tracing();
+
+    // The SAN deliberately does not match the node IP, to prove that PEER_CERT
+    // ignores the peer identity while still validating the certificate chain.
+    fn prepare_cert(mut params: CertificateParams, _node: &Node) -> CertificateParams {
+        params
+            .subject_alt_names
+            .push(SanType::IpAddress(IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1))));
+        params
+    }
+
+    async fn test(ca: &CertifiedIssuer<'static, KeyPair>, cluster: &mut Cluster) {
+        let ca_pem = ca.pem();
+
+        // Desired: PEER_CERT verifies only the chain, so a SAN mismatch is
+        // tolerated as long as the CA is trusted.
+        assert_cass_error_eq(
+            CassError::CASS_OK,
+            try_tls_connect(cluster, Some(CASS_SSL_VERIFY_PEER_CERT), Some(ca_pem), None).await,
+        );
+
+        // But the chain is still validated: an untrusted CA must be rejected.
+        let err = try_tls_connect(cluster, Some(CASS_SSL_VERIFY_PEER_CERT), None, None).await;
+        assert_ne!(
+            err,
+            CassError::CASS_OK,
+            "PEER_CERT must still validate the certificate chain"
+        );
+    }
+
+    run_ccm_tls_test(prepare_cert, async |c| c, test).await
 }
