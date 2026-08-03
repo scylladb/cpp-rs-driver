@@ -44,8 +44,8 @@ pub unsafe extern "C" fn cass_ssl_new_no_lib_init() -> CassOwnedSharedPtr<CassSs
         SSL_CTX_set_cert_store(ssl_context, trusted_store);
         SSL_CTX_set_verify(
             ssl_context,
-            CassSslVerifyFlags::CASS_SSL_VERIFY_NONE.0 as i32,
-            None,
+            SslVerifyMode::PEER.bits(),
+            Some(verify_peer_cert_callback),
         );
     }
 

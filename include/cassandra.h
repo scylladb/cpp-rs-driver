@@ -4316,7 +4316,7 @@ cass_ssl_add_trusted_cert_n(CassSsl* ssl,
  * certificate is also present. Hostname resolution must also be enabled.
  * NOTE: not supported; treated as CASS_SSL_VERIFY_PEER_IDENTITY.
  *
- * <b>Default:</b> CASS_SSL_VERIFY_NONE
+ * <b>Default:</b> CASS_SSL_VERIFY_PEER_CERT
  *
  * @public @memberof CassSsl
  *

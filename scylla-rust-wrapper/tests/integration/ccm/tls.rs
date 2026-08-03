@@ -348,20 +348,26 @@ async fn connect_tls_no_client_auth() {
             try_tls_connect(cluster, Some(CASS_SSL_VERIFY_NONE), None, None).await,
         );
 
-        // default: verification disabled -> connects even without a trusted CA.
-        assert_cass_error_eq(
-            CassError::CASS_OK,
-            try_tls_connect(cluster, None, None, None).await,
-        );
+        let assert_conn_fails = async |verify_flags| {
+            let err = try_tls_connect(cluster, verify_flags, None, None).await;
+            assert_ne!(
+                err,
+                CassError::CASS_OK,
+                "expected connection to fail when the server CA is not trusted"
+            );
+        };
+
+        // default: PEER_CERT without a trusted CA -> certificate chain validation
+        // fails, so the connection is rejected.
+        assert_conn_fails(None).await;
+
+        // PEER_CERT without a trusted CA -> certificate chain validation
+        // fails, so the connection is rejected.
+        assert_conn_fails(Some(CASS_SSL_VERIFY_PEER_CERT)).await;
 
         // PEER_IDENTITY without a trusted CA -> certificate chain validation
         // fails, so the connection is rejected.
-        let err = try_tls_connect(cluster, Some(CASS_SSL_VERIFY_PEER_IDENTITY), None, None).await;
-        assert_ne!(
-            err,
-            CassError::CASS_OK,
-            "expected connection to fail when the server CA is not trusted"
-        );
+        assert_conn_fails(Some(CASS_SSL_VERIFY_PEER_IDENTITY)).await;
     }
 
     run_ccm_tls_test(prepare_cert, async |c| c, test).await
