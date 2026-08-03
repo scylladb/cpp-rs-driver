@@ -409,6 +409,22 @@ async fn tls_verifies_hostname() {
             "expected connection to fail: certificate SAN does not match the node IP"
         );
 
+        // The flags are a bitmask, so the combination the TLS guide documents
+        // must behave exactly like PEER_IDENTITY on its own, rather than
+        // falling through to some default.
+        let err = try_tls_connect(
+            cluster,
+            Some(CASS_SSL_VERIFY_PEER_CERT | CASS_SSL_VERIFY_PEER_IDENTITY),
+            Some(ca_pem.clone()),
+            None,
+        )
+        .await;
+        assert_ne!(
+            err,
+            CassError::CASS_OK,
+            "expected PEER_CERT | PEER_IDENTITY to verify the identity too"
+        );
+
         // NONE: verification disabled -> the SAN mismatch is ignored and the
         // connection succeeds.
         assert_cass_error_eq(

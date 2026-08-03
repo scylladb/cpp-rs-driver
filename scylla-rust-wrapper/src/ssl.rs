@@ -29,6 +29,15 @@ impl FFI for CassSsl {
     type Origin = FromArc;
 }
 
+/// Type of the verification callback accepted by `SSL_CTX_set_verify()`.
+type VerifyCallback = Option<extern "C" fn(c_int, *mut X509_STORE_CTX) -> c_int>;
+
+/// All bits recognised by [`cass_ssl_set_verify_flags`].
+const CASS_SSL_VERIFY_KNOWN_FLAGS: i32 = (CassSslVerifyFlags::CASS_SSL_VERIFY_PEER_CERT.0
+    | CassSslVerifyFlags::CASS_SSL_VERIFY_PEER_IDENTITY.0
+    | CassSslVerifyFlags::CASS_SSL_VERIFY_PEER_IDENTITY_DNS.0)
+    as i32;
+
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_ssl_new() -> CassOwnedSharedPtr<CassSsl, CMut> {
     openssl_sys::init();
@@ -219,44 +228,55 @@ pub unsafe extern "C" fn cass_ssl_set_verify_flags(
         return;
     };
 
-    match CassSslVerifyFlags(flags as u32) {
-        CassSslVerifyFlags::CASS_SSL_VERIFY_NONE => unsafe {
-            SSL_CTX_set_verify(ssl.ssl_context, SslVerifyMode::NONE.bits(), None)
-        },
-        CassSslVerifyFlags::CASS_SSL_VERIFY_PEER_CERT => unsafe {
-            // Chain-only verification. The driver pins the peer's identity for us,
-            // so the mismatches that pinning produces have to be tolerated.
-            SSL_CTX_set_verify(
-                ssl.ssl_context,
-                SslVerifyMode::PEER.bits(),
-                Some(verify_peer_cert_callback),
-            )
-        },
-        CassSslVerifyFlags::CASS_SSL_VERIFY_PEER_IDENTITY => unsafe {
+    // `CassSslVerifyFlags` is a bitmask: the values are disjoint bits, meant to
+    // be combined, e.g. `CASS_SSL_VERIFY_PEER_CERT | CASS_SSL_VERIFY_PEER_IDENTITY`.
+    // Matching on the value as a whole would reject every such combination.
+    //
+    // Bits outside the mask are still unrecognised, so - as before - they make
+    // the whole value unhonourable and we fall back to the strictest setting.
+    let flags = if flags & !CASS_SSL_VERIFY_KNOWN_FLAGS != 0 {
+        tracing::error!(
+            "Provided unknown CASS_SSL_VERIFY flags: {flags:#x}. \
+             Enforcing the strictest verification (peer certificate and peer identity) instead."
+        );
+        CassSslVerifyFlags::CASS_SSL_VERIFY_PEER_IDENTITY.0 as i32
+    } else {
+        flags
+    };
+
+    if flags & CassSslVerifyFlags::CASS_SSL_VERIFY_PEER_IDENTITY_DNS.0 as i32 != 0 {
+        tracing::warn!(
+            "The CASS_SSL_VERIFY_PEER_IDENTITY_DNS is not supported, CASS_SSL_VERIFY_PEER_IDENTITY is set in SSL context instead."
+        );
+    }
+
+    // Verifying the peer's identity implies verifying its certificate, so any
+    // recognised bit turns peer verification on; `CASS_SSL_VERIFY_NONE` is
+    // their absence.
+    let verify_identity = flags
+        & (CassSslVerifyFlags::CASS_SSL_VERIFY_PEER_IDENTITY.0 as i32
+            | CassSslVerifyFlags::CASS_SSL_VERIFY_PEER_IDENTITY_DNS.0 as i32)
+        != 0;
+    let verify_peer =
+        flags & CASS_SSL_VERIFY_KNOWN_FLAGS != CassSslVerifyFlags::CASS_SSL_VERIFY_NONE.0 as i32;
+
+    let (mode, callback): (SslVerifyMode, VerifyCallback) = match (verify_peer, verify_identity) {
+        // Verifying the peer's identity implies verifying its certificate.
+        (_, true) => {
             // Rust Driver verifies identity by default (and provides no lever to turn this verification off)
             // by expecting particular IP address to be present in the SAN field.
             // This means that once we enable SslVerifyMode::PEER, we get certificate + identity verification.
-            SSL_CTX_set_verify(ssl.ssl_context, SslVerifyMode::PEER.bits(), None)
-        },
-        CassSslVerifyFlags::CASS_SSL_VERIFY_PEER_IDENTITY_DNS => unsafe {
-            // Rust Driver always verifies by IP only, so DNS verification is unsupported.
-            tracing::warn!(
-                "The CASS_SSL_VERIFY_PEER_CERT_IDENTITY_DNS is not supported, CASS_SSL_VERIFY_PEER_IDENTITY is set in SSL context."
-            );
-            SSL_CTX_set_verify(ssl.ssl_context, SslVerifyMode::PEER.bits(), None)
-        },
-        _ => unsafe {
-            // An unrecognised value cannot be honoured, and this API has no way
-            // of reporting that back to the caller. The only thing we control is
-            // the resulting security posture, so fail closed: enforce the
-            // strictest verification we support.
-            tracing::error!(
-                "Provided unknown CASS_SSL_VERIFY flags: {flags:#x}. \
-                 Enforcing the strictest verification (peer certificate and peer identity) instead."
-            );
-            SSL_CTX_set_verify(ssl.ssl_context, SslVerifyMode::PEER.bits(), None)
-        },
-    }
+            (SslVerifyMode::PEER, None)
+        }
+        (true, false) => {
+            // Chain-only verification. The driver pins the peer's identity for us,
+            // so the mismatches that pinning produces have to be tolerated.
+            (SslVerifyMode::PEER, Some(verify_peer_cert_callback))
+        }
+        (false, false) => (SslVerifyMode::NONE, None),
+    };
+
+    unsafe { SSL_CTX_set_verify(ssl.ssl_context, mode.bits(), callback) };
 }
 
 #[unsafe(no_mangle)]
@@ -430,4 +450,97 @@ pub unsafe extern "C" fn cass_ssl_set_private_key_n(
     }
 
     CassError::CASS_OK
+}
+
+#[cfg(test)]
+mod tests {
+    use openssl_sys::SSL_CTX_get_verify_mode;
+
+    use super::*;
+
+    /// Reads the verification mode currently configured in the `SSL_CTX`.
+    fn verify_mode(ssl: &CassBorrowedSharedPtr<'_, CassSsl, CMut>) -> c_int {
+        let ssl = ArcFFI::as_ref(ssl.borrow()).unwrap();
+        unsafe { SSL_CTX_get_verify_mode(ssl.ssl_context) }
+    }
+
+    #[test]
+    fn verify_flags_are_a_bitmask() {
+        unsafe {
+            let ssl = cass_ssl_new();
+
+            cass_ssl_set_verify_flags(
+                ssl.borrow(),
+                CassSslVerifyFlags::CASS_SSL_VERIFY_NONE.0 as i32,
+            );
+            assert_eq!(verify_mode(&ssl.borrow()), SslVerifyMode::NONE.bits());
+
+            // Each flag on its own enables peer verification...
+            for flags in [
+                CassSslVerifyFlags::CASS_SSL_VERIFY_PEER_CERT,
+                CassSslVerifyFlags::CASS_SSL_VERIFY_PEER_IDENTITY,
+                CassSslVerifyFlags::CASS_SSL_VERIFY_PEER_IDENTITY_DNS,
+            ]
+            .map(|flag| flag.0 as i32)
+            {
+                cass_ssl_set_verify_flags(
+                    ssl.borrow(),
+                    CassSslVerifyFlags::CASS_SSL_VERIFY_NONE.0 as i32,
+                );
+                cass_ssl_set_verify_flags(ssl.borrow(), flags);
+                assert_eq!(verify_mode(&ssl.borrow()), SslVerifyMode::PEER.bits());
+            }
+
+            // ...and so does any combination of them, as documented in the
+            // TLS guide and accepted by the C/C++ driver.
+            for flags in [
+                CassSslVerifyFlags::CASS_SSL_VERIFY_PEER_CERT.0 as i32
+                    | CassSslVerifyFlags::CASS_SSL_VERIFY_PEER_IDENTITY.0 as i32,
+                CassSslVerifyFlags::CASS_SSL_VERIFY_PEER_CERT.0 as i32
+                    | CassSslVerifyFlags::CASS_SSL_VERIFY_PEER_IDENTITY_DNS.0 as i32,
+                CASS_SSL_VERIFY_KNOWN_FLAGS,
+            ] {
+                cass_ssl_set_verify_flags(
+                    ssl.borrow(),
+                    CassSslVerifyFlags::CASS_SSL_VERIFY_NONE.0 as i32,
+                );
+                cass_ssl_set_verify_flags(ssl.borrow(), flags);
+                assert_eq!(verify_mode(&ssl.borrow()), SslVerifyMode::PEER.bits());
+            }
+
+            cass_ssl_free(ssl);
+        }
+    }
+
+    #[test]
+    fn unknown_verify_flags_enforce_strictest_verification() {
+        unsafe {
+            let ssl = cass_ssl_new();
+
+            // An unrecognised bit makes the whole value unhonourable, whether it
+            // comes on its own or smuggled in next to known flags. Verification
+            // must then be turned on, and in particular a previously requested
+            // `CASS_SSL_VERIFY_NONE` must not be left in effect.
+            for flags in [
+                0x08,
+                -1,
+                CassSslVerifyFlags::CASS_SSL_VERIFY_PEER_IDENTITY.0 as i32 | 0x10,
+            ] {
+                cass_ssl_set_verify_flags(
+                    ssl.borrow(),
+                    CassSslVerifyFlags::CASS_SSL_VERIFY_NONE.0 as i32,
+                );
+                assert_eq!(verify_mode(&ssl.borrow()), SslVerifyMode::NONE.bits());
+
+                cass_ssl_set_verify_flags(ssl.borrow(), flags);
+                assert_eq!(
+                    verify_mode(&ssl.borrow()),
+                    SslVerifyMode::PEER.bits(),
+                    "unknown flags {flags:#x} did not enable peer verification"
+                );
+            }
+
+            cass_ssl_free(ssl);
+        }
+    }
 }
