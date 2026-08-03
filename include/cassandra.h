@@ -4314,6 +4314,7 @@ cass_ssl_add_trusted_cert_n(CassSsl* ssl,
  * CASS_SSL_VERIFY_PEER_IDENTITY_DNS - Hostname matches the certificate's
  * common name or one of its subject alternative names. This implies the
  * certificate is also present. Hostname resolution must also be enabled.
+ * NOTE: not supported; treated as CASS_SSL_VERIFY_PEER_IDENTITY.
  *
  * <b>Default:</b> CASS_SSL_VERIFY_NONE
  *

@@ -192,13 +192,14 @@ pub unsafe extern "C" fn cass_ssl_set_verify_flags(
             // This means that once we enable SslVerifyMode::PEER, we get certificate + identity verification.
             SSL_CTX_set_verify(ssl.ssl_context, SslVerifyMode::PEER.bits(), None)
         },
+        CassSslVerifyFlags::CASS_SSL_VERIFY_PEER_IDENTITY_DNS => unsafe {
+            // Rust Driver always verifies by IP only, so DNS verification is unsupported.
+            tracing::warn!(
+                "The CASS_SSL_VERIFY_PEER_CERT_IDENTITY_DNS is not supported, CASS_SSL_VERIFY_PEER_IDENTITY is set in SSL context."
+            );
+            SSL_CTX_set_verify(ssl.ssl_context, SslVerifyMode::PEER.bits(), None)
+        },
         _ => {
-            if flags & CassSslVerifyFlags::CASS_SSL_VERIFY_PEER_IDENTITY_DNS.0 as i32 != 0 {
-                eprintln!(
-                    "The CASS_SSL_VERIFY_PEER_CERT_IDENTITY_DNS is not supported, CASS_SSL_VERIFY_PEER_CERT is set in SSL context."
-                );
-            }
-
             unsafe { SSL_CTX_set_verify(ssl.ssl_context, SslVerifyMode::PEER.bits(), None) };
         }
     }
