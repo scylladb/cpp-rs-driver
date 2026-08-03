@@ -4309,7 +4309,7 @@ cass_ssl_add_trusted_cert_n(CassSsl* ssl,
  * common name or one of its subject alternative names. This implies the
  * certificate is also present. Hostname resolution must also be enabled.
  *
- * <b>Default:</b> CASS_SSL_VERIFY_PEER_CERT
+ * <b>Default:</b> CASS_SSL_VERIFY_NONE
  *
  * @public @memberof CassSsl
  *
