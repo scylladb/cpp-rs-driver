@@ -9,6 +9,8 @@
 - [ ] I have split my patch into logically separate commits.
 - [ ] All commit messages clearly explain what they change and why.
 - [ ] PR description sums up the changes and reasons why they should be introduced.
+- [ ] I have provided docstrings for the public items that I want to introduce.
+- [ ] I have adjusted the documentation in `./docs/source/`.
 - [ ] I have implemented Rust unit tests for the features/changes introduced.
 - [ ] I have enabled appropriate tests in `Makefile` in `{SCYLLA,CASSANDRA}_(NO_VALGRIND_)TEST_FILTER`.
 - [ ] I added appropriate `Fixes:` annotations to PR description.
