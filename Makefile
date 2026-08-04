@@ -177,7 +177,7 @@ ifndef CCM_COMMIT_ID
 endif
 
 ifndef SCYLLA_VERSION
-	SCYLLA_VERSION := release:2025.3
+	SCYLLA_VERSION := release:2026.2.2
 endif
 
 ifndef CASSANDRA_VERSION
