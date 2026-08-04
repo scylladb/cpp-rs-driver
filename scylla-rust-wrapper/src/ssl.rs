@@ -11,7 +11,9 @@ use openssl_sys::{
     BIO, BIO_free_all, BIO_new_mem_buf, EVP_PKEY_free, PEM_read_bio_PrivateKey, PEM_read_bio_X509,
     SSL_CTX, SSL_CTX_add_extra_chain_cert, SSL_CTX_free, SSL_CTX_new, SSL_CTX_set_cert_store,
     SSL_CTX_set_verify, SSL_CTX_use_PrivateKey, SSL_CTX_use_certificate, TLS_method, X509_STORE,
-    X509_STORE_add_cert, X509_STORE_new, X509_free,
+    X509_STORE_CTX, X509_STORE_CTX_get_error, X509_STORE_CTX_set_error, X509_STORE_add_cert,
+    X509_STORE_new, X509_V_ERR_EMAIL_MISMATCH, X509_V_ERR_HOSTNAME_MISMATCH,
+    X509_V_ERR_IP_ADDRESS_MISMATCH, X509_V_OK, X509_free,
 };
 use std::convert::TryInto;
 use std::os::raw::c_char;
@@ -73,6 +75,45 @@ impl Drop for CassSsl {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_ssl_free(ssl: CassOwnedSharedPtr<CassSsl, CMut>) {
     ArcFFI::free(ssl);
+}
+
+/// Verification callback used to implement [`CASS_SSL_VERIFY_PEER_CERT`],
+/// i.e. chain-only verification.
+///
+/// The Rust driver unconditionally pins the expected peer identity to the
+/// node's IP address (`ssl.param_mut().set_ip(node_address.ip())`) before every
+/// handshake, so OpenSSL always checks the peer identity on top of the chain.
+/// There is no way to undo that from the `SSL_CTX` we hand over. Instead, we
+/// install this callback, which lets the chain validation proceed as usual but
+/// tolerates the identity mismatch errors, leaving `CASS_SSL_VERIFY_PEER_CERT`
+/// with exactly the semantics the C API promises: "certificate is present and
+/// valid", without requiring it to match the peer's address.
+///
+/// Declared as a safe `extern "C" fn`, because that is the callback type
+/// `SSL_CTX_set_verify()` expects; `x509_ctx` is only ever supplied by OpenSSL.
+extern "C" fn verify_peer_cert_callback(
+    preverify_ok: c_int,
+    x509_ctx: *mut X509_STORE_CTX,
+) -> c_int {
+    // Anything that already passed is accepted as-is.
+    if preverify_ok == 1 {
+        return 1;
+    }
+
+    let error = unsafe { X509_STORE_CTX_get_error(x509_ctx) };
+    match error {
+        X509_V_ERR_HOSTNAME_MISMATCH
+        | X509_V_ERR_EMAIL_MISMATCH
+        | X509_V_ERR_IP_ADDRESS_MISMATCH => {
+            // Reset the error, so that the handshake does not merely continue
+            // but `SSL_get_verify_result()` also reports success afterwards.
+            unsafe { X509_STORE_CTX_set_error(x509_ctx, X509_V_OK) };
+            1
+        }
+        // Every other failure - an untrusted issuer, an expired certificate,
+        // a broken chain - is still fatal.
+        _ => 0,
+    }
 }
 
 unsafe extern "C" fn pem_password_callback(
@@ -183,8 +224,13 @@ pub unsafe extern "C" fn cass_ssl_set_verify_flags(
             SSL_CTX_set_verify(ssl.ssl_context, SslVerifyMode::NONE.bits(), None)
         },
         CassSslVerifyFlags::CASS_SSL_VERIFY_PEER_CERT => unsafe {
-            // FIXME: work around Rust Driver's obligatory identity verification.
-            SSL_CTX_set_verify(ssl.ssl_context, SslVerifyMode::PEER.bits(), None)
+            // Chain-only verification. The driver pins the peer's identity for us,
+            // so the mismatches that pinning produces have to be tolerated.
+            SSL_CTX_set_verify(
+                ssl.ssl_context,
+                SslVerifyMode::PEER.bits(),
+                Some(verify_peer_cert_callback),
+            )
         },
         CassSslVerifyFlags::CASS_SSL_VERIFY_PEER_IDENTITY => unsafe {
             // Rust Driver verifies identity by default (and provides no lever to turn this verification off)

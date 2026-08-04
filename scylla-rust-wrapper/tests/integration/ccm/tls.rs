@@ -480,15 +480,13 @@ async fn connect_tls_with_client_auth() {
     run_ccm_tls_test(prepare_cert, require_client_auth, test).await
 }
 
-/// Documents the *desired* semantics of `CASS_SSL_VERIFY_PEER_CERT`: it should
-/// validate the certificate chain only, without checking the peer identity
-/// (IP SAN). This is not implemented yet — currently `PEER_CERT` is equivalent
-/// to `PEER_IDENTITY` because the underlying Rust driver always verifies the
-/// node IP. The test is therefore `#[ignore]`d; un-ignore it once chain-only
-/// `PEER_CERT` support lands.
+/// Checks the semantics of `CASS_SSL_VERIFY_PEER_CERT`: it validates the
+/// certificate chain only, without checking the peer identity (IP SAN).
+///
+/// The Rust driver always pins the expected identity to the node's IP, so this
+/// relies on the wrapper installing a verification callback that tolerates the
+/// identity mismatch while keeping the rest of the chain validation intact.
 #[tokio::test]
-#[ignore = "PEER_CERT currently behaves like PEER_IDENTITY (verifies the IP SAN); \
-            chain-only PEER_CERT support is not implemented yet"]
 async fn tls_peer_cert_verifies_chain_only() {
     setup_tracing();
 
