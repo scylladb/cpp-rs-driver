@@ -199,9 +199,17 @@ pub unsafe extern "C" fn cass_ssl_set_verify_flags(
             );
             SSL_CTX_set_verify(ssl.ssl_context, SslVerifyMode::PEER.bits(), None)
         },
-        _ => {
-            unsafe { SSL_CTX_set_verify(ssl.ssl_context, SslVerifyMode::PEER.bits(), None) };
-        }
+        _ => unsafe {
+            // An unrecognised value cannot be honoured, and this API has no way
+            // of reporting that back to the caller. The only thing we control is
+            // the resulting security posture, so fail closed: enforce the
+            // strictest verification we support.
+            tracing::error!(
+                "Provided unknown CASS_SSL_VERIFY flags: {flags:#x}. \
+                 Enforcing the strictest verification (peer certificate and peer identity) instead."
+            );
+            SSL_CTX_set_verify(ssl.ssl_context, SslVerifyMode::PEER.bits(), None)
+        },
     }
 }
 
