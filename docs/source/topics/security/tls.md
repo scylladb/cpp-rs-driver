@@ -12,20 +12,11 @@ Some notes on this guide:
 
 ### Generating the ScyllaDB/Cassandra Public and Private Keys
 
-The most secure method of setting up TLS is to verify that DNS or IP address used to connect to the server matches identity information found in the TLS certificate. This helps to prevent man-in-the-middle attacks. ScyllaDB/Cassandra uses IP addresses internally so those can be used directly for verification or a domain name can be used via reverse DNS (PTR record). That means that the IP address or domain name of the ScyllaDB/Cassandra server where the certficate is installed needs to be present in either the certficate's common name (CN) or one of its subject alternative names (SANs). It's possible to create the certficate without either, but then it will not be possible to verify the server's identity. Although this is not as secure, it eases the deployment of TLS by allowing the same certficate to be deployed across the entire ScyllaDB/Cassandra cluster.
+The most secure method of setting up TLS is to verify that DNS or IP address used to connect to the server matches identity information found in the TLS certificate. This helps to prevent man-in-the-middle attacks. ScyllaDB/Cassandra uses IP addresses internally so those can be used directly for verification (a domain name currently cannot be used via reverse DNS - PTR record). That means that the IP address of the ScyllaDB/Cassandra server where the certificate is installed needs to be present in one of the certificate's subject alternative names (SANs). It's possible to create the certificate without them, but then it will not be possible to verify the server's identity. Although this is not as secure, it eases the deployment of TLS by allowing the same certificate to be deployed across the entire ScyllaDB/Cassandra cluster.
 
-To generate a public/private key pair with the IP address in the CN field use the following:
+**NOTE:** this driver verifies the identity against subject alternative names of type `iPAddress` only; unlike the CPP driver, it does not fall back to the common name (CN). Prefer the SAN recipe below. A CN-only certificate can still be used, but only with identity verification relaxed to `CASS_SSL_VERIFY_PEER_CERT` or disabled with `CASS_SSL_VERIFY_NONE`.
 
-```bash
-keytool -genkeypair -noprompt -keyalg RSA -validity 36500 \
-  -alias node \
-  -keystore keystore.jks \
-  -storepass <keystore password> \
-  -keypass <key password> \
-  -dname "CN=<IP address or domain name goes here>, OU=Drivers and Tools, O=DataStax Inc., L=Santa Clara, ST=California, C=US"
-```
-
-If SAN is preferred use this command:
+To generate a public/private key pair with the IP address in the SAN field use the following:
 
 ```bash
 keytool -genkeypair -noprompt -keyalg RSA -validity 36500 \
@@ -36,8 +27,6 @@ keytool -genkeypair -noprompt -keyalg RSA -validity 36500 \
   -ext SAN="<IP address or domain name goes here>" \
   -dname "CN=node1.datastax.com, OU=Drivers and Tools, O=DataStax Inc., L=Santa Clara, ST=California, C=US"
 ```
-
-**NOTE:** If an IP address SAN is present then it overrides checking the CN.
 
 ### Enabling `client-to-node` Encryption on ScyllaDB/Cassandra
 
@@ -163,37 +152,39 @@ cass_ssl_set_verify_flags(ssl, CASS_SSL_VERIFY_NONE);
 cass_ssl_free(ssl);
 ```
 
-#### Enabling ScyllaDB/Cassandra identity verification
+#### ScyllaDB/Cassandra identity verification
 
-If a unique certificate has been generated for each ScyllaDB/Cassandra node with the IP address or domain name in the CN or SAN fields, you also need to enable identity verification.
+If a unique certificate has been generated for each ScyllaDB/Cassandra node with
+the IP address in the SAN field, the driver verifies that the node it connected
+to is the one the certificate was issued for.
 
-**NOTE:** This is disabled by default.
+**NOTE:** This is disabled by default. This is part of `CASS_SSL_VERIFY_PEER_IDENTITY`.
+The flags form a bitmask, so it can be requested explicitly on its own or combined with `CASS_SSL_VERIFY_PEER_CERT`:
 
 ```c
 CassSsl* ssl = cass_ssl_new();
 
-// Add identity verification flag: CASS_SSL_VERIFY_PEER_IDENTITY (IP address)
+// Verify the certificate chain and the peer's identity (IP address).
 cass_ssl_set_verify_flags(ssl, CASS_SSL_VERIFY_PEER_CERT | CASS_SSL_VERIFY_PEER_IDENTITY);
-
-// Or use: CASS_SSL_VERIFY_PEER_IDENTITY_DNS (domain name)
-cass_ssl_set_verify_flags(ssl, CASS_SSL_VERIFY_PEER_CERT | CASS_SSL_VERIFY_PEER_IDENTITY_DNS);
 ```
 
-If using a domain name to verify the peer's identity then hostname resolution
-(reverse DNS) needs to be enabled:
+**NOTE:** the identity is matched against the certificate's subject alternative
+names of type `iPAddress` only. Unlike the C/C++ driver, this driver does not
+fall back to the subject common name (CN), so a certificate that identifies a
+node only by CN is rejected.
 
-**NOTE:** This is also disabled by default.
+To validate the certificate chain without checking who the peer claims to be —
+useful with a single certificate shared by all nodes — ask for
+`CASS_SSL_VERIFY_PEER_CERT` alone:
 
 ```c
-CassCluster* cluster = cass_cluster_new();
-
-// Enable reverse DNS
-cass_cluster_set_use_hostname_resolution(cluster, cass_true);
-
-/* ... */
-
-cass_cluster_free(cluster);
+// Verify the certificate chain only; the peer's identity is not checked.
+cass_ssl_set_verify_flags(ssl, CASS_SSL_VERIFY_PEER_CERT);
 ```
+
+Verifying the identity against a domain name rather than an IP address
+(`CASS_SSL_VERIFY_PEER_IDENTITY_DNS`) is **not supported**; it is accepted, but
+treated as `CASS_SSL_VERIFY_PEER_IDENTITY`.
 
 ### Using ScyllaDB/Cassandra and the C/C++ driver with client-side certificates
 
