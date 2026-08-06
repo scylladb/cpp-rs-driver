@@ -81,6 +81,14 @@ notfound_urls_prefix = ""
 
 sitemap_url_scheme = "/stable/{link}"
 
+# -- Options for llms.txt extension ---------------------------------
+
+# Run the llms.txt markdown pass after the main build finishes. Under
+# sphinx-multiversion the markdown subprocess re-reads the temporary git
+# checkout with the checked-out conf.py, which rewrites the generated
+# api/*.rst sources; building sequentially avoids racing the main build.
+llms_txt_build_parallel = False
+
 # -- Options for multiversion extension -----------------------------
 
 # Whitelist pattern for tags
