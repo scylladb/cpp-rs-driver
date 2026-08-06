@@ -183,15 +183,16 @@ pub unsafe extern "C" fn cass_ssl_set_verify_flags(
             SSL_CTX_set_verify(ssl.ssl_context, SslVerifyMode::NONE.bits(), None)
         },
         CassSslVerifyFlags::CASS_SSL_VERIFY_PEER_CERT => unsafe {
+            // FIXME: work around Rust Driver's obligatory identity verification.
+            SSL_CTX_set_verify(ssl.ssl_context, SslVerifyMode::PEER.bits(), None)
+        },
+        CassSslVerifyFlags::CASS_SSL_VERIFY_PEER_IDENTITY => unsafe {
+            // Rust Driver verifies identity by default (and provides no lever to turn this verification off)
+            // by expecting particular IP address to be present in the SAN field.
+            // This means that once we enable SslVerifyMode::PEER, we get certificate + identity verification.
             SSL_CTX_set_verify(ssl.ssl_context, SslVerifyMode::PEER.bits(), None)
         },
         _ => {
-            if flags & CassSslVerifyFlags::CASS_SSL_VERIFY_PEER_IDENTITY.0 as i32 != 0 {
-                eprintln!(
-                    "The CASS_SSL_VERIFY_PEER_CERT_IDENTITY is not supported, CASS_SSL_VERIFY_PEER_CERT is set in SSL context."
-                );
-            }
-
             if flags & CassSslVerifyFlags::CASS_SSL_VERIFY_PEER_IDENTITY_DNS.0 as i32 != 0 {
                 eprintln!(
                     "The CASS_SSL_VERIFY_PEER_CERT_IDENTITY_DNS is not supported, CASS_SSL_VERIFY_PEER_CERT is set in SSL context."

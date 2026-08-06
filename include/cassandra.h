@@ -4302,9 +4302,15 @@ cass_ssl_add_trusted_cert_n(CassSsl* ssl,
  *
  * CASS_SSL_VERIFY_NONE - No verification is performed
  * CASS_SSL_VERIFY_PEER_CERT - Certificate is present and valid
- * CASS_SSL_VERIFY_PEER_IDENTITY - IP address matches the certificate's
- * common name or one of its subject alternative names. This implies the
- * certificate is also present.
+ * CASS_SSL_VERIFY_PEER_IDENTITY - IP address matches one of the certificate's
+ * subject alternative names of type iPAddress. This implies the certificate
+ * is also present.
+ * NOTE: unlike the C/C++ driver, the subject common name (CN) is NOT
+ * consulted. A certificate that identifies the node only by CN, with no
+ * iPAddress subject alternative name (SAN), is rejected. This follows from
+ * OpenSSL's X509_VERIFY_PARAM_set1_ip() (called by Rust Driver), which
+ * never falls back to the subject for IP address checks. Note that modern
+ * practices advocate for using SAN, and consider CN obsolete.
  * CASS_SSL_VERIFY_PEER_IDENTITY_DNS - Hostname matches the certificate's
  * common name or one of its subject alternative names. This implies the
  * certificate is also present. Hostname resolution must also be enabled.
