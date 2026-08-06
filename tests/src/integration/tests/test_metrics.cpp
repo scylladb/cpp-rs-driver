@@ -16,6 +16,12 @@
 
 #include "integration.hpp"
 
+#ifdef _WIN32
+#include <stdlib.h>
+#else
+#include <unistd.h>
+#endif
+
 #define SPECULATIVE_EXECUTION_SELECT_FORMAT "SELECT timeout(value) FROM %s.%s WHERE key=%d"
 #define SPECULATIVE_EXECUTION_CREATE_TIMEOUT_UDF_FORMAT   \
   "CREATE OR REPLACE FUNCTION %s.timeout(arg int) "       \
@@ -55,7 +61,15 @@ CASSANDRA_INTEGRATION_TEST_F(MetricsTests, StatsConnections) {
   EXPECT_EQ(1u, metrics.stats.total_connections);
 
   start_node(1);
-  metrics = session.metrics();
+  // `start_node()` finish may race with driver's reconnecting to the node.
+  // Let's give the driver more time to reconnect to fight flakiness.
+  for (unsigned i = 0; i < 50; ++i) {
+    metrics = session.metrics();
+    if (metrics.stats.total_connections == 2) {
+        break;
+    }
+    msleep(1);
+  }
   EXPECT_EQ(2u, metrics.stats.total_connections);
 }
 
