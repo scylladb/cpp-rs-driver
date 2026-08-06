@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import os
 import re
+import shutil
+import subprocess
 import sys
 import warnings
 import xml.etree.ElementTree as ET
@@ -152,12 +154,11 @@ def _generate_groups(outdir, groups, project):
             )
 
 
-def _generate_doxygen_rst(xmldir, outdir):
+def _generate_doxygen_rst(xml_path, outdir):
     """Autogenerate doxygen docs in the designated outdir folder"""
     structs = []
     groups = []
     group_structs = set()
-    xml_path = os.path.join(os.path.dirname(__file__), xmldir)
     files = os.listdir(xml_path)
     for file_name in files:
         if file_name.startswith("group__") and file_name.endswith(".xml"):
@@ -184,9 +185,25 @@ def _generate_doxygen_rst(xmldir, outdir):
     _generate_groups(outdir, groups, breathe_default_project)
 
 
+def _resolve_doxygen_xml(xmldir, srcdir):
+    real_xml = os.path.abspath(os.path.join(os.path.dirname(__file__), xmldir))
+    checkout_xml = os.path.abspath(os.path.join(srcdir, xmldir))
+    if checkout_xml != real_xml:
+        doxygen = shutil.which("doxygen")
+        if doxygen is None:
+            raise RuntimeError("doxygen not found in PATH (run 'make setup')")
+        checkout_root = os.path.abspath(os.path.join(srcdir, "..", ".."))
+        subprocess.run([doxygen, "Doxyfile.in"], cwd=checkout_root, check=True)
+        return checkout_xml
+    return real_xml
+
+
 def generate_doxygen(app):
-    DOXYGEN_XML_DIR = breathe_projects[breathe_default_project]
-    _generate_doxygen_rst(DOXYGEN_XML_DIR, app.builder.srcdir / "api")
+    xml_path = _resolve_doxygen_xml(
+        breathe_projects[breathe_default_project], app.builder.srcdir
+    )
+    app.config.breathe_projects = {breathe_default_project: xml_path}
+    _generate_doxygen_rst(xml_path, app.builder.srcdir / "api")
 
 
 # -- Options for sitemap extension
