@@ -172,6 +172,7 @@ fn main() {
         ],
         &out_path,
     );
+    prepare_cppdriver_data("cppdriver_ssl_types.rs", &["CassSslVerifyFlags"], &out_path);
     prepare_cppdriver_data(
         "cppdriver_host_listener_types.rs",
         &["CassHostListenerEvent", "CassHostListenerCallback"],

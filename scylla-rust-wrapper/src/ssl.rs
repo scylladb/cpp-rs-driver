@@ -3,6 +3,7 @@ use crate::argconv::{
     CassStrNulTerminated, FFI, FromArc,
 };
 use crate::cass_error::CassError;
+use crate::cass_ssl_types::CassSslVerifyFlags;
 use crate::types::size_t;
 use libc::{c_int, strlen};
 use openssl::ssl::SslVerifyMode;
@@ -26,11 +27,6 @@ impl FFI for CassSsl {
     type Origin = FromArc;
 }
 
-pub(crate) const CASS_SSL_VERIFY_NONE: i32 = 0x00;
-pub(crate) const CASS_SSL_VERIFY_PEER_CERT: i32 = 0x01;
-pub(crate) const CASS_SSL_VERIFY_PEER_IDENTITY: i32 = 0x02;
-pub(crate) const CASS_SSL_VERIFY_PEER_IDENTITY_DNS: i32 = 0x04;
-
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_ssl_new() -> CassOwnedSharedPtr<CassSsl, CMut> {
     openssl_sys::init();
@@ -44,7 +40,11 @@ pub unsafe extern "C" fn cass_ssl_new_no_lib_init() -> CassOwnedSharedPtr<CassSs
 
     unsafe {
         SSL_CTX_set_cert_store(ssl_context, trusted_store);
-        SSL_CTX_set_verify(ssl_context, CASS_SSL_VERIFY_NONE, None);
+        SSL_CTX_set_verify(
+            ssl_context,
+            CassSslVerifyFlags::CASS_SSL_VERIFY_NONE.0 as i32,
+            None,
+        );
     }
 
     let ssl = CassSsl {
@@ -178,21 +178,21 @@ pub unsafe extern "C" fn cass_ssl_set_verify_flags(
         return;
     };
 
-    match flags {
-        CASS_SSL_VERIFY_NONE => unsafe {
+    match CassSslVerifyFlags(flags as u32) {
+        CassSslVerifyFlags::CASS_SSL_VERIFY_NONE => unsafe {
             SSL_CTX_set_verify(ssl.ssl_context, SslVerifyMode::NONE.bits(), None)
         },
-        CASS_SSL_VERIFY_PEER_CERT => unsafe {
+        CassSslVerifyFlags::CASS_SSL_VERIFY_PEER_CERT => unsafe {
             SSL_CTX_set_verify(ssl.ssl_context, SslVerifyMode::PEER.bits(), None)
         },
         _ => {
-            if flags & CASS_SSL_VERIFY_PEER_IDENTITY != 0 {
+            if flags & CassSslVerifyFlags::CASS_SSL_VERIFY_PEER_IDENTITY.0 as i32 != 0 {
                 eprintln!(
                     "The CASS_SSL_VERIFY_PEER_CERT_IDENTITY is not supported, CASS_SSL_VERIFY_PEER_CERT is set in SSL context."
                 );
             }
 
-            if flags & CASS_SSL_VERIFY_PEER_IDENTITY_DNS != 0 {
+            if flags & CassSslVerifyFlags::CASS_SSL_VERIFY_PEER_IDENTITY_DNS.0 as i32 != 0 {
                 eprintln!(
                     "The CASS_SSL_VERIFY_PEER_CERT_IDENTITY_DNS is not supported, CASS_SSL_VERIFY_PEER_CERT is set in SSL context."
                 );
