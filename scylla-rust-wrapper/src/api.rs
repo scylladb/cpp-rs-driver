@@ -965,6 +965,8 @@ pub mod integration_testing {
         testing_retry_policy_ignoring_new,
         testing_statement_set_recording_history_listener,
         testing_statement_set_sleeping_history_listener,
+        testing_timestamp_gen_contains_timestamp,
+        testing_timestamp_gen_monotonic_new,
     };
 
     /// Stubs of functions that must be implemented for the integration tests to compile,

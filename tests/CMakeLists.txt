@@ -120,7 +120,6 @@ set(CPP_DRIVER_SOURCE_FILES
     ${CASS_SRC_DIR}/get_time-win.cpp
     ${CASS_SRC_DIR}/address.cpp
     ${CASS_SRC_DIR}/memory.cpp
-    ${CASS_SRC_DIR}/timestamp_generator.cpp
     ${CASS_SRC_DIR}/testing.cpp
     ${CASS_SRC_DIR}/logger.cpp
     ${CASS_SRC_DIR}/testing_unimplemented.cpp
