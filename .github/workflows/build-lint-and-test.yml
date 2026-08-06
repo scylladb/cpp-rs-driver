@@ -18,7 +18,12 @@ env:
   INTEGRATION_TEST_BIN_CACHE_KEY: integration-test-bin-${{ github.sha }}
   # Goes to `Makefile` to let it pickup cached binary
   DONT_REBUILD_INTEGRATION_BIN: true
-  CCM_LOGS_PATTERN: /tmp/ccm*/ccm*/node*/logs/*
+  # Log directories to upload on integration-test failure. The first glob
+  # matches the C++ suite's CCM layout; the second matches the Rust CCM tests,
+  # which use CCM_ROOT_DIR=/tmp/ccm-rust (see `run-test-integration-scylla`).
+  CCM_LOGS_PATTERN: |
+    /tmp/ccm*/ccm*/node*/logs/*
+    /tmp/ccm-rust/*/*/node*/logs/*
 
 jobs:
   build-lint-and-unit-test:
@@ -141,6 +146,10 @@ jobs:
 
       - name: Run integration tests on Scylla ${{ steps.scylla-version.outputs.value }}
         id: run-integration-tests
+        env:
+          # Preserve failed Rust CCM clusters (and their /tmp/ccm-rust node
+          # logs) so the "Upload CCM logs" step can collect diagnostics.
+          TEST_KEEP_CLUSTER_ON_FAILURE: "true"
         run: SCYLLA_VERSION="release:${{ steps.scylla-version.outputs.value }}" make run-test-integration-scylla
 
       - name: Upload test logs
