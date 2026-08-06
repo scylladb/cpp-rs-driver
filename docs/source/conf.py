@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import re
+import shutil
 import subprocess
 import sys
 import warnings
@@ -180,8 +181,11 @@ def _resolve_doxygen_xml(xmldir, srcdir):
     real_xml = os.path.abspath(os.path.join(os.path.dirname(__file__), xmldir))
     checkout_xml = os.path.abspath(os.path.join(srcdir, xmldir))
     if checkout_xml != real_xml:
+        doxygen = shutil.which("doxygen")
+        if doxygen is None:
+            raise RuntimeError("doxygen not found in PATH (run 'make setup')")
         checkout_root = os.path.abspath(os.path.join(srcdir, "..", ".."))
-        subprocess.run(["doxygen", "Doxyfile.in"], cwd=checkout_root, check=True)
+        subprocess.run([doxygen, "Doxyfile.in"], cwd=checkout_root, check=True)
         return checkout_xml
     return real_xml
 
