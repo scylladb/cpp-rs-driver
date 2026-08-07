@@ -159,6 +159,15 @@ pub(crate) mod cass_authenticator_types {
     include_bindgen_generated!("cppdriver_authenticator_types.rs");
 }
 
+/// CassSsl
+pub(crate) mod cass_ssl_types {
+    #![allow(unused)]
+    #![allow(non_camel_case_types, non_snake_case)]
+    #![allow(unreachable_pub, unnameable_types)]
+
+    include_bindgen_generated!("cppdriver_ssl_types.rs");
+}
+
 /// CassHostListenerEvent, CassHostListenerCallback
 pub(crate) mod cass_host_listener_types {
     #![allow(unused)]

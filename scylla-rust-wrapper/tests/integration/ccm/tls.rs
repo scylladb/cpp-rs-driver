@@ -348,20 +348,26 @@ async fn connect_tls_no_client_auth() {
             try_tls_connect(cluster, Some(CASS_SSL_VERIFY_NONE), None, None).await,
         );
 
-        // default: verification disabled -> connects even without a trusted CA.
-        assert_cass_error_eq(
-            CassError::CASS_OK,
-            try_tls_connect(cluster, None, None, None).await,
-        );
+        let assert_conn_fails = async |verify_flags| {
+            let err = try_tls_connect(cluster, verify_flags, None, None).await;
+            assert_ne!(
+                err,
+                CassError::CASS_OK,
+                "expected connection to fail when the server CA is not trusted"
+            );
+        };
+
+        // default: PEER_CERT without a trusted CA -> certificate chain validation
+        // fails, so the connection is rejected.
+        assert_conn_fails(None).await;
+
+        // PEER_CERT without a trusted CA -> certificate chain validation
+        // fails, so the connection is rejected.
+        assert_conn_fails(Some(CASS_SSL_VERIFY_PEER_CERT)).await;
 
         // PEER_IDENTITY without a trusted CA -> certificate chain validation
         // fails, so the connection is rejected.
-        let err = try_tls_connect(cluster, Some(CASS_SSL_VERIFY_PEER_IDENTITY), None, None).await;
-        assert_ne!(
-            err,
-            CassError::CASS_OK,
-            "expected connection to fail when the server CA is not trusted"
-        );
+        assert_conn_fails(Some(CASS_SSL_VERIFY_PEER_IDENTITY)).await;
     }
 
     run_ccm_tls_test(prepare_cert, async |c| c, test).await
@@ -401,6 +407,22 @@ async fn tls_verifies_hostname() {
             err,
             CassError::CASS_OK,
             "expected connection to fail: certificate SAN does not match the node IP"
+        );
+
+        // The flags are a bitmask, so the combination the TLS guide documents
+        // must behave exactly like PEER_IDENTITY on its own, rather than
+        // falling through to some default.
+        let err = try_tls_connect(
+            cluster,
+            Some(CASS_SSL_VERIFY_PEER_CERT | CASS_SSL_VERIFY_PEER_IDENTITY),
+            Some(ca_pem.clone()),
+            None,
+        )
+        .await;
+        assert_ne!(
+            err,
+            CassError::CASS_OK,
+            "expected PEER_CERT | PEER_IDENTITY to verify the identity too"
         );
 
         // NONE: verification disabled -> the SAN mismatch is ignored and the
@@ -480,15 +502,13 @@ async fn connect_tls_with_client_auth() {
     run_ccm_tls_test(prepare_cert, require_client_auth, test).await
 }
 
-/// Documents the *desired* semantics of `CASS_SSL_VERIFY_PEER_CERT`: it should
-/// validate the certificate chain only, without checking the peer identity
-/// (IP SAN). This is not implemented yet — currently `PEER_CERT` is equivalent
-/// to `PEER_IDENTITY` because the underlying Rust driver always verifies the
-/// node IP. The test is therefore `#[ignore]`d; un-ignore it once chain-only
-/// `PEER_CERT` support lands.
+/// Checks the semantics of `CASS_SSL_VERIFY_PEER_CERT`: it validates the
+/// certificate chain only, without checking the peer identity (IP SAN).
+///
+/// The Rust driver always pins the expected identity to the node's IP, so this
+/// relies on the wrapper installing a verification callback that tolerates the
+/// identity mismatch while keeping the rest of the chain validation intact.
 #[tokio::test]
-#[ignore = "PEER_CERT currently behaves like PEER_IDENTITY (verifies the IP SAN); \
-            chain-only PEER_CERT support is not implemented yet"]
 async fn tls_peer_cert_verifies_chain_only() {
     setup_tracing();
 
