@@ -245,6 +245,10 @@ CASSANDRA_INTEGRATION_TEST_F(ExecutionProfileTest, InvalidName) {
 }
 
 /**
+ * NOTE: the test showed to be flaky because of races. It's been migrated to
+ * scylla-rust-wrapper/tests/integration/request_timeout.rs and now uses scylla-proxy for reliable
+ * behaviour. This test here is thus not run as part of the CI.
+ *
  * Utilize the execution profile to override statement request timeout
  *
  * This test will perform a query using the statement request timeout and the

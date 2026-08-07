@@ -59,6 +59,7 @@ SCYLLA_TEST_FILTER := $(subst ${SPACE},${EMPTY},ClusterTests.*\
 :SchemaMetadataTest.Integration_Cassandra_VirtualMetadata\
 :HeartbeatTests.Integration_Cassandra_HeartbeatFailed\
 :TimestampTests.Integration_Cassandra_MonotonicTimestampGenerator\
+:ExecutionProfileTest.Integration_Cassandra_RequestTimeout\
 :ExecutionProfileTest.Integration_Cassandra_RoundRobin\
 :ExecutionProfileTest.Integration_Cassandra_TokenAwareRouting\
 :ExecutionProfileTest.Integration_Cassandra_SpeculativeExecutionPolicy\
@@ -118,6 +119,7 @@ CASSANDRA_TEST_FILTER := $(subst ${SPACE},${EMPTY},ClusterTests.*\
 :SchemaMetadataTest.Integration_Cassandra_VirtualMetadata\
 :HeartbeatTests.Integration_Cassandra_HeartbeatFailed\
 :TimestampTests.Integration_Cassandra_MonotonicTimestampGenerator\
+:ExecutionProfileTest.Integration_Cassandra_RequestTimeout\
 :ExecutionProfileTest.Integration_Cassandra_RoundRobin\
 :ExecutionProfileTest.Integration_Cassandra_TokenAwareRouting\
 :ExecutionProfileTest.Integration_Cassandra_SpeculativeExecutionPolicy\
