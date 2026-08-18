@@ -8,7 +8,7 @@ const RELATIVE_PATH_TO_CASSANDRA_H: &str = "../include/cassandra.h";
 fn prepare_full_bindings(out_path: &Path) {
     let bindings = bindgen::Builder::default()
         .header(RELATIVE_PATH_TO_CASSANDRA_H)
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .layout_tests(false)
         .generate_comments(false)
         .default_enum_style(bindgen::EnumVariation::NewType {
@@ -26,7 +26,7 @@ fn prepare_full_bindings(out_path: &Path) {
 fn prepare_basic_types(out_path: &Path) {
     let basic_bindings = bindgen::Builder::default()
         .header(RELATIVE_PATH_TO_CASSANDRA_H)
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .layout_tests(true)
         .generate_comments(false)
         .allowlist_type("cass_bool_t")
@@ -59,7 +59,7 @@ fn prepare_basic_types(out_path: &Path) {
 fn prepare_cppdriver_data(outfile: &str, allowed_types: &[&str], out_path: &Path) {
     let mut type_bindings = bindgen::Builder::default()
         .header(RELATIVE_PATH_TO_CASSANDRA_H)
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .layout_tests(true)
         .generate_comments(false)
         .default_enum_style(bindgen::EnumVariation::NewType {
