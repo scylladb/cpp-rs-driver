@@ -653,6 +653,8 @@ unsigned int CCM::Bridge::add_node(const std::string& data_center /*= ""*/) {
   }
   if (is_dse()) {
     add_node_command.push_back("--dse");
+  } else if (is_scylla_) {
+    add_node_command.push_back("--scylla");
   }
   add_node_command.push_back(generate_node_name(node));
   execute_ccm_command(add_node_command);
