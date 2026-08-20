@@ -132,7 +132,8 @@ CASSANDRA_INTEGRATION_TEST_F(ControlConnectionTests, ConnectUsingInvalidIpAddres
   CHECK_FAILURE;
 
   // Attempt to connect to the server using an invalid IP address
-  logger_.add_critera("Could not fetch metadata, error: "
+  logger_.add_critera("Failed to establish control connection, "
+                      "control_connection_address: 1.1.1.1:9042, error: "
                       "Control connection pool error: The pool is broken; "
                       "Last connection failed with: Connect timeout elapsed");
   Cluster cluster = Cluster::build().with_contact_points("1.1.1.1");
@@ -204,7 +205,9 @@ CASSANDRA_INTEGRATION_TEST_F(ControlConnectionTests, ConnectUsingUnbindableLocal
   CHECK_FAILURE;
 
   // Attempt to connect to the server using an unbindable local IP address
-  logger_.add_critera("Could not fetch metadata, error: "
+  logger_.add_critera("Failed to establish control connection, "
+                      "control_connection_address: " + ccm_->get_ip_prefix() +
+                      "1:9042, error: "
                       "Control connection pool error: The pool is broken; "
                       "Last connection failed with: Cannot assign requested address");
   Cluster cluster = default_cluster().with_local_address("1.1.1.1");
@@ -236,7 +239,8 @@ CASSANDRA_INTEGRATION_TEST_F(ControlConnectionTests,
   // Attempt to connect to the server using an valid local IP address
   // but invalid remote address. The specified remote is not routable
   // from the specified local.
-  logger_.add_critera("Could not fetch metadata, error: "
+  logger_.add_critera("Failed to establish control connection, "
+                      "control_connection_address: 1.1.1.1:9042, error: "
                       "Control connection pool error: The pool is broken; "
                       "Last connection failed with: Invalid argument");
   Cluster cluster = Cluster::build().with_contact_points("1.1.1.1").with_local_address("127.0.0.1");
