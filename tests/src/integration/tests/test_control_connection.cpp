@@ -206,7 +206,8 @@ CASSANDRA_INTEGRATION_TEST_F(ControlConnectionTests, ConnectUsingUnbindableLocal
 
   // Attempt to connect to the server using an unbindable local IP address
   logger_.add_critera("Failed to establish control connection, "
-                      "control_connection_address: 127.0.0.1:9042, error: "
+                      "control_connection_address: " + ccm_->get_ip_prefix() +
+                      "1:9042, error: "
                       "Control connection pool error: The pool is broken; "
                       "Last connection failed with: Cannot assign requested address");
   Cluster cluster = default_cluster().with_local_address("1.1.1.1");
