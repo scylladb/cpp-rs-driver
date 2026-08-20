@@ -577,7 +577,7 @@ CASSANDRA_INTEGRATION_TEST_F(ControlConnectionTests, FullOutage) {
   for (unsigned short i = 0; i < cluster_ip_addresses.size(); ++i) {
     nodes.insert(i + 1);
   }
-  reset_logger_criteria("reconnect for host ", nodes);
+  reset_logger_criteria("Node is now reachable again: ", nodes);
 
   // Restart the cluster and wait for the nodes to reconnect
   ccm_->start_cluster();
