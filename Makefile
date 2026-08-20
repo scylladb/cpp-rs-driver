@@ -63,7 +63,6 @@ SCYLLA_TEST_FILTER := $(subst ${SPACE},${EMPTY},ClusterTests.*\
 :ExecutionProfileTest.Integration_Cassandra_RoundRobin\
 :ExecutionProfileTest.Integration_Cassandra_TokenAwareRouting\
 :ExecutionProfileTest.Integration_Cassandra_SpeculativeExecutionPolicy\
-:ControlConnectionTests.Integration_Cassandra_TopologyChange\
 :ControlConnectionTests.Integration_Cassandra_TerminatedUsingMultipleIoThreadsWithError\
 :ServerSideFailureTests.Integration_Cassandra_ErrorFunctionFailure\
 :ServerSideFailureTests.Integration_Cassandra_ErrorFunctionAlreadyExists\
