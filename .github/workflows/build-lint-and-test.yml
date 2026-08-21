@@ -42,6 +42,12 @@ jobs:
       - name: Check
         run: make check
 
+      # cargo-deny checks (licenses, advisories, bans, sources) based on deny.toml
+      - name: cargo-deny check
+        uses: EmbarkStudios/cargo-deny-action@c3bbe7e4e3f7baeee1a3dd9aec0a3b2aded580fb # v2.1.1
+        with:
+          manifest-path: scylla-rust-wrapper/Cargo.toml
+
       - name: Run unit and proxy tests
         run: make run-test-unit
 

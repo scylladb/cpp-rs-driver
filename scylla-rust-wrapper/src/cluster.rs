@@ -19,7 +19,6 @@ use crate::types::*;
 use openssl::ssl::SslContextBuilder;
 use openssl_sys::SSL_CTX_up_ref;
 use rand::seq::SliceRandom;
-use rand::thread_rng;
 use scylla::client::execution_profile::ExecutionProfileBuilder;
 use scylla::client::session_builder::SessionBuilder;
 use scylla::client::{PoolSize, SelfIdentity, WriteCoalescingDelay};
@@ -199,7 +198,7 @@ impl CassCluster {
             .map(|cp| format!("{}:{}", cp, self.port));
         if self.shuffle_contact_points {
             let mut collected_contact_points = known_nodes.collect::<Vec<_>>();
-            collected_contact_points.shuffle(&mut thread_rng());
+            collected_contact_points.shuffle(&mut rand::rng());
             session_builder = session_builder.known_nodes(collected_contact_points);
         } else {
             session_builder = session_builder.known_nodes(known_nodes);

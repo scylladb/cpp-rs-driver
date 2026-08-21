@@ -457,6 +457,11 @@ fix-clang-format: install-clang-format-if-missing
 	@echo "Running \"clang-format -i\" on all files in ./src"
 	@find src -regextype posix-egrep -regex '.*\.(cpp|hpp|c|h)' -not -path 'src/third_party/*' | xargs clang-format -i
 
+.PHONY: deny
+deny:
+	@cd ${CURRENT_DIR}/scylla-rust-wrapper
+	cargo deny check
+
 check: check-clang-format check-cargo check-cargo-clippy check-cargo-fmt
 
 fix: fix-clang-format fix-cargo fix-cargo-clippy fix-cargo-fmt
