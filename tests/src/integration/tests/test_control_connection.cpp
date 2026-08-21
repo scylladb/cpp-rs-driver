@@ -327,7 +327,9 @@ CASSANDRA_INTEGRATION_TEST_F(ControlConnectionTests, TopologyChange) {
   Session session = cluster.connect();
 
   // Bootstrap a second node and ensure all hosts are actively used
-  logger_.add_critera("New node " + (ccm_->get_ip_prefix() + "2") + " added");
+  // Match the tail of "Node added to cluster: <host_id> - <address>" since the
+  // host_id is not known ahead of time.
+  logger_.add_critera("- " + (ccm_->get_ip_prefix() + "2") + ":9042");
   EXPECT_EQ(2u, ccm_->bootstrap_node()); // Triggers a `NEW_NODE` event
   EXPECT_TRUE(wait_for_logger(1));
   std::set<unsigned short> expected_nodes;
@@ -577,7 +579,7 @@ CASSANDRA_INTEGRATION_TEST_F(ControlConnectionTests, FullOutage) {
   for (unsigned short i = 0; i < cluster_ip_addresses.size(); ++i) {
     nodes.insert(i + 1);
   }
-  reset_logger_criteria("reconnect for host ", nodes);
+  reset_logger_criteria("Node is now reachable again: ", nodes);
 
   // Restart the cluster and wait for the nodes to reconnect
   ccm_->start_cluster();
