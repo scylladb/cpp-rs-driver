@@ -498,6 +498,7 @@ test-app-package: .prepare-for-test
 		"$$smoke_bin" $(SCYLLA_HOST);\
 	else\
 		dc="";\
+		compose_file="${MAKEFILE_PATH}/docker-compose.yml";\
 		if docker compose version >/dev/null 2>&1; then\
 			dc="docker compose";\
 		elif command -v docker-compose >/dev/null 2>&1; then\
@@ -508,11 +509,36 @@ test-app-package: .prepare-for-test
 		fi;\
 		cleanup() {\
 			if [ -n "$$dc" ]; then\
-				sudo $$dc -f ${MAKEFILE_PATH}/docker-compose.yml down --remove-orphans;\
+				sudo $$dc -f "$$compose_file" down --remove-orphans >/dev/null 2>&1 || true;\
 			fi;\
 		};\
+		start_cluster() {\
+			for attempt in 1 2 3; do\
+				cid="";\
+				status="";\
+				if ! sudo $$dc -f "$$compose_file" up -d; then\
+					echo "docker compose up failed on attempt $$attempt";\
+				fi;\
+				cid="$$(sudo $$dc -f "$$compose_file" ps -q scylla 2>/dev/null || true)";\
+				if [ -n "$$cid" ]; then\
+					for _ in $$(seq 1 60); do\
+						status="$$(sudo docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$$cid" 2>/dev/null || true)";\
+						if [ "$$status" = "healthy" ]; then\
+							return 0;\
+						fi;\
+						sleep 2;\
+					done;\
+				fi;\
+				echo "Cluster did not become healthy on attempt $$attempt";\
+				sudo $$dc -f "$$compose_file" ps || true;\
+				sudo $$dc -f "$$compose_file" logs --tail=200 scylla || true;\
+				cleanup;\
+				sleep 5;\
+			done;\
+			return 1;\
+		};\
 		trap cleanup EXIT;\
-		sudo $$dc -f ${MAKEFILE_PATH}/docker-compose.yml up -d --wait;\
+		start_cluster;\
 		"$$smoke_bin" $(SCYLLA_HOST);\
 	fi
 endif
