@@ -787,6 +787,7 @@ pub mod iterator {
         cass_iterator_from_result,
         cass_iterator_from_row,
         cass_iterator_from_tuple,
+        cass_iterator_from_vector,
         // cass_iterator_aggregates_from_keyspace_meta, UNIMPLEMENTED
         cass_iterator_columns_from_materialized_view_meta,
         cass_iterator_columns_from_table_meta,

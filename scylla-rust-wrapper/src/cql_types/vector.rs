@@ -190,7 +190,7 @@ mod tests {
 
     use crate::argconv::{
         ArcFFI, BoxFFI, CConst, CMut, CassBorrowedExclusivePtr, CassStrLen, CassStrLenDelimited,
-        CassStrNulTerminated,
+        CassStrNulTerminated, RefFFI,
     };
     use crate::cass_error::CassError;
     use crate::cql_types::CassValueType;
@@ -212,6 +212,7 @@ mod tests {
     };
     use crate::cql_types::uuid::CassUuid;
     use crate::cql_types::value::{CassCqlValue, CassSerializationError, VectorElementNotSetError};
+    use crate::iterator::cass_iterator_from_vector;
     use crate::testing::utils::assert_cass_error_eq;
     use crate::types::{cass_false, cass_true, cass_uint16_t, size_t};
 
@@ -1047,6 +1048,15 @@ mod tests {
                 ArcFFI::as_ref(cass_vector_data_type(
                     <CassVector as BoxFFI>::null::<CConst>()
                 ))
+                .is_none()
+            );
+
+            assert!(
+                BoxFFI::as_ref(
+                    cass_iterator_from_vector(RefFFI::null())
+                        .borrow()
+                        .into_c_const()
+                )
                 .is_none()
             );
         }
