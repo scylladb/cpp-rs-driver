@@ -56,6 +56,7 @@ SCYLLA_TEST_FILTER := $(subst ${SPACE},${EMPTY},ClusterTests.*\
 :MetricsTests.*\
 :DcAwarePolicyTest.*\
 :AsyncTests.*\
+:VectorTests.*\
 :-SchemaMetadataTest.Integration_Cassandra_RegularMetadataNotMarkedVirtual\
 :SchemaMetadataTest.Integration_Cassandra_VirtualMetadata\
 :HeartbeatTests.Integration_Cassandra_HeartbeatFailed\
@@ -114,6 +115,7 @@ CASSANDRA_TEST_FILTER := $(subst ${SPACE},${EMPTY},ClusterTests.*\
 :MetricsTests.*\
 :DcAwarePolicyTest.*\
 :AsyncTests.*\
+:VectorTests.*\
 :-PreparedTests.Integration_Cassandra_FailFastWhenPreparedIDChangesDuringReprepare\
 :SchemaMetadataTest.Integration_Cassandra_RegularMetadataNotMarkedVirtual\
 :SchemaMetadataTest.Integration_Cassandra_VirtualMetadata\

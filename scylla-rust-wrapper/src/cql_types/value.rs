@@ -507,9 +507,9 @@ fn unsigned_vint_encode(v: u64, buf: &mut Vec<u8>) {
 /// We nest this error in
 /// [`VectorSerializationErrorKind::ElementSerializationFailed`] instead.
 #[derive(Debug, Clone)]
-struct VectorElementNotSetError {
+pub(crate) struct VectorElementNotSetError {
     /// Index of the element that was not set.
-    index: usize,
+    pub(crate) index: usize,
 }
 
 impl std::fmt::Display for VectorElementNotSetError {
