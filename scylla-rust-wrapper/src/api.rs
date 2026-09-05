@@ -623,6 +623,17 @@ pub mod tuple {
     };
 }
 
+pub mod vector {
+    // Disabling rustfmt to have one item per line for better readability.
+    #[rustfmt::skip]
+    pub use crate::cql_types::vector::{
+        CassVector,
+        cass_vector_free,
+        cass_vector_new,
+        cass_vector_new_from_data_type,
+    };
+}
+
 pub mod user_type {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]

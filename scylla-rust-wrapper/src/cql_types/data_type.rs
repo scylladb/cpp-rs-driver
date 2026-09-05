@@ -130,6 +130,15 @@ pub(crate) enum CassDataTypeInner {
     },
     // Empty vector stands for untyped tuple.
     Tuple(Vec<Arc<CassDataType>>),
+    /// A CQL vector: a fixed-size sequence of values of the same type.
+    ///
+    /// Notice that, contrary to collections and tuples, there is no untyped
+    /// vector: both the element type and the number of dimensions are part
+    /// of the type and are required upfront.
+    Vector {
+        typ: Arc<CassDataType>,
+        dimensions: u16,
+    },
     Custom(String),
 }
 
@@ -209,6 +218,24 @@ impl CassDataTypeInner {
                             typ.get_unchecked()
                                 .typecheck_equals(other_typ.get_unchecked())
                         })
+                }
+                _ => false,
+            },
+            CassDataTypeInner::Vector {
+                typ,
+                dimensions: dims,
+            } => match other {
+                CassDataTypeInner::Vector {
+                    typ: other_typ,
+                    dimensions: other_dims,
+                } => {
+                    // Contrary to collections and tuples, vectors are always fully typed,
+                    // so there is no untyped case to skip the typecheck for.
+                    dims == other_dims
+                        && unsafe {
+                            typ.get_unchecked()
+                                .typecheck_equals(other_typ.get_unchecked())
+                        }
                 }
                 _ => false,
             },
@@ -375,6 +402,7 @@ impl CassDataTypeInner {
             CassDataTypeInner::Set { .. } => CassValueType::CASS_VALUE_TYPE_SET,
             CassDataTypeInner::Map { .. } => CassValueType::CASS_VALUE_TYPE_MAP,
             CassDataTypeInner::Tuple(..) => CassValueType::CASS_VALUE_TYPE_TUPLE,
+            CassDataTypeInner::Vector { .. } => CassValueType::CASS_VALUE_TYPE_VECTOR,
             CassDataTypeInner::Custom(..) => CassValueType::CASS_VALUE_TYPE_CUSTOM,
         }
     }
@@ -457,6 +485,9 @@ pub unsafe extern "C" fn cass_data_type_new(
         },
         CassValueType::CASS_VALUE_TYPE_UDT => CassDataTypeInner::Udt(UdtDataType::new()),
         CassValueType::CASS_VALUE_TYPE_CUSTOM => CassDataTypeInner::Custom("".to_string()),
+        // A vector cannot be created this way: both its element type and its number
+        // of dimensions are part of the type. Use `cass_data_type_new_vector` instead.
+        CassValueType::CASS_VALUE_TYPE_VECTOR => return ArcFFI::null(),
         CassValueType::CASS_VALUE_TYPE_UNKNOWN => return ArcFFI::null(),
         t if t < CassValueType::CASS_VALUE_TYPE_LAST_ENTRY => CassDataTypeInner::Value(t),
         _ => return ArcFFI::null(),
@@ -738,6 +769,8 @@ pub unsafe extern "C" fn cass_data_type_sub_type_count(
             MapDataType::KeyAndValue(_, _) => 2,
         },
         CassDataTypeInner::Tuple(v) => v.len() as size_t,
+        // A vector has exactly one sub type: the type of its elements.
+        CassDataTypeInner::Vector { .. } => 1,
         CassDataTypeInner::Custom(..) => 0,
     }
 }
