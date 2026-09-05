@@ -171,6 +171,7 @@ SCYLLA_EXAMPLES_TO_RUN := \
 	tuple \
 	udt \
 	uuids \
+	vector_insert_select \
 
 	# auth <- unimplemented `cass_cluster_set_authenticator_callbacks()`
 	# host_listener <- never terminates by design; loops forever listening to events.
