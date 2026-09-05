@@ -8989,6 +8989,56 @@ cass_user_type_set_user_type_by_name_n(CassUserType* user_type,
                                        size_t name_length,
                                        const CassUserType* value);
 
+/**
+ * Sets a vector in a user defined type at the specified index.
+ *
+ * @public @memberof CassUserType
+ *
+ * @param[in] user_type
+ * @param[in] index
+ * @param[in] value
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_user_type_set_vector(CassUserType* user_type,
+                          size_t index,
+                          const CassVector* value);
+
+/**
+ * Sets a vector in a user defined type at the specified name.
+ *
+ * @public @memberof CassUserType
+ *
+ * @param[in] user_type
+ * @param[in] name
+ * @param[in] value
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_user_type_set_vector_by_name(CassUserType* user_type,
+                                  const char* name,
+                                  const CassVector* value);
+
+/**
+ * Same as cass_user_type_set_vector_by_name(), but with lengths for string
+ * parameters.
+ *
+ * @public @memberof CassUserType
+ *
+ * @param[in] user_type
+ * @param[in] name
+ * @param[in] name_length
+ * @param[in] value
+ * @return same as cass_user_type_set_vector_by_name()
+ *
+ * @see cass_user_type_set_vector_by_name()
+ */
+CASS_EXPORT CassError
+cass_user_type_set_vector_by_name_n(CassUserType* user_type,
+                                    const char* name,
+                                    size_t name_length,
+                                    const CassVector* value);
+
 /***********************************************************************************
  *
  * Result
