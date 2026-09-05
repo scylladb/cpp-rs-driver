@@ -9,8 +9,10 @@
 //! served by [`CassCollection`](crate::cql_types::collection::CassCollection).
 
 use crate::argconv::*;
+use crate::cass_error::CassError;
 use crate::cql_types::CassValueType;
 use crate::cql_types::data_type::{CassDataType, CassDataTypeInner, cass_data_type_new};
+use crate::cql_types::value;
 use crate::cql_types::value::CassCqlValue;
 use crate::types::*;
 use std::sync::Arc;
@@ -27,17 +29,43 @@ pub struct CassVector {
     /// This is a part of `data_type`. It is kept separately, so that no code
     /// has to destructure `data_type` and handle the impossible case of it
     /// not being a vector.
-    #[expect(unused)]
     element_type: Arc<CassDataType>,
 
     /// The elements of a vector cannot be null. `None` here only means
     /// "not set yet" - such a vector is rejected upon serialization.
-    #[expect(unused)]
     pub(crate) items: Vec<Option<CassCqlValue>>,
 }
 
 impl FFI for CassVector {
     type Origin = FromBox;
+}
+
+impl CassVector {
+    /// Analogous to `CassTuple::bind_value`, except that a vector is always typed,
+    /// so the value is always typechecked against the element type.
+    fn bind_value(&mut self, index: usize, v: Option<CassCqlValue>) -> CassError {
+        if index >= self.items.len() {
+            return CassError::CASS_ERROR_LIB_INDEX_OUT_OF_BOUNDS;
+        }
+
+        if !value::is_type_compatible(&v, &self.element_type) {
+            return CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE;
+        }
+
+        self.items[index] = v;
+
+        CassError::CASS_OK
+    }
+}
+
+impl From<&CassVector> for CassCqlValue {
+    fn from(vector: &CassVector) -> Self {
+        CassCqlValue::Vector {
+            element_type: vector.element_type.clone(),
+            data_type: vector.data_type.clone(),
+            values: vector.items.clone(),
+        }
+    }
 }
 
 #[unsafe(no_mangle)]
@@ -122,3 +150,25 @@ pub unsafe extern "C" fn cass_vector_data_type(
 
     ArcFFI::as_ptr(&vector.data_type)
 }
+
+prepare_binders_macro!(@only_index CassVector, |vector: &mut CassVector, index, v| vector.bind_value(index, v));
+// Notice the lack of `null`: vector elements cannot be null.
+make_binders!(int8, cass_vector_set_int8);
+make_binders!(int16, cass_vector_set_int16);
+make_binders!(int32, cass_vector_set_int32);
+make_binders!(uint32, cass_vector_set_uint32);
+make_binders!(int64, cass_vector_set_int64);
+make_binders!(float, cass_vector_set_float);
+make_binders!(double, cass_vector_set_double);
+make_binders!(bool, cass_vector_set_bool);
+make_binders!(string, cass_vector_set_string);
+make_binders!(string_n, cass_vector_set_string_n);
+make_binders!(bytes, cass_vector_set_bytes);
+make_binders!(uuid, cass_vector_set_uuid);
+make_binders!(inet, cass_vector_set_inet);
+make_binders!(duration, cass_vector_set_duration);
+make_binders!(decimal, cass_vector_set_decimal);
+make_binders!(collection, cass_vector_set_collection);
+make_binders!(tuple, cass_vector_set_tuple);
+make_binders!(user_type, cass_vector_set_user_type);
+make_binders!(vector, cass_vector_set_vector);
