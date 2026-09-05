@@ -7585,6 +7585,21 @@ cass_tuple_set_user_type(CassTuple* tuple,
                          size_t index,
                          const CassUserType* value);
 
+/**
+ * Sets a "vector" in a tuple at the specified index.
+ *
+ * @public @memberof CassTuple
+ *
+ * @param[in] tuple
+ * @param[in] index
+ * @param[in] value
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_tuple_set_vector(CassTuple* tuple,
+                      size_t index,
+                      const CassVector* value);
+
 /***********************************************************************************
  *
  * Vector

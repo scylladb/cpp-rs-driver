@@ -132,6 +132,7 @@ make_binders!(decimal, cass_tuple_set_decimal);
 make_binders!(collection, cass_tuple_set_collection);
 make_binders!(tuple, cass_tuple_set_tuple);
 make_binders!(user_type, cass_tuple_set_user_type);
+make_binders!(vector, cass_tuple_set_vector);
 
 #[cfg(test)]
 mod tests {
