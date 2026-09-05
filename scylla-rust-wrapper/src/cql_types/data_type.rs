@@ -381,6 +381,44 @@ impl From<&NativeType> for CassValueType {
     }
 }
 
+/// The inverse of [`From<&NativeType> for CassValueType`].
+///
+/// The error carries nothing: the only way to fail is that the value type is
+/// not a native one, which the type of the conversion already says. A richer
+/// error type would have to be public, because [`NativeType`] is.
+impl TryFrom<CassValueType> for NativeType {
+    type Error = ();
+
+    fn try_from(value_type: CassValueType) -> Result<Self, Self::Error> {
+        use CassValueType as V;
+        let native_type = match value_type {
+            V::CASS_VALUE_TYPE_ASCII => NativeType::Ascii,
+            V::CASS_VALUE_TYPE_BIGINT => NativeType::BigInt,
+            V::CASS_VALUE_TYPE_BLOB => NativeType::Blob,
+            V::CASS_VALUE_TYPE_BOOLEAN => NativeType::Boolean,
+            V::CASS_VALUE_TYPE_COUNTER => NativeType::Counter,
+            V::CASS_VALUE_TYPE_DECIMAL => NativeType::Decimal,
+            V::CASS_VALUE_TYPE_DOUBLE => NativeType::Double,
+            V::CASS_VALUE_TYPE_DURATION => NativeType::Duration,
+            V::CASS_VALUE_TYPE_FLOAT => NativeType::Float,
+            V::CASS_VALUE_TYPE_INT => NativeType::Int,
+            V::CASS_VALUE_TYPE_TEXT | V::CASS_VALUE_TYPE_VARCHAR => NativeType::Text,
+            V::CASS_VALUE_TYPE_TIMESTAMP => NativeType::Timestamp,
+            V::CASS_VALUE_TYPE_UUID => NativeType::Uuid,
+            V::CASS_VALUE_TYPE_VARINT => NativeType::Varint,
+            V::CASS_VALUE_TYPE_TIMEUUID => NativeType::Timeuuid,
+            V::CASS_VALUE_TYPE_INET => NativeType::Inet,
+            V::CASS_VALUE_TYPE_DATE => NativeType::Date,
+            V::CASS_VALUE_TYPE_TIME => NativeType::Time,
+            V::CASS_VALUE_TYPE_SMALL_INT => NativeType::SmallInt,
+            V::CASS_VALUE_TYPE_TINY_INT => NativeType::TinyInt,
+            _ => return Err(()),
+        };
+
+        Ok(native_type)
+    }
+}
+
 impl CassDataTypeInner {
     fn get_sub_data_type(&self, index: usize) -> Option<&Arc<CassDataType>> {
         match self {
@@ -457,6 +495,24 @@ impl CassDataTypeInner {
         match self {
             CassDataTypeInner::Udt(udt) => udt,
             _ => panic!("Can get UDT out of non-UDT data type"),
+        }
+    }
+
+    /// Whether a value of this type is prefixed with an unsigned vint length
+    /// when it is an element of a vector.
+    pub(crate) fn uses_variable_length_encoding_in_vector(&self) -> bool {
+        match self {
+            CassDataTypeInner::Value(value_type) => !NativeType::try_from(*value_type)
+                .is_ok_and(|native_type| native_type.type_size_for_vector().is_some()),
+            CassDataTypeInner::Vector { typ, .. } => {
+                unsafe { typ.get_unchecked() }.uses_variable_length_encoding_in_vector()
+            }
+            CassDataTypeInner::Udt(_)
+            | CassDataTypeInner::List { .. }
+            | CassDataTypeInner::Set { .. }
+            | CassDataTypeInner::Map { .. }
+            | CassDataTypeInner::Tuple(_)
+            | CassDataTypeInner::Custom(_) => true,
         }
     }
 
