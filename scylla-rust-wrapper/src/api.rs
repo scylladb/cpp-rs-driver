@@ -622,6 +622,7 @@ pub mod tuple {
         cass_tuple_set_uint32,
         cass_tuple_set_user_type,
         cass_tuple_set_uuid,
+        cass_tuple_set_vector,
     };
 }
 
