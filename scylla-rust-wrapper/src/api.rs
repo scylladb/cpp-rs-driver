@@ -585,6 +585,7 @@ pub mod collection {
         cass_collection_append_uint32,
         cass_collection_append_user_type,
         cass_collection_append_uuid,
+        cass_collection_append_vector,
         cass_collection_data_type,
         cass_collection_free,
         cass_collection_new,

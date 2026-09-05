@@ -7228,6 +7228,19 @@ CASS_EXPORT CassError
 cass_collection_append_user_type(CassCollection* collection,
                                  const CassUserType* value);
 
+/**
+ * Appends a "vector" to the collection.
+ *
+ * @public @memberof CassCollection
+ *
+ * @param[in] collection
+ * @param[in] value
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_collection_append_vector(CassCollection* collection,
+                              const CassVector* value);
+
 /***********************************************************************************
  *
  * Tuple
