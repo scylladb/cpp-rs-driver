@@ -6507,6 +6507,40 @@ CASS_EXPORT CassDataType*
 cass_data_type_new_udt(size_t field_count);
 
 /**
+ * Creates a new vector data type.
+ *
+ * Note that, unlike a collection or a tuple, a vector data type is always
+ * fully specified: both the element type and the number of dimensions are
+ * required upfront, and they cannot be changed afterwards. In particular,
+ * cass_data_type_add_sub_type() cannot be used with a vector data type.
+ *
+ * @public @memberof CassDataType
+ *
+ * @param[in] element_type The type of the vector's elements
+ * @param[in] dimensions The number of elements of the vector
+ * @return Returns a data type that must be freed. NULL is returned if
+ * `element_type` is NULL or `dimensions` is not a valid number of dimensions.
+ *
+ * @see cass_data_type_free()
+ */
+CASS_EXPORT CassDataType*
+cass_data_type_new_vector(const CassDataType* element_type,
+                          size_t dimensions);
+
+/**
+ * Gets the number of dimensions of a vector data type.
+ *
+ * @public @memberof CassDataType
+ *
+ * @param[in] data_type
+ * @param[out] dimensions The number of elements of the vector
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_data_type_vector_dimensions(const CassDataType* data_type,
+                                 size_t* dimensions);
+
+/**
  * Frees a data type instance.
  *
  * @public @memberof CassDataType
@@ -7605,6 +7639,18 @@ cass_vector_new_from_data_type(const CassDataType* data_type);
  */
 CASS_EXPORT void
 cass_vector_free(CassVector* vector);
+
+/**
+ * Gets the data type of a vector.
+ *
+ * @public @memberof CassVector
+ *
+ * @param[in] vector
+ * @return Returns a reference to the data type of the vector. Do not free
+ * this reference as it is bound to the lifetime of the vector.
+ */
+CASS_EXPORT const CassDataType*
+cass_vector_data_type(const CassVector* vector);
 
 /***********************************************************************************
  *

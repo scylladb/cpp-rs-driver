@@ -342,6 +342,7 @@ impl CassDataTypeInner {
                 _ => None,
             },
             CassDataTypeInner::Tuple(v) => v.get(index),
+            CassDataTypeInner::Vector { typ, .. } => (index == 0).then_some(typ),
             _ => None,
         }
     }
@@ -457,6 +458,10 @@ pub(crate) fn get_column_type(column_type: &ColumnType) -> CassDataType {
                 .map(|col_type| Arc::new(get_column_type(col_type)))
                 .collect(),
         ),
+        Vector { typ, dimensions } => CassDataTypeInner::Vector {
+            typ: Arc::new(get_column_type(typ.as_ref())),
+            dimensions: *dimensions,
+        },
 
         // ColumnType is non_exhaustive.
         _ => CassDataTypeInner::Value(CassValueType::CASS_VALUE_TYPE_UNKNOWN),
@@ -525,6 +530,53 @@ pub unsafe extern "C" fn cass_data_type_new_udt(
     ArcFFI::into_ptr(CassDataType::new_arced(CassDataTypeInner::Udt(
         UdtDataType::with_capacity(field_count as usize),
     )))
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cass_data_type_new_vector(
+    element_type: CassBorrowedSharedPtr<CassDataType, CConst>,
+    dimensions: size_t,
+) -> CassOwnedSharedPtr<CassDataType, CMut> {
+    let Some(element_type) = ArcFFI::cloned_from_ptr(element_type) else {
+        tracing::error!("Provided null element type pointer to cass_data_type_new_vector!");
+        return ArcFFI::null();
+    };
+
+    let Ok(dimensions) = u16::try_from(dimensions) else {
+        tracing::error!(
+            "Provided invalid number of dimensions to cass_data_type_new_vector: {dimensions}!"
+        );
+        return ArcFFI::null();
+    };
+
+    if dimensions == 0 {
+        tracing::error!("Provided zero dimensions to cass_data_type_new_vector!");
+        return ArcFFI::null();
+    }
+
+    ArcFFI::into_ptr(CassDataType::new_arced(CassDataTypeInner::Vector {
+        typ: element_type,
+        dimensions,
+    }))
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cass_data_type_vector_dimensions(
+    data_type: CassBorrowedSharedPtr<CassDataType, CConst>,
+    dimensions: *mut size_t,
+) -> CassError {
+    let Some(data_type) = ArcFFI::as_ref(data_type) else {
+        tracing::error!("Provided null data type pointer to cass_data_type_vector_dimensions!");
+        return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+    };
+
+    match unsafe { data_type.get_unchecked() } {
+        CassDataTypeInner::Vector { dimensions: d, .. } => {
+            unsafe { std::ptr::write(dimensions, *d as size_t) };
+            CassError::CASS_OK
+        }
+        _ => CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE,
+    }
 }
 
 #[unsafe(no_mangle)]
