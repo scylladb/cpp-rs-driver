@@ -60,6 +60,10 @@
    <td><code>CassTuple</code></td>
   </tr>
   <tr>
+   <td><code>vector</code></td>
+   <td><code>CassVector</code></td>
+  </tr>
+  <tr>
    <td><code>user-defined type</code></td>
    <td><code>CassUserType</code></td>
   </tr>
@@ -84,7 +88,7 @@
 
 [`CassDataType`] objects are useful for describing the different values that can
 be stored in ScyllaDB/Cassandra, from primitive types to more complex composite types,
-such as, UDTs (user-defined types), tuples and collections. Data types can be retrieved from existing
+such as, UDTs (user-defined types), tuples, collections and vectors. Data types can be retrieved from existing
 metadata found in schema, results, values or prepared statements, or they can be
 constructed programmatically.
 
@@ -171,7 +175,7 @@ cass_data_type_free(phone_numbers_data_type);
 cass_data_type_free(person_data_type);
 ```
 
-## Creating UDTs, Tuples and Collections Using Data Types
+## Creating UDTs, Tuples, Collections and Vectors Using Data Types
 
 After the user type object is retrieved or created manually, it can be used to
 construct composite data types. The subtypes of a data type can be used to
@@ -214,8 +218,28 @@ cass_tuple_free(address);
 cass_collection_free(phone_numbers);
 ```
 
+A [`CassVector`] is created the same way, from a vector data type. Contrary to
+the types above, a vector is always fully typed: its element type and its number
+of dimensions are part of its type, so there is no untyped vector to create.
+See [vectors](vectors.md) for details.
+
+```c
+/* A vector data type, built either programmatically or from schema metadata */
+CassDataType* element_type = cass_data_type_new(CASS_VALUE_TYPE_FLOAT);
+CassDataType* embedding_type = cass_data_type_new_vector(element_type, 3);
+
+CassVector* embedding = cass_vector_new_from_data_type(embedding_type);
+
+/* ... */
+
+cass_vector_free(embedding);
+cass_data_type_free(embedding_type);
+cass_data_type_free(element_type);
+```
+
 [`CassDataType`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassDataType
 [`CassUserType`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassUserType
+[`CassVector`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassVector
 [`CassPrepared`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassPrepared
 [`CassResult`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassResult
 [`CassValue`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassValue
@@ -234,4 +258,5 @@ cass_collection_free(phone_numbers);
   tuples
   user-defined-types
   uuids
+  vectors
 ```
