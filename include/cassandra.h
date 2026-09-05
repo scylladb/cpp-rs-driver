@@ -6118,6 +6118,56 @@ cass_statement_bind_user_type_by_name_n(CassStatement* statement,
                                         size_t name_length,
                                         const CassUserType* user_type);
 
+/**
+ * Bind a vector to a query or bound statement at the specified index.
+ *
+ * @public @memberof CassStatement
+ *
+ * @param[in] statement
+ * @param[in] index
+ * @param[in] vector The vector can be freed after this call.
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_statement_bind_vector(CassStatement* statement,
+                           size_t index,
+                           const CassVector* vector);
+
+/**
+ * Bind a vector to a query or bound statement with the specified name.
+ *
+ * @public @memberof CassStatement
+ *
+ * @param[in] statement
+ * @param[in] name
+ * @param[in] vector The vector can be freed after this call.
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_statement_bind_vector_by_name(CassStatement* statement,
+                                   const char* name,
+                                   const CassVector* vector);
+
+/**
+ * Same as cass_statement_bind_vector_by_name(), but with lengths for string
+ * parameters.
+ *
+ * @public @memberof CassStatement
+ *
+ * @param[in] statement
+ * @param[in] name
+ * @param[in] name_length
+ * @param[in] vector
+ * @return same as cass_statement_bind_vector_by_name()
+ *
+ * @see cass_statement_bind_vector_by_name()
+ */
+CASS_EXPORT CassError
+cass_statement_bind_vector_by_name_n(CassStatement* statement,
+                                     const char* name,
+                                     size_t name_length,
+                                     const CassVector* vector);
+
 /***********************************************************************************
  *
  * Prepared
