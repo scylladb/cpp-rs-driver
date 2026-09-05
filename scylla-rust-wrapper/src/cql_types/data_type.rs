@@ -1242,7 +1242,8 @@ mod tests {
 
     /// The same has to hold for a `text` nested in a container. A container
     /// built with `cass_*_new_from_data_type()` is fully typed, so - unlike an
-    /// untyped one - its subtypes are really compared.
+    /// untyped one - its subtypes are really compared. A vector is not a
+    /// collection, but it is always fully typed, so it is checked here too.
     #[test]
     fn test_text_typechecks_inside_containers() {
         let text = || value(CassValueType::CASS_VALUE_TYPE_TEXT);
@@ -1286,6 +1287,17 @@ mod tests {
                 "tuple<text>",
                 user_built(CassDataTypeInner::Tuple(vec![text()])),
                 from_metadata(ColumnType::Tuple(vec![metadata_text()])),
+            ),
+            (
+                "vector<text, 1>",
+                user_built(CassDataTypeInner::Vector {
+                    typ: text(),
+                    dimensions: 1,
+                }),
+                from_metadata(ColumnType::Vector {
+                    typ: Box::new(metadata_text()),
+                    dimensions: 1,
+                }),
             ),
             (
                 "udt with a text field",

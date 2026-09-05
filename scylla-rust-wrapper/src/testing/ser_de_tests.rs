@@ -32,9 +32,9 @@ use crate::cql_types::uuid::CassUuid;
 use crate::iterator::{
     CassIterator, CassIteratorType, cass_iterator_fields_from_user_type, cass_iterator_free,
     cass_iterator_from_collection, cass_iterator_from_map, cass_iterator_from_tuple,
-    cass_iterator_get_map_key, cass_iterator_get_map_value, cass_iterator_get_user_type_field_name,
-    cass_iterator_get_user_type_field_value, cass_iterator_get_value, cass_iterator_next,
-    cass_iterator_type,
+    cass_iterator_from_vector, cass_iterator_get_map_key, cass_iterator_get_map_value,
+    cass_iterator_get_user_type_field_name, cass_iterator_get_user_type_field_value,
+    cass_iterator_get_value, cass_iterator_next, cass_iterator_type,
 };
 use crate::query_result::cass_raw_value::CassRawValue;
 use crate::query_result::{
@@ -479,6 +479,88 @@ fn test_deserialize_list_iterator() {
 
         cass_iterator_free(iter);
     }
+}
+
+/// Vectors have a wire format of their own: no element count, and elements of
+/// a fixed-size type are written with no length prefix at all, while elements
+/// of a variable-size type get an unsigned vint length prefix. Both encodings
+/// are covered here.
+#[test]
+fn test_deserialize_vector_iterator() {
+    fn test_vector_iterator_helper<T>(element_type: ColumnType<'static>, to_serialize: Vec<T>)
+    where
+        T: SerializeValue + FromCassValuePtr + PartialEq + std::fmt::Debug,
+    {
+        let dimensions = to_serialize.len() as u16;
+        let typ = ColumnType::Vector {
+            typ: Box::new(element_type),
+            dimensions,
+        };
+
+        let bytes = Bytes::from(do_serialize(&to_serialize, &typ));
+        let data_type = Arc::new(get_column_type(&typ));
+        let cass_value = CassValue {
+            value: do_deserialize::<CassRawValue>(&typ, &bytes),
+            value_type: &data_type,
+        };
+        let value_ptr = RefFFI::as_ptr(&cass_value);
+
+        unsafe {
+            // The item count comes from the type - there is no count in the frame.
+            assert_eq!(
+                cass_value_item_count(value_ptr.borrow()),
+                dimensions as size_t
+            );
+
+            // A vector is not a collection, so the collection iterator rejects it.
+            assert!(cass_iterator_from_collection(value_ptr.borrow()).is_null());
+
+            let mut iter = cass_iterator_from_vector(value_ptr);
+            assert!(!iter.is_null());
+            assert_eq!(
+                cass_iterator_type(iter.borrow_mut()),
+                CassIteratorType::CASS_ITERATOR_TYPE_VECTOR
+            );
+
+            for v in to_serialize {
+                assert!(cass_iterator_next(iter.borrow_mut()) > 0);
+                let cass_value = cass_iterator_get_value(iter.borrow().into_c_const());
+                assert_eq!(v, T::from_cass_value_ptr(cass_value));
+            }
+
+            // Iterator should be exhausted.
+            assert!(cass_iterator_next(iter.borrow_mut()) == 0);
+
+            cass_iterator_free(iter);
+        }
+    }
+
+    setup_tracing();
+
+    tracing::info!("Testing vector<float, 4> (fixed-size elements)...");
+    test_vector_iterator_helper(
+        ColumnType::Native(NativeType::Float),
+        vec![1.0_f32, -2.5, 0.0, 42.25],
+    );
+
+    tracing::info!("Testing vector<int, 3> (fixed-size elements)...");
+    test_vector_iterator_helper(ColumnType::Native(NativeType::Int), vec![42_i32, -1, 4242]);
+
+    tracing::info!("Testing vector<text, 3> (variable-size elements)...");
+    test_vector_iterator_helper(
+        ColumnType::Native(NativeType::Text),
+        vec![
+            "".to_owned(),
+            "alpha".to_owned(),
+            // Long enough to need more than one byte of vint length.
+            "b".repeat(300),
+        ],
+    );
+
+    tracing::info!("Testing vector<smallint, 2> (variable-size elements)...");
+    // Notice that smallint is *not* a fixed-size type as far as vectors are
+    // concerned - it is length-prefixed, just like text.
+    test_vector_iterator_helper(ColumnType::Native(NativeType::SmallInt), vec![7_i16, -7]);
 }
 
 #[test]

@@ -24,9 +24,9 @@ use scylladb::api::future::{
 };
 use scylladb::api::iterator::{
     cass_iterator_fields_from_user_type, cass_iterator_free, cass_iterator_from_collection,
-    cass_iterator_from_map, cass_iterator_from_tuple, cass_iterator_get_map_key,
-    cass_iterator_get_map_value, cass_iterator_get_user_type_field_value, cass_iterator_get_value,
-    cass_iterator_next,
+    cass_iterator_from_map, cass_iterator_from_tuple, cass_iterator_from_vector,
+    cass_iterator_get_map_key, cass_iterator_get_map_value,
+    cass_iterator_get_user_type_field_value, cass_iterator_get_value, cass_iterator_next,
 };
 use scylladb::api::prepared::{cass_prepared_bind, cass_prepared_free};
 use scylladb::api::result::{cass_result_first_row, cass_result_free};
@@ -37,13 +37,15 @@ use scylladb::api::session::{
 };
 use scylladb::api::statement::{
     cass_statement_bind_collection, cass_statement_bind_tuple, cass_statement_bind_user_type,
-    cass_statement_free, cass_statement_new,
+    cass_statement_bind_vector, cass_statement_bind_vector_by_name,
+    cass_statement_bind_vector_by_name_n, cass_statement_free, cass_statement_new,
 };
 use scylladb::api::tuple::{cass_tuple_free, cass_tuple_new_from_data_type, cass_tuple_set_string};
 use scylladb::api::user_type::{
     cass_user_type_free, cass_user_type_new_from_data_type, cass_user_type_set_string_by_name,
 };
 use scylladb::api::value::{CassValue, CassValueType, cass_value_get_string};
+use scylladb::api::vector::{cass_vector_free, cass_vector_new, cass_vector_set_string};
 use scylladb::argconv::{CConst, CMut, CassBorrowedSharedPtr, CassStrNulTerminated};
 
 use crate::utils::{assert_cass_error_eq, setup_tracing};
@@ -139,15 +141,16 @@ unsafe fn run_test(contact_points: &str) {
                  s set<text>, \
                  m map<text, text>, \
                  t frozen<tuple<text>>, \
-                 u frozen<data_types.udt>)",
+                 u frozen<data_types.udt>, \
+                 v vector<text, 1>)",
         ] {
             execute(session_raw.borrow(), ddl);
         }
 
         // Prepare the insert: only a prepared statement carries the metadata
         // that the bound values are typechecked against.
-        let query = c"INSERT INTO data_types.containers (id, l, s, m, t, u) \
-                      VALUES (0, ?, ?, ?, ?, ?)";
+        let query = c"INSERT INTO data_types.containers (id, l, s, m, t, u, v) \
+                      VALUES (0, ?, ?, ?, ?, ?, ?)";
         let prepare_fut =
             cass_session_prepare(session_raw.borrow(), CassStrNulTerminated::from_cstr(query));
         cass_future_wait(prepare_fut.borrow());
@@ -270,6 +273,42 @@ unsafe fn run_test(contact_points: &str) {
             cass_statement_bind_user_type(statement.borrow_mut(), 4, udt.borrow().into_c_const()),
         ));
 
+        // vector<text, 1>. A vector is not a collection, but it is a container
+        // that is always fully typed, so its element type is compared too.
+        let mut vector = cass_vector_new(CassValueType::CASS_VALUE_TYPE_TEXT, 1);
+        assert_cass_error_eq(
+            CassError::CASS_OK,
+            cass_vector_set_string(vector.borrow_mut(), 0, text_arg()),
+        );
+        binds.push((
+            "vector<text, 1>",
+            cass_statement_bind_vector(statement.borrow_mut(), 5, vector.borrow().into_c_const()),
+        ));
+
+        // The same column is bound again through the two by-name entry points.
+        // A name is resolved against the prepared statement's metadata, which
+        // is a different lookup from the one an index takes. All three binds
+        // carry the same value, so the read-back below covers them all.
+        let column_name = CassStrNulTerminated::from_cstr(c"v");
+        binds.push((
+            "vector<text, 1>, by name",
+            cass_statement_bind_vector_by_name(
+                statement.borrow_mut(),
+                column_name.clone(),
+                vector.borrow().into_c_const(),
+            ),
+        ));
+        let (name, name_length) = column_name.as_len_delimited();
+        binds.push((
+            "vector<text, 1>, by length-delimited name",
+            cass_statement_bind_vector_by_name_n(
+                statement.borrow_mut(),
+                name,
+                name_length,
+                vector.borrow().into_c_const(),
+            ),
+        ));
+
         let failed: Vec<&str> = binds
             .iter()
             .filter(|(_, err)| *err != CassError::CASS_OK)
@@ -291,6 +330,7 @@ unsafe fn run_test(contact_points: &str) {
         cass_collection_free(map);
         cass_tuple_free(tuple);
         cass_user_type_free(udt);
+        cass_vector_free(vector);
         cass_data_type_free(list_type);
         cass_data_type_free(set_type);
         cass_data_type_free(map_type);
@@ -300,7 +340,7 @@ unsafe fn run_test(contact_points: &str) {
         cass_prepared_free(prepared);
 
         // Read everything back, to prove the values really landed.
-        let select = c"SELECT l, s, m, t, u FROM data_types.containers WHERE id = 0";
+        let select = c"SELECT l, s, m, t, u, v FROM data_types.containers WHERE id = 0";
         let statement = cass_statement_new(CassStrNulTerminated::from_cstr(select), 0);
         let select_fut =
             cass_session_execute(session_raw.borrow(), statement.borrow().into_c_const());
@@ -359,6 +399,15 @@ unsafe fn run_test(contact_points: &str) {
             get_string(cass_iterator_get_user_type_field_value(
                 iter.borrow().into_c_const()
             )),
+            "alpha"
+        );
+        cass_iterator_free(iter);
+
+        // vector<text, 1>
+        let mut iter = cass_iterator_from_vector(column(c"v"));
+        assert_eq!(cass_iterator_next(iter.borrow_mut()), 1);
+        assert_eq!(
+            get_string(cass_iterator_get_value(iter.borrow().into_c_const())),
             "alpha"
         );
         cass_iterator_free(iter);
