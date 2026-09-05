@@ -379,6 +379,38 @@ fn native_type_to_cass_value_type(native_type: &NativeType) -> CassValueType {
     }
 }
 
+/// The inverse of [`native_type_to_cass_value_type`].
+///
+/// Returns `None` for value types that are not native types.
+fn cass_value_type_to_native_type(value_type: CassValueType) -> Option<NativeType> {
+    use CassValueType as V;
+    let native_type = match value_type {
+        V::CASS_VALUE_TYPE_ASCII => NativeType::Ascii,
+        V::CASS_VALUE_TYPE_BIGINT => NativeType::BigInt,
+        V::CASS_VALUE_TYPE_BLOB => NativeType::Blob,
+        V::CASS_VALUE_TYPE_BOOLEAN => NativeType::Boolean,
+        V::CASS_VALUE_TYPE_COUNTER => NativeType::Counter,
+        V::CASS_VALUE_TYPE_DECIMAL => NativeType::Decimal,
+        V::CASS_VALUE_TYPE_DOUBLE => NativeType::Double,
+        V::CASS_VALUE_TYPE_DURATION => NativeType::Duration,
+        V::CASS_VALUE_TYPE_FLOAT => NativeType::Float,
+        V::CASS_VALUE_TYPE_INT => NativeType::Int,
+        V::CASS_VALUE_TYPE_TEXT | V::CASS_VALUE_TYPE_VARCHAR => NativeType::Text,
+        V::CASS_VALUE_TYPE_TIMESTAMP => NativeType::Timestamp,
+        V::CASS_VALUE_TYPE_UUID => NativeType::Uuid,
+        V::CASS_VALUE_TYPE_VARINT => NativeType::Varint,
+        V::CASS_VALUE_TYPE_TIMEUUID => NativeType::Timeuuid,
+        V::CASS_VALUE_TYPE_INET => NativeType::Inet,
+        V::CASS_VALUE_TYPE_DATE => NativeType::Date,
+        V::CASS_VALUE_TYPE_TIME => NativeType::Time,
+        V::CASS_VALUE_TYPE_SMALL_INT => NativeType::SmallInt,
+        V::CASS_VALUE_TYPE_TINY_INT => NativeType::TinyInt,
+        _ => return None,
+    };
+
+    Some(native_type)
+}
+
 impl CassDataTypeInner {
     fn get_sub_data_type(&self, index: usize) -> Option<&Arc<CassDataType>> {
         match self {
@@ -455,6 +487,33 @@ impl CassDataTypeInner {
         match self {
             CassDataTypeInner::Udt(udt) => udt,
             _ => panic!("Can get UDT out of non-UDT data type"),
+        }
+    }
+
+    /// Whether a value of this type is prefixed with an unsigned vint length
+    /// when it is an element of a vector.
+    ///
+    /// Elements of a fixed-size type are written raw, with no length prefix at
+    /// all. Every other element carries one.
+    ///
+    /// rust-driver answers this with `type_size_for_vector()`, which returns the
+    /// element size and multiplies it by the dimensions for a nested vector. The
+    /// size itself is of no use here - only whether there is one - so this asks
+    /// the question directly, and the nesting needs no arithmetic: a vector is
+    /// fixed-size exactly when its own element type is.
+    pub(crate) fn uses_variable_length_encoding_in_vector(&self) -> bool {
+        match self {
+            CassDataTypeInner::Value(value_type) => cass_value_type_to_native_type(*value_type)
+                .is_none_or(|native_type| native_type.type_size_for_vector().is_none()),
+            CassDataTypeInner::Vector { typ, .. } => {
+                unsafe { typ.get_unchecked() }.uses_variable_length_encoding_in_vector()
+            }
+            CassDataTypeInner::Udt(_)
+            | CassDataTypeInner::List { .. }
+            | CassDataTypeInner::Set { .. }
+            | CassDataTypeInner::Map { .. }
+            | CassDataTypeInner::Tuple(_)
+            | CassDataTypeInner::Custom(_) => true,
         }
     }
 
