@@ -1,5 +1,7 @@
 use scylla::deserialize::result::TypedRowIterator;
-use scylla::deserialize::value::{DeserializeValue, ListlikeIterator, MapIterator, UdtIterator};
+use scylla::deserialize::value::{
+    DeserializeValue, ListlikeIterator, MapIterator, UdtIterator, VectorIterator,
+};
 
 use crate::argconv::{
     ArcFFI, BoxFFI, CConst, CMut, CassBorrowedExclusivePtr, CassBorrowedSharedPtr,
@@ -125,6 +127,54 @@ impl<'result> CassListlikeIterator<'result> {
             }),
             Err(e) => {
                 tracing::error!("Failed to deserialize next listlike entry: {e}");
+                None
+            }
+        });
+
+        self.current_value = next_value;
+
+        self.current_value.is_some()
+    }
+}
+
+/// An iterator created from [`cass_iterator_from_vector()`].
+///
+/// Notice that a vector is not a collection, so it is not served by
+/// [`CassCollectionIterator`] - it has its own wire format and its own iterator.
+pub(crate) struct CassVectorIterator<'result> {
+    iterator: VectorIterator<'result, 'result, CassRawValue<'result, 'result>>,
+    element_data_type: &'result Arc<CassDataType>,
+    current_value: Option<CassValue<'result>>,
+}
+
+impl<'result> CassVectorIterator<'result> {
+    fn new_from_value(
+        value: &'result CassValue<'result>,
+    ) -> Result<Self, NonNullDeserializationError> {
+        let vector_iterator = value.get_non_null::<VectorIterator<CassRawValue>>()?;
+
+        // SAFETY: `CassDataType` is obtained from `CassResultMetadata`, which is immutable.
+        let element_type = match unsafe { value.value_type.get_unchecked() } {
+            // A vector is always fully typed - there is no untyped vector in CQL.
+            CassDataTypeInner::Vector { typ, .. } => typ,
+            _ => panic!("Expected vector type. Typecheck should have prevented such scenario!"),
+        };
+
+        Ok(Self {
+            iterator: vector_iterator,
+            element_data_type: element_type,
+            current_value: None,
+        })
+    }
+
+    fn next(&mut self) -> bool {
+        let next_value = self.iterator.next().and_then(|res| match res {
+            Ok(value) => Some(CassValue {
+                value,
+                value_type: self.element_data_type,
+            }),
+            Err(e) => {
+                tracing::error!("Failed to deserialize next vector element: {e}");
                 None
             }
         });
@@ -653,6 +703,8 @@ pub(crate) enum CassIteratorInner<'result_or_schema> {
     Tuple(CassTupleIterator<'result_or_schema>),
     /// Iterator over fields (values) in UDT.
     Udt(CassUdtIterator<'result_or_schema>),
+    /// Iterator over elements in a vector.
+    Vector(CassVectorIterator<'result_or_schema>),
 
     // Iterators derived from CassSchemaMeta.
     // Naming convention of the variants: name of item in the collection (plural).
@@ -694,6 +746,7 @@ pub unsafe extern "C" fn cass_iterator_type(
         CassIteratorInner::Map(_) => CassIteratorType::CASS_ITERATOR_TYPE_MAP,
         CassIteratorInner::Tuple(_) => CassIteratorType::CASS_ITERATOR_TYPE_TUPLE,
         CassIteratorInner::Udt(_) => CassIteratorType::CASS_ITERATOR_TYPE_USER_TYPE_FIELD,
+        CassIteratorInner::Vector(_) => CassIteratorType::CASS_ITERATOR_TYPE_VECTOR,
         CassIteratorInner::KeyspacesMeta(_) => CassIteratorType::CASS_ITERATOR_TYPE_KEYSPACE_META,
         CassIteratorInner::TablesMeta(_) => CassIteratorType::CASS_ITERATOR_TYPE_TABLE_META,
         CassIteratorInner::UserTypes(_) => CassIteratorType::CASS_ITERATOR_TYPE_TYPE_META,
@@ -721,6 +774,7 @@ pub unsafe extern "C" fn cass_iterator_next(
         CassIteratorInner::Tuple(tuple_iterator) => tuple_iterator.next(),
         CassIteratorInner::Map(map_iterator) => map_iterator.next(),
         CassIteratorInner::Udt(udt_iterator) => udt_iterator.next(),
+        CassIteratorInner::Vector(vector_iterator) => vector_iterator.next(),
         CassIteratorInner::KeyspacesMeta(schema_meta_iterator) => schema_meta_iterator.next(),
         CassIteratorInner::TablesMeta(keyspace_meta_iterator)
         | CassIteratorInner::UserTypes(keyspace_meta_iterator)
@@ -796,7 +850,7 @@ pub unsafe extern "C" fn cass_iterator_get_value<'result>(
         return RefFFI::null();
     };
 
-    // Defined only for collections(list, set and map) or tuple iterator, for other types should return null
+    // Defined only for collections(list, set and map), tuple or vector iterator, for other types should return null
     match iter {
         CassIteratorInner::Collection(CassCollectionIterator::Listlike(listlike_iterator)) => {
             listlike_iterator
@@ -826,6 +880,11 @@ pub unsafe extern "C" fn cass_iterator_get_value<'result>(
             .current_entry
             .as_ref()
             .map(|entry| RefFFI::as_ptr(&entry.field_value))
+            .unwrap_or(RefFFI::null()),
+        CassIteratorInner::Vector(vector_iterator) => vector_iterator
+            .current_value
+            .as_ref()
+            .map(RefFFI::as_ptr)
             .unwrap_or(RefFFI::null()),
         _ => RefFFI::null(),
     }
@@ -1201,6 +1260,27 @@ pub unsafe extern "C" fn cass_iterator_from_tuple<'result>(
         }
         Err(e) => {
             tracing::error!("Failed to create tuple iterator: {e}");
+            BoxFFI::null_mut()
+        }
+    }
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cass_iterator_from_vector<'result>(
+    value: CassBorrowedSharedPtr<'result, CassValue<'result>, CConst>,
+) -> CassOwnedExclusivePtr<CassIterator<'result>, CMut> {
+    let Some(vector) = RefFFI::as_ref(value) else {
+        tracing::error!("Provided null vector pointer to cass_iterator_from_vector!");
+        return BoxFFI::null_mut();
+    };
+
+    let iterator_result = CassVectorIterator::new_from_value(vector);
+    match iterator_result {
+        Ok(iterator) => {
+            BoxFFI::into_ptr(Box::new(CassIterator(CassIteratorInner::Vector(iterator))))
+        }
+        Err(e) => {
+            tracing::error!("Failed to create vector iterator: {e}");
             BoxFFI::null_mut()
         }
     }
