@@ -20,7 +20,6 @@ pub struct CassVector {
     /// Contrary to collections and tuples, a vector is always typed: the wire
     /// representation of its elements depends on their type, so we cannot
     /// serialize a vector without knowing it.
-    #[expect(unused)]
     pub(crate) data_type: Arc<CassDataType>,
 
     /// The type of the vector's elements.
@@ -110,4 +109,16 @@ pub unsafe extern "C" fn cass_vector_new_from_data_type(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_vector_free(vector: CassOwnedExclusivePtr<CassVector, CMut>) {
     BoxFFI::free(vector);
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cass_vector_data_type(
+    vector: CassBorrowedSharedPtr<CassVector, CConst>,
+) -> CassBorrowedSharedPtr<CassDataType, CConst> {
+    let Some(vector) = BoxFFI::as_ref(vector) else {
+        tracing::error!("Provided null vector pointer to cass_vector_data_type!");
+        return ArcFFI::null();
+    };
+
+    ArcFFI::as_ptr(&vector.data_type)
 }

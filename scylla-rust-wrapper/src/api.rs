@@ -542,6 +542,7 @@ pub mod data_type {
         cass_data_type_new_from_existing,
         cass_data_type_new_tuple,
         cass_data_type_new_udt,
+        cass_data_type_new_vector,
         cass_data_type_set_class_name,
         cass_data_type_set_class_name_n,
         cass_data_type_set_keyspace,
@@ -555,6 +556,7 @@ pub mod data_type {
         cass_data_type_sub_type_name,
         cass_data_type_type,
         cass_data_type_type_name,
+        cass_data_type_vector_dimensions,
     };
 }
 
@@ -628,6 +630,7 @@ pub mod vector {
     #[rustfmt::skip]
     pub use crate::cql_types::vector::{
         CassVector,
+        cass_vector_data_type,
         cass_vector_free,
         cass_vector_new,
         cass_vector_new_from_data_type,

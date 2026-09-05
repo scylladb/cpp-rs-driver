@@ -166,6 +166,53 @@ impl CassDataTypeInner {
     /// Checks for equality during typechecks.
     ///
     /// This takes into account the fact that tuples/collections may be untyped.
+    /// Returns whether this data type names all of its subtypes.
+    ///
+    /// A collection, a tuple or a UDT may be built without them, and
+    /// [`Self::typecheck_equals`] then treats the missing ones as wildcards.
+    /// That is harmless for those types: their wire representation does not
+    /// depend on the type of the values they hold. A vector is different -
+    /// its elements are written according to their type - so a wildcard in a
+    /// vector's element type could not be served.
+    pub(crate) fn is_fully_typed(&self) -> bool {
+        // SAFETY: the caller of a public API that reaches here holds the
+        // data type, and `CassDataType` is only mutated through the C API.
+        let sub_is_fully_typed =
+            |typ: &Arc<CassDataType>| unsafe { typ.get_unchecked() }.is_fully_typed();
+
+        match self {
+            CassDataTypeInner::Value(_) => true,
+            // An unnamed custom type names nothing. (A named one cannot be
+            // populated either, as custom types are unimplemented, but that
+            // is not this predicate's business.)
+            CassDataTypeInner::Custom(name) => !name.is_empty(),
+            CassDataTypeInner::List { typ, .. } | CassDataTypeInner::Set { typ, .. } => {
+                typ.as_ref().is_some_and(sub_is_fully_typed)
+            }
+            CassDataTypeInner::Map { typ, .. } => match typ {
+                // A map needs both its key and its value type.
+                MapDataType::Untyped | MapDataType::Key(_) => false,
+                MapDataType::KeyAndValue(key, value) => {
+                    sub_is_fully_typed(key) && sub_is_fully_typed(value)
+                }
+            },
+            // An empty tuple or UDT is the untyped one: `cass_data_type_new_tuple()`
+            // and `cass_data_type_new_udt()` only reserve capacity for the subtypes.
+            CassDataTypeInner::Tuple(subtypes) => {
+                !subtypes.is_empty() && subtypes.iter().all(sub_is_fully_typed)
+            }
+            CassDataTypeInner::Udt(udt) => {
+                !udt.field_types.is_empty()
+                    && udt
+                        .field_types
+                        .iter()
+                        .all(|(_, typ)| sub_is_fully_typed(typ))
+            }
+            // A vector is fully typed by construction, but recurse all the same.
+            CassDataTypeInner::Vector { typ, .. } => sub_is_fully_typed(typ),
+        }
+    }
+
     pub(crate) fn typecheck_equals(&self, other: &CassDataTypeInner) -> bool {
         match self {
             CassDataTypeInner::Value(t) => value_types_equal(*t, other.get_value_type()),
@@ -358,6 +405,7 @@ impl CassDataTypeInner {
                 _ => None,
             },
             CassDataTypeInner::Tuple(v) => v.get(index),
+            CassDataTypeInner::Vector { typ, .. } => (index == 0).then_some(typ),
             _ => None,
         }
     }
@@ -473,6 +521,10 @@ pub(crate) fn get_column_type(column_type: &ColumnType) -> CassDataType {
                 .map(|col_type| Arc::new(get_column_type(col_type)))
                 .collect(),
         ),
+        Vector { typ, dimensions } => CassDataTypeInner::Vector {
+            typ: Arc::new(get_column_type(typ.as_ref())),
+            dimensions: *dimensions,
+        },
 
         // ColumnType is non_exhaustive.
         _ => CassDataTypeInner::Value(CassValueType::CASS_VALUE_TYPE_UNKNOWN),
@@ -541,6 +593,61 @@ pub unsafe extern "C" fn cass_data_type_new_udt(
     ArcFFI::into_ptr(CassDataType::new_arced(CassDataTypeInner::Udt(
         UdtDataType::with_capacity(field_count as usize),
     )))
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cass_data_type_new_vector(
+    element_type: CassBorrowedSharedPtr<CassDataType, CConst>,
+    dimensions: size_t,
+) -> CassOwnedSharedPtr<CassDataType, CMut> {
+    let Some(element_type) = ArcFFI::cloned_from_ptr(element_type) else {
+        tracing::error!("Provided null element type pointer to cass_data_type_new_vector!");
+        return ArcFFI::null();
+    };
+
+    // Contrary to a collection or a tuple, a vector cannot treat a missing
+    // subtype of its element type as a wildcard: the wire representation of
+    // its elements depends on their type.
+    if !unsafe { element_type.get_unchecked() }.is_fully_typed() {
+        tracing::error!("Provided a not fully typed element type to cass_data_type_new_vector!");
+        return ArcFFI::null();
+    }
+
+    let Ok(dimensions) = u16::try_from(dimensions) else {
+        tracing::error!(
+            "Provided invalid number of dimensions to cass_data_type_new_vector: {dimensions}!"
+        );
+        return ArcFFI::null();
+    };
+
+    if dimensions == 0 {
+        tracing::error!("Provided zero dimensions to cass_data_type_new_vector!");
+        return ArcFFI::null();
+    }
+
+    ArcFFI::into_ptr(CassDataType::new_arced(CassDataTypeInner::Vector {
+        typ: element_type,
+        dimensions,
+    }))
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cass_data_type_vector_dimensions(
+    data_type: CassBorrowedSharedPtr<CassDataType, CConst>,
+    dimensions: *mut size_t,
+) -> CassError {
+    let Some(data_type) = ArcFFI::as_ref(data_type) else {
+        tracing::error!("Provided null data type pointer to cass_data_type_vector_dimensions!");
+        return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+    };
+
+    match unsafe { data_type.get_unchecked() } {
+        CassDataTypeInner::Vector { dimensions: d, .. } => {
+            unsafe { std::ptr::write(dimensions, *d as size_t) };
+            CassError::CASS_OK
+        }
+        _ => CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE,
+    }
 }
 
 #[unsafe(no_mangle)]
