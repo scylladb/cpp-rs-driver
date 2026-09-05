@@ -658,7 +658,8 @@ typedef enum CassIteratorType_ {
   CASS_ITERATOR_TYPE_AGGREGATE_META,
   CASS_ITERATOR_TYPE_COLUMN_META,
   CASS_ITERATOR_TYPE_INDEX_META,
-  CASS_ITERATOR_TYPE_MATERIALIZED_VIEW_META
+  CASS_ITERATOR_TYPE_MATERIALIZED_VIEW_META,
+  CASS_ITERATOR_TYPE_VECTOR
 } CassIteratorType;
 
 #define CASS_LOG_LEVEL_MAPPING(XX) \
@@ -9546,6 +9547,21 @@ cass_iterator_from_map(const CassValue* value);
  */
 CASS_EXPORT CassIterator*
 cass_iterator_from_tuple(const CassValue* value);
+
+/**
+ * Creates a new iterator for the specified vector. This can be
+ * used to iterate over elements in a vector.
+ *
+ * @public @memberof CassValue
+ *
+ * @param[in] value
+ * @return A new iterator that must be freed. NULL returned if the
+ * value is not a vector.
+ *
+ * @see cass_iterator_free()
+ */
+CASS_EXPORT CassIterator*
+cass_iterator_from_vector(const CassValue* value);
 
 /**
  * Creates a new iterator for the specified user defined type. This can be
