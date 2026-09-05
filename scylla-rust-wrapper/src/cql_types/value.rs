@@ -6,6 +6,7 @@ use scylla::serialize::SerializationError;
 use scylla::serialize::value::{
     BuiltinSerializationErrorKind, MapSerializationErrorKind, SerializeValue,
     SetOrListSerializationErrorKind, TupleSerializationErrorKind, UdtSerializationErrorKind,
+    VectorSerializationErrorKind,
 };
 use scylla::serialize::writers::{CellWriter, WrittenCellProof};
 use scylla::value::{CqlDate, CqlDecimal, CqlDuration};
@@ -58,6 +59,16 @@ pub(crate) enum CassCqlValue {
     Set {
         data_type: Option<Arc<CassDataType>>,
         values: Vec<CassCqlValue>,
+    },
+    /// A CQL vector. Contrary to a list, its number of elements is part of its
+    /// type, and its elements cannot be null - `None` here only means that the
+    /// element has not been set yet, which is rejected upon serialization.
+    Vector {
+        data_type: Arc<CassDataType>,
+        element_type: Arc<CassDataType>,
+        // Dimensions of the vector are equal to the length of `values`.
+        // `values` start resized.
+        values: Vec<Option<CassCqlValue>>,
     },
     UserDefinedType {
         data_type: Arc<CassDataType>,
@@ -171,6 +182,11 @@ impl CassCqlValue {
                     typ.get_unchecked().get_value_type() == CassValueType::CASS_VALUE_TYPE_SET
                 }
             },
+            CassCqlValue::Vector { data_type, .. } => unsafe {
+                data_type
+                    .get_unchecked()
+                    .typecheck_equals(typ.get_unchecked())
+            },
             CassCqlValue::UserDefinedType { data_type, .. } => unsafe {
                 data_type
                     .get_unchecked()
@@ -261,6 +277,11 @@ impl CassCqlValue {
             CassCqlValue::Set { values, .. } => {
                 serialize_sequence(values.len(), values.iter(), writer)
             }
+            CassCqlValue::Vector {
+                element_type,
+                values,
+                ..
+            } => serialize_vector(element_type, values, writer),
             CassCqlValue::UserDefinedType { fields, .. } => serialize_udt(fields, writer),
         }
     }
@@ -387,6 +408,120 @@ fn serialize_mapping<'t, 'b>(
         .map_err(|_| mk_ser_err_named(rust_name, BuiltinSerializationErrorKind::SizeOverflow))
 }
 
+/// Serializes a CQL vector.
+///
+/// The wire format of a vector differs from the one of a collection:
+/// - There is no element count prefix. The number of elements is part of the type.
+/// - An element of a fixed-size type is written raw, with no length prefix.
+/// - An element of a variable-size type carries an unsigned vint length prefix.
+///
+/// See the reference implementation in rust-driver's `serialize_vector`.
+fn serialize_vector<'b>(
+    element_type: &CassDataType,
+    values: &[Option<CassCqlValue>],
+    writer: CellWriter<'b>,
+) -> Result<WrittenCellProof<'b>, SerializationError> {
+    let rust_name = std::any::type_name::<CassCqlValue>();
+
+    // The number of elements needs no check here. `values` is created with the
+    // length equal to the number of dimensions, and never grows nor shrinks.
+    let variable_length =
+        unsafe { element_type.get_unchecked() }.uses_variable_length_encoding_in_vector();
+
+    let mut builder = writer.into_value_builder();
+
+    for (index, element) in values.iter().enumerate() {
+        // Vector elements cannot be null - an unset element is a user error.
+        let Some(element) = element else {
+            return Err(mk_ser_err_named(
+                rust_name,
+                VectorSerializationErrorKind::ElementSerializationFailed(SerializationError::new(
+                    VectorElementNotSetError { index },
+                )),
+            ));
+        };
+
+        let mk_element_err = |err| {
+            mk_ser_err_named(
+                rust_name,
+                VectorSerializationErrorKind::ElementSerializationFailed(err),
+            )
+        };
+
+        if variable_length {
+            // Prefixed with an unsigned vint length.
+            let mut element_buffer = Vec::new();
+            element
+                .do_serialize(CellWriter::new_without_size(&mut element_buffer))
+                .map_err(mk_element_err)?;
+
+            let mut length_buffer = Vec::new();
+            unsigned_vint_encode(element_buffer.len() as u64, &mut length_buffer);
+            builder.append_bytes(&length_buffer);
+            builder.append_bytes(&element_buffer);
+        } else {
+            // Fixed-size: written raw, with no length prefix.
+            element
+                .do_serialize(builder.make_sub_writer_without_size())
+                .map_err(mk_element_err)?;
+        }
+    }
+
+    builder
+        .finish()
+        .map_err(|_| mk_ser_err_named(rust_name, BuiltinSerializationErrorKind::SizeOverflow))
+}
+
+/// Encodes an unsigned vint, as defined by the CQL protocol.
+///
+/// rust-driver has this function, but does not expose it, so we have to
+/// reimplement it here. Adapted from `scylla-cql`'s `unsigned_vint_encode`.
+fn unsigned_vint_encode(v: u64, buf: &mut Vec<u8>) {
+    let mut v = v;
+    let mut number_of_bytes = (639 - 9 * v.leading_zeros()) >> 6;
+    if number_of_bytes <= 1 {
+        buf.push(v as u8);
+        return;
+    }
+
+    if number_of_bytes != 9 {
+        let extra_bytes = number_of_bytes - 1;
+        let length_bits = !(0xff_u8 >> extra_bytes);
+        v |= (length_bits as u64) << (8 * extra_bytes);
+    } else {
+        buf.push(0xff);
+        number_of_bytes -= 1;
+    }
+
+    // Append the `number_of_bytes` least significant bytes of `v`, big-endian.
+    let bytes = v.to_be_bytes();
+    buf.extend_from_slice(&bytes[bytes.len() - number_of_bytes as usize..]);
+}
+
+/// One of the vector's elements was never set.
+///
+/// rust-driver's [`VectorSerializationErrorKind`] has no counterpart of this:
+/// its vector serializers take Rust slices, whose elements are always set.
+/// We nest this error in
+/// [`VectorSerializationErrorKind::ElementSerializationFailed`] instead.
+#[derive(Debug, Clone)]
+pub(crate) struct VectorElementNotSetError {
+    /// Index of the element that was not set.
+    pub(crate) index: usize,
+}
+
+impl std::fmt::Display for VectorElementNotSetError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "element at index {} is not set; vector elements cannot be null",
+            self.index
+        )
+    }
+}
+
+impl std::error::Error for VectorElementNotSetError {}
+
 fn serialize_udt<'b>(
     values: &[(String, Option<CassCqlValue>)],
     writer: CellWriter<'b>,
@@ -412,6 +547,52 @@ fn serialize_udt<'b>(
 
 #[cfg(test)]
 mod tests {
+    /// Our `unsigned_vint_encode()` reimplements a protocol primitive that
+    /// rust-driver does not expose. Every byte-length class must match the
+    /// encoding the CQL protocol defines.
+    #[test]
+    fn test_unsigned_vint_encode_matches_the_protocol() {
+        /// Encodes `value` and returns the bytes.
+        fn encode(value: u64) -> Vec<u8> {
+            let mut buf = Vec::new();
+            super::unsigned_vint_encode(value, &mut buf);
+            buf
+        }
+
+        // One byte, for the values that fit in seven bits.
+        assert_eq!(encode(0), vec![0x00]);
+        assert_eq!(encode(1), vec![0x01]);
+        assert_eq!(encode(127), vec![0x7f]);
+
+        // Two bytes: one leading bit set, then the value.
+        assert_eq!(encode(128), vec![0x80, 0x80]);
+        assert_eq!(encode(300), vec![0x81, 0x2c]);
+        assert_eq!(encode(16383), vec![0xbf, 0xff]);
+
+        // Three bytes.
+        assert_eq!(encode(16384), vec![0xc0, 0x40, 0x00]);
+
+        // Nine bytes, which is the longest form: a full first byte, then the
+        // whole value. This is the only form that cannot carry value bits in
+        // its first byte.
+        assert_eq!(
+            encode(u64::MAX),
+            vec![0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]
+        );
+        assert_eq!(
+            encode(1 << 56),
+            vec![0xff, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+        );
+
+        // The length of the encoding grows with the value, and never shrinks.
+        let mut previous = 0;
+        for bits in 0..64 {
+            let len = encode(1u64 << bits).len();
+            assert!(len >= previous, "encoding of 1 << {bits} shrank");
+            previous = len;
+        }
+    }
+
     use std::{net::Ipv4Addr, sync::Arc};
 
     use scylla::value::{CqlDate, CqlDecimal, CqlDuration};
