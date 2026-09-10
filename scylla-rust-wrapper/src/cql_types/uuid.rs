@@ -51,7 +51,7 @@ fn rand_clock_seq_and_node(node: u64) -> u64 {
 
 // Ported from UuidGen::monotonic_timestamp, but simplified at
 // a cost of performance.
-fn monotonic_timestamp(last_timestamp: &mut AtomicU64) -> u64 {
+fn monotonic_timestamp(last_timestamp: &AtomicU64) -> u64 {
     loop {
         let now = SystemTime::now();
         let now = now.duration_since(UNIX_EPOCH).unwrap();
@@ -135,16 +135,16 @@ pub unsafe extern "C" fn cass_uuid_gen_new_with_node(
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_uuid_gen_time(
-    uuid_gen: CassBorrowedExclusivePtr<CassUuidGen, CMut>,
+    uuid_gen: CassBorrowedSharedPtr<CassUuidGen, CMut>,
     output: *mut CassUuid,
 ) {
-    let Some(uuid_gen) = BoxFFI::as_mut_ref(uuid_gen) else {
+    let Some(uuid_gen) = BoxFFI::as_ref(uuid_gen) else {
         tracing::error!("Provided null uuid generator pointer to cass_uuid_gen_time!");
         return;
     };
 
     let uuid = CassUuid {
-        time_and_version: set_version(monotonic_timestamp(&mut uuid_gen.last_timestamp), 1),
+        time_and_version: set_version(monotonic_timestamp(&uuid_gen.last_timestamp), 1),
         clock_seq_and_node: uuid_gen.clock_seq_and_node,
     };
 
@@ -167,11 +167,11 @@ pub unsafe extern "C" fn cass_uuid_gen_random(_uuid_gen: *mut CassUuidGen, outpu
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_uuid_gen_from_time(
-    uuid_gen: CassBorrowedExclusivePtr<CassUuidGen, CMut>,
+    uuid_gen: CassBorrowedSharedPtr<CassUuidGen, CMut>,
     timestamp: cass_uint64_t,
     output: *mut CassUuid,
 ) {
-    let Some(uuid_gen) = BoxFFI::as_mut_ref(uuid_gen) else {
+    let Some(uuid_gen) = BoxFFI::as_ref(uuid_gen) else {
         tracing::error!("Provided null uuid generator pointer to cass_uuid_gen_from_time!");
         return;
     };
