@@ -48,6 +48,7 @@ SCYLLA_TEST_FILTER := $(subst ${SPACE},${EMPTY},ClusterTests.*\
 :ServerSideFailureTests.*\
 :ServerSideFailureThreeNodeTests.*\
 :TimestampTests.*\
+:UuidTests.*\
 :HostFilterTest.*\
 :ExecutionProfileTest.*\
 :DCExecutionProfileTest.*\
@@ -105,6 +106,7 @@ CASSANDRA_TEST_FILTER := $(subst ${SPACE},${EMPTY},ClusterTests.*\
 :ServerSideFailureTests.*\
 :ServerSideFailureThreeNodeTests.*\
 :TimestampTests.*\
+:UuidTests.*\
 :HostFilterTest.*\
 :ExecutionProfileTest.*\
 :DCExecutionProfileTest.*\

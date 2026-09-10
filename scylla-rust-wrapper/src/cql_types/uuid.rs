@@ -49,21 +49,49 @@ fn rand_clock_seq_and_node(node: u64) -> u64 {
     result
 }
 
-// Ported from UuidGen::monotonic_timestamp, but simplified at
-// a cost of performance.
+fn try_monotonic_timestamp(last_timestamp: &AtomicU64, now: u64) -> Option<u64> {
+    let last = last_timestamp.load(Ordering::SeqCst);
+
+    // The wall clock advanced, so use its current millisecond as the new baseline.
+    if now > last {
+        return last_timestamp
+            .compare_exchange(last, now, Ordering::SeqCst, Ordering::SeqCst)
+            .map(|_| now)
+            .ok();
+    }
+
+    let last_ms = to_milliseconds(last);
+    // Preserve monotonicity after clock rollback or when another thread advanced the timestamp
+    // after this thread sampled the clock.
+    if to_milliseconds(now) < last_ms {
+        return Some(
+            last_timestamp
+                .fetch_add(1, Ordering::SeqCst)
+                .wrapping_add(1),
+        );
+    }
+
+    // Allocate the next 100-nanosecond tick within the current wall-clock millisecond.
+    let candidate = last.wrapping_add(1);
+    if to_milliseconds(candidate) == last_ms {
+        return last_timestamp
+            .compare_exchange(last, candidate, Ordering::SeqCst, Ordering::SeqCst)
+            .map(|_| candidate)
+            .ok();
+    }
+
+    None
+}
+
+// Ported from UuidGen::monotonic_timestamp.
 fn monotonic_timestamp(last_timestamp: &AtomicU64) -> u64 {
     loop {
         let now = SystemTime::now();
         let now = now.duration_since(UNIX_EPOCH).unwrap();
         let now = from_unix_timestamp(now.as_millis() as u64);
 
-        let last = last_timestamp.load(Ordering::SeqCst);
-        if last < now
-            && last_timestamp
-                .compare_exchange(last, now, Ordering::SeqCst, Ordering::SeqCst)
-                .is_ok()
-        {
-            return now;
+        if let Some(timestamp) = try_monotonic_timestamp(last_timestamp, now) {
+            return timestamp;
         }
     }
 }
@@ -272,4 +300,95 @@ pub unsafe extern "C" fn cass_uuid_from_string_n(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_uuid_gen_free(uuid_gen: CassOwnedExclusivePtr<CassUuidGen, CMut>) {
     BoxFFI::free(uuid_gen);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::{Arc, Barrier};
+    use std::thread;
+
+    #[test]
+    fn monotonic_timestamp_uses_submillisecond_ticks() {
+        let now = from_unix_timestamp(1_700_000_000_000);
+        let last_timestamp = AtomicU64::new(now);
+
+        for expected_offset in 1..10_000 {
+            assert_eq!(
+                try_monotonic_timestamp(&last_timestamp, now),
+                Some(now + expected_offset)
+            );
+        }
+
+        assert_eq!(try_monotonic_timestamp(&last_timestamp, now), None);
+    }
+
+    #[test]
+    fn monotonic_timestamp_remains_monotonic_during_clock_rollback() {
+        let now = from_unix_timestamp(1_700_000_000_000);
+        let future = from_unix_timestamp(1_700_000_000_001);
+        let last_timestamp = AtomicU64::new(future);
+
+        assert_eq!(
+            try_monotonic_timestamp(&last_timestamp, now),
+            Some(future + 1)
+        );
+        assert_eq!(last_timestamp.load(Ordering::SeqCst), future + 1);
+    }
+
+    #[test]
+    fn monotonic_timestamp_handles_stale_sample_across_millisecond_boundary() {
+        let stale_now = from_unix_timestamp(1_700_000_000_000);
+        let next_millisecond = from_unix_timestamp(1_700_000_000_001);
+        let last_timestamp = AtomicU64::new(stale_now);
+
+        assert_eq!(
+            try_monotonic_timestamp(&last_timestamp, next_millisecond),
+            Some(next_millisecond)
+        );
+        assert_eq!(
+            try_monotonic_timestamp(&last_timestamp, stale_now),
+            Some(next_millisecond + 1)
+        );
+    }
+
+    #[test]
+    fn monotonic_timestamp_is_unique_under_concurrency() {
+        const THREADS: usize = 8;
+        const UUIDS_PER_THREAD: usize = 1_000;
+
+        let now = from_unix_timestamp(1_700_000_000_000);
+        let last_timestamp = Arc::new(AtomicU64::new(0));
+        let start = Arc::new(Barrier::new(THREADS));
+        let mut handles = Vec::with_capacity(THREADS);
+
+        for _ in 0..THREADS {
+            let last_timestamp = Arc::clone(&last_timestamp);
+            let start = Arc::clone(&start);
+            handles.push(thread::spawn(move || {
+                let mut timestamps = Vec::with_capacity(UUIDS_PER_THREAD);
+                start.wait();
+                for _ in 0..UUIDS_PER_THREAD {
+                    loop {
+                        if let Some(timestamp) = try_monotonic_timestamp(&last_timestamp, now) {
+                            timestamps.push(timestamp);
+                            break;
+                        }
+                    }
+                }
+                timestamps
+            }));
+        }
+
+        let mut timestamps: Vec<_> = handles
+            .into_iter()
+            .flat_map(|handle| handle.join().unwrap())
+            .collect();
+        timestamps.sort_unstable();
+        timestamps.dedup();
+
+        assert_eq!(timestamps.len(), THREADS * UUIDS_PER_THREAD);
+        assert_eq!(timestamps[0], now);
+        assert_eq!(timestamps[timestamps.len() - 1], now + 7_999);
+    }
 }
