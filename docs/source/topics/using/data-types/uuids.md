@@ -14,6 +14,17 @@ Version 4 can be used with ScyllaDB/Cassandra's `uuid` type for unique identific
 A UUID generator object is used to create new UUIDs. The [`CassUuidGen`] object
 is thread-safe. It should only be created once per application and reused.
 
+Within one wall-clock millisecond, one generator can allocate 10,000 distinct
+version 1 UUID timestamps. When the generated timestamp is in the current
+millisecond and this capacity is exhausted, calls to `cass_uuid_gen_time()`
+busy-wait until the system clock advances, consuming CPU and adding latency.
+
+If the system clock moves backward, or a thread uses a stale clock sample after
+another thread advances the timestamp, the generator preserves monotonicity by
+incrementing the last timestamp. Generated timestamps can therefore move ahead
+of wall time. At sustained rates above 10 million UUIDs per second, this drift
+can grow indefinitely. See [issue #507] for possible improvements.
+
 ```c
 CassUuidGen* uuid_gen = cass_uuid_gen_new();
 
@@ -65,3 +76,4 @@ cass_uuid_string(uuid, uuid_str);
 ```
 [`cass_uuid_timestamp()`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassUuid#1a3980467a0bb6642054ecf37d49aebf1a
 [`CassUuidGen`]: https://cpp-rs-driver.docs.scylladb.com/stable/api/struct.CassUuidGen
+[issue #507]: https://github.com/scylladb/cpp-rs-driver/issues/507
