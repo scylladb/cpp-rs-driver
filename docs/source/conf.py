@@ -15,16 +15,16 @@ sys.path.insert(0, os.path.abspath(".."))
 # -- Global variables
 
 # Builds documentation for the following tags and branches.
-TAGS = ["v1.0.0", "v1.0.1", "v1.1.0", "v1.1.1", "v1.1.2"]
+TAGS = ["v1.0.0", "v1.0.1", "v1.1.0", "v1.1.1", "v1.1.2", "v1.1.3"]
 BRANCHES = [
     "master",
 ]
 # Sets the latest version.
-LATEST_VERSION = "v1.1.2"
+LATEST_VERSION = "v1.1.3"
 # Set which versions are not released yet.
 UNSTABLE_VERSIONS = ["master"]
 # Set which versions are deprecated
-DEPRECATED_VERSIONS = ["v1.0.0", "v1.0.1", "v1.1.0", "v1.1.1"]
+DEPRECATED_VERSIONS = ["v1.0.0", "v1.0.1", "v1.1.0", "v1.1.1", "v1.1.2"]
 # Sets custom build.
 FLAGS = ["theme"]
 
