@@ -415,6 +415,17 @@ macro_rules! invoke_binder_maker_macro_with_type {
             [p @ CassBorrowedSharedPtr<crate::cql_types::user_type::CassUserType, CConst>]
         );
     };
+    (vector, $macro_name:ident, $this:ty, $consume_v:expr, $fn:ident) => {
+        $macro_name!(
+            $this,
+            $consume_v,
+            $fn,
+            |p: CassBorrowedSharedPtr<crate::cql_types::vector::CassVector, CConst>| {
+                Ok(Some(BoxFFI::as_ref(p).unwrap().into()))
+            },
+            [p @ CassBorrowedSharedPtr<crate::cql_types::vector::CassVector, CConst>]
+        );
+    };
 }
 
 /// Usage of this macro declares a new macro - make_binders, which is then used to declare

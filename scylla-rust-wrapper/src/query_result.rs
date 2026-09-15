@@ -368,7 +368,7 @@ pub(crate) mod cass_raw_value {
     ) -> Result<Option<usize>, CollectionLengthDeserializationError> {
         // Pre-compute the item count. Required to implement cass_value_item_count.
         // The cpp-driver semantics:
-        // - tuples/UDTs - obtain the value count from type metadata
+        // - tuples/UDTs/vectors - obtain the value count from type metadata
         // - collections - deserialize the first 4 bytes as collection length
         // - other types - always return 0 when `cass_value_item_count` is called
         let item_count: Option<usize> = slice
@@ -392,6 +392,9 @@ pub(crate) mod cass_raw_value {
                     Ok(Some(length))
                 }
                 ColumnType::Tuple(types) => Ok(Some(types.len())),
+                // A vector has no length prefix in the frame - the number of
+                // elements is part of its type.
+                ColumnType::Vector { dimensions, .. } => Ok(Some(*dimensions as usize)),
                 ColumnType::UserDefinedType { definition, .. } => {
                     Ok(Some(definition.field_types.len()))
                 }
@@ -1100,6 +1103,7 @@ pub unsafe extern "C" fn cass_value_primary_sub_type(
             typ: MapDataType::Key(key) | MapDataType::KeyAndValue(key, _),
             ..
         } => unsafe { key.get_unchecked() }.get_value_type(),
+        CassDataTypeInner::Vector { typ, .. } => unsafe { typ.get_unchecked() }.get_value_type(),
         _ => CassValueType::CASS_VALUE_TYPE_UNKNOWN,
     }
 }

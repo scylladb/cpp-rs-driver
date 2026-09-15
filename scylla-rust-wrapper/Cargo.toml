@@ -11,7 +11,7 @@ license = "MIT OR Apache-2.0"
 rust-version = "1.88"
 
 [dependencies]
-scylla = { git = "https://github.com/scylladb/scylla-rust-driver.git", rev = "v1.8.0", features = [
+scylla = { git = "https://github.com/scylladb/scylla-rust-driver.git", rev = "1d4ab10cf4b6a5e61e0cda8146d47bc49288c816", features = [
     "openssl-010",
     "metrics",
     "unstable-cpp-rs",
@@ -38,9 +38,9 @@ bindgen = "0.72.1"
 chrono = "0.4.20"
 
 [dev-dependencies]
-scylla-proxy = { git = "https://github.com/scylladb/scylla-rust-driver.git", rev = "v1.8.0" }
-scylla-cql = { git = "https://github.com/scylladb/scylla-rust-driver.git", rev = "v1.8.0" }
-scylla-ccm-bridge = { git = "https://github.com/scylladb/scylla-rust-driver.git", rev = "v1.8.0" }
+scylla-proxy = { git = "https://github.com/scylladb/scylla-rust-driver.git", rev = "1d4ab10cf4b6a5e61e0cda8146d47bc49288c816" }
+scylla-cql = { git = "https://github.com/scylladb/scylla-rust-driver.git", rev = "1d4ab10cf4b6a5e61e0cda8146d47bc49288c816" }
+scylla-ccm-bridge = { git = "https://github.com/scylladb/scylla-rust-driver.git", rev = "1d4ab10cf4b6a5e61e0cda8146d47bc49288c816" }
 bytes = "1.10.0"
 itertools = "0.10.3"
 assert_matches = "1.5.0"

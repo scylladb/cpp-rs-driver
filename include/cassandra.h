@@ -326,6 +326,16 @@ typedef struct CassCollection_ CassCollection;
 typedef struct CassTuple_ CassTuple;
 
 /**
+ * A fixed-size sequence of values of the same type.
+ *
+ * Note that a vector is not a CQL collection: its size is part of its type,
+ * its elements cannot be null, and it can only be updated as a whole.
+ *
+ * @struct CassVector
+ */
+typedef struct CassVector_ CassVector;
+
+/**
  * A user defined type.
  *
  * @struct CassUserType
@@ -586,6 +596,7 @@ typedef enum CassIndexType_ {
   XX(CASS_VALUE_TYPE_LIST,  0x0020, "list", "org.apache.cassandra.db.marshal.ListType") \
   XX(CASS_VALUE_TYPE_MAP,  0x0021, "map", "org.apache.cassandra.db.marshal.MapType") \
   XX(CASS_VALUE_TYPE_SET,  0x0022, "set", "org.apache.cassandra.db.marshal.SetType") \
+  XX(CASS_VALUE_TYPE_VECTOR,  0x0023, "vector", "org.apache.cassandra.db.marshal.VectorType") \
   XX(CASS_VALUE_TYPE_UDT,  0x0030, "", "") \
   XX(CASS_VALUE_TYPE_TUPLE,  0x0031, "tuple", "org.apache.cassandra.db.marshal.TupleType")
 
@@ -647,7 +658,8 @@ typedef enum CassIteratorType_ {
   CASS_ITERATOR_TYPE_AGGREGATE_META,
   CASS_ITERATOR_TYPE_COLUMN_META,
   CASS_ITERATOR_TYPE_INDEX_META,
-  CASS_ITERATOR_TYPE_MATERIALIZED_VIEW_META
+  CASS_ITERATOR_TYPE_MATERIALIZED_VIEW_META,
+  CASS_ITERATOR_TYPE_VECTOR
 } CassIteratorType;
 
 #define CASS_LOG_LEVEL_MAPPING(XX) \
@@ -6107,6 +6119,56 @@ cass_statement_bind_user_type_by_name_n(CassStatement* statement,
                                         size_t name_length,
                                         const CassUserType* user_type);
 
+/**
+ * Bind a vector to a query or bound statement at the specified index.
+ *
+ * @public @memberof CassStatement
+ *
+ * @param[in] statement
+ * @param[in] index
+ * @param[in] vector The vector can be freed after this call.
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_statement_bind_vector(CassStatement* statement,
+                           size_t index,
+                           const CassVector* vector);
+
+/**
+ * Bind a vector to a query or bound statement with the specified name.
+ *
+ * @public @memberof CassStatement
+ *
+ * @param[in] statement
+ * @param[in] name
+ * @param[in] vector The vector can be freed after this call.
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_statement_bind_vector_by_name(CassStatement* statement,
+                                   const char* name,
+                                   const CassVector* vector);
+
+/**
+ * Same as cass_statement_bind_vector_by_name(), but with lengths for string
+ * parameters.
+ *
+ * @public @memberof CassStatement
+ *
+ * @param[in] statement
+ * @param[in] name
+ * @param[in] name_length
+ * @param[in] vector
+ * @return same as cass_statement_bind_vector_by_name()
+ *
+ * @see cass_statement_bind_vector_by_name()
+ */
+CASS_EXPORT CassError
+cass_statement_bind_vector_by_name_n(CassStatement* statement,
+                                     const char* name,
+                                     size_t name_length,
+                                     const CassVector* vector);
+
 /***********************************************************************************
  *
  * Prepared
@@ -6494,6 +6556,40 @@ cass_data_type_new_tuple(size_t item_count);
  */
 CASS_EXPORT CassDataType*
 cass_data_type_new_udt(size_t field_count);
+
+/**
+ * Creates a new vector data type.
+ *
+ * Note that, unlike a collection or a tuple, a vector data type is always
+ * fully specified: both the element type and the number of dimensions are
+ * required upfront, and they cannot be changed afterwards. In particular,
+ * cass_data_type_add_sub_type() cannot be used with a vector data type.
+ *
+ * @public @memberof CassDataType
+ *
+ * @param[in] element_type The type of the vector's elements
+ * @param[in] dimensions The number of elements of the vector
+ * @return Returns a data type that must be freed. NULL is returned if
+ * `element_type` is NULL or `dimensions` is not a valid number of dimensions.
+ *
+ * @see cass_data_type_free()
+ */
+CASS_EXPORT CassDataType*
+cass_data_type_new_vector(const CassDataType* element_type,
+                          size_t dimensions);
+
+/**
+ * Gets the number of dimensions of a vector data type.
+ *
+ * @public @memberof CassDataType
+ *
+ * @param[in] data_type
+ * @param[out] dimensions The number of elements of the vector
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_data_type_vector_dimensions(const CassDataType* data_type,
+                                 size_t* dimensions);
 
 /**
  * Frees a data type instance.
@@ -7183,6 +7279,19 @@ CASS_EXPORT CassError
 cass_collection_append_user_type(CassCollection* collection,
                                  const CassUserType* value);
 
+/**
+ * Appends a "vector" to the collection.
+ *
+ * @public @memberof CassCollection
+ *
+ * @param[in] collection
+ * @param[in] value
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_collection_append_vector(CassCollection* collection,
+                              const CassVector* value);
+
 /***********************************************************************************
  *
  * Tuple
@@ -7539,6 +7648,394 @@ CASS_EXPORT CassError
 cass_tuple_set_user_type(CassTuple* tuple,
                          size_t index,
                          const CassUserType* value);
+
+/**
+ * Sets a "vector" in a tuple at the specified index.
+ *
+ * @public @memberof CassTuple
+ *
+ * @param[in] tuple
+ * @param[in] index
+ * @param[in] value
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_tuple_set_vector(CassTuple* tuple,
+                      size_t index,
+                      const CassVector* value);
+
+/***********************************************************************************
+ *
+ * Vector
+ *
+ ***********************************************************************************/
+
+/**
+ * Creates a new vector with elements of the given native type.
+ *
+ * Contrary to a collection or a tuple, a vector is always fully typed: the wire
+ * representation of its elements depends on their type, so the element type must
+ * be known upfront. For a vector whose elements are not of a native type (a UDT,
+ * a tuple, a collection or another vector), build the data type and use
+ * cass_vector_new_from_data_type() instead.
+ *
+ * Note also that all elements of a vector must be set before it is bound;
+ * unlike tuple items, vector elements cannot be null.
+ *
+ * @public @memberof CassVector
+ *
+ * @param[in] element_type The value type of the vector's elements.
+ * @param[in] dimensions The number of elements of the vector.
+ * @return Returns a vector that must be freed. NULL is returned if `element_type`
+ * is not a native value type or `dimensions` is not a valid number of dimensions.
+ *
+ * @see cass_vector_free()
+ */
+CASS_EXPORT CassVector*
+cass_vector_new(CassValueType element_type,
+                size_t dimensions);
+
+/**
+ * Creates a new vector from an existing data type.
+ *
+ * @public @memberof CassVector
+ *
+ * @param[in] data_type
+ * @return Returns a vector that must be freed. NULL is returned if the data
+ * type is not a vector.
+ *
+ * @see cass_vector_free();
+ */
+CASS_EXPORT CassVector*
+cass_vector_new_from_data_type(const CassDataType* data_type);
+
+/**
+ * Frees a vector instance.
+ *
+ * @public @memberof CassVector
+ *
+ * @param[in] vector
+ */
+CASS_EXPORT void
+cass_vector_free(CassVector* vector);
+
+/**
+ * Gets the data type of a vector.
+ *
+ * @public @memberof CassVector
+ *
+ * @param[in] vector
+ * @return Returns a reference to the data type of the vector. Do not free
+ * this reference as it is bound to the lifetime of the vector.
+ */
+CASS_EXPORT const CassDataType*
+cass_vector_data_type(const CassVector* vector);
+
+/**
+ * Sets a "tinyint" in a vector at the specified index.
+ *
+ * @public @memberof CassVector
+ *
+ * @param[in] vector
+ * @param[in] index
+ * @param[in] value
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_vector_set_int8(CassVector* vector,
+                     size_t index,
+                     cass_int8_t value);
+
+/**
+ * Sets an "smallint" in a vector at the specified index.
+ *
+ * @public @memberof CassVector
+ *
+ * @param[in] vector
+ * @param[in] index
+ * @param[in] value
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_vector_set_int16(CassVector* vector,
+                      size_t index,
+                      cass_int16_t value);
+
+/**
+ * Sets an "int" in a vector at the specified index.
+ *
+ * @public @memberof CassVector
+ *
+ * @param[in] vector
+ * @param[in] index
+ * @param[in] value
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_vector_set_int32(CassVector* vector,
+                      size_t index,
+                      cass_int32_t value);
+
+/**
+ * Sets a "date" in a vector at the specified index.
+ *
+ * @public @memberof CassVector
+ *
+ * @param[in] vector
+ * @param[in] index
+ * @param[in] value
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_vector_set_uint32(CassVector* vector,
+                       size_t index,
+                       cass_uint32_t value);
+
+/**
+ * Sets a "bigint", "counter", "timestamp" or "time" in a vector at the
+ * specified index.
+ *
+ * @public @memberof CassVector
+ *
+ * @param[in] vector
+ * @param[in] index
+ * @param[in] value
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_vector_set_int64(CassVector* vector,
+                      size_t index,
+                      cass_int64_t value);
+
+/**
+ * Sets a "float" in a vector at the specified index.
+ *
+ * @public @memberof CassVector
+ *
+ * @param[in] vector
+ * @param[in] index
+ * @param[in] value
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_vector_set_float(CassVector* vector,
+                      size_t index,
+                      cass_float_t value);
+
+/**
+ * Sets a "double" in a vector at the specified index.
+ *
+ * @public @memberof CassVector
+ *
+ * @param[in] vector
+ * @param[in] index
+ * @param[in] value
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_vector_set_double(CassVector* vector,
+                       size_t index,
+                       cass_double_t value);
+
+/**
+ * Sets a "boolean" in a vector at the specified index.
+ *
+ * @public @memberof CassVector
+ *
+ * @param[in] vector
+ * @param[in] index
+ * @param[in] value
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_vector_set_bool(CassVector* vector,
+                     size_t index,
+                     cass_bool_t value);
+
+/**
+ * Sets an "ascii", "text" or "varchar" in a vector at the specified index.
+ *
+ * @public @memberof CassVector
+ *
+ * @param[in] vector
+ * @param[in] index
+ * @param[in] value The value is copied into the vector object; the
+ * memory pointed to by this parameter can be freed after this call.
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_vector_set_string(CassVector* vector,
+                       size_t index,
+                       const char* value);
+
+/**
+ * Same as cass_vector_set_string(), but with lengths for string
+ * parameters.
+ *
+ * @public @memberof CassVector
+ *
+ * @param[in] vector
+ * @param[in] index
+ * @param[in] value
+ * @param[in] value_length
+ * @return same as cass_vector_set_string()
+ *
+ * @see cass_vector_set_string();
+ */
+CASS_EXPORT CassError
+cass_vector_set_string_n(CassVector* vector,
+                         size_t index,
+                         const char* value,
+                         size_t value_length);
+
+/**
+ * Sets a "blob", "varint" or "custom" in a vector at the specified index.
+ *
+ * @public @memberof CassVector
+ *
+ * @param[in] vector
+ * @param[in] index
+ * @param[in] value The value is copied into the vector object; the
+ * memory pointed to by this parameter can be freed after this call.
+ * @param[in] value_size
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_vector_set_bytes(CassVector* vector,
+                      size_t index,
+                      const cass_byte_t* value,
+                      size_t value_size);
+
+/**
+ * Sets a "uuid" or "timeuuid" in a vector at the specified index.
+ *
+ * @public @memberof CassVector
+ *
+ * @param[in] vector
+ * @param[in] index
+ * @param[in] value
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_vector_set_uuid(CassVector* vector,
+                     size_t index,
+                     CassUuid value);
+
+/**
+ * Sets an "inet" in a vector at the specified index.
+ *
+ * @public @memberof CassVector
+ *
+ * @param[in] vector
+ * @param[in] index
+ * @param[in] value
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_vector_set_inet(CassVector* vector,
+                     size_t index,
+                     CassInet value);
+
+/**
+ * Sets a "decimal" in a vector at the specified index.
+ *
+ * @public @memberof CassVector
+ *
+ * @param[in] vector
+ * @param[in] index
+ * @param[in] varint The value is copied into the vector object; the
+ * memory pointed to by this parameter can be freed after this call.
+ * @param[in] varint_size
+ * @param[in] scale
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_vector_set_decimal(CassVector* vector,
+                        size_t index,
+                        const cass_byte_t* varint,
+                        size_t varint_size,
+                        cass_int32_t scale);
+
+/**
+ * Sets a "duration" in a vector at the specified index.
+ *
+ * @cassandra{3.10+}
+ *
+ * @public @memberof CassVector
+ *
+ * @param[in] vector
+ * @param[in] index
+ * @param[in] months
+ * @param[in] days
+ * @param[in] nanos
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_vector_set_duration(CassVector* vector,
+                         size_t index,
+                         cass_int32_t months,
+                         cass_int32_t days,
+                         cass_int64_t nanos);
+
+/**
+ * Sets a "list", "map" or "set" in a vector at the specified index.
+ *
+ * @public @memberof CassVector
+ *
+ * @param[in] vector
+ * @param[in] index
+ * @param[in] value
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_vector_set_collection(CassVector* vector,
+                           size_t index,
+                           const CassCollection* value);
+
+/**
+ * Sets a "tuple" in a vector at the specified index.
+ *
+ * @public @memberof CassVector
+ *
+ * @param[in] vector
+ * @param[in] index
+ * @param[in] value
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_vector_set_tuple(CassVector* vector,
+                      size_t index,
+                      const CassTuple* value);
+
+/**
+ * Sets a "udt" in a vector at the specified index.
+ *
+ * @public @memberof CassVector
+ *
+ * @param[in] vector
+ * @param[in] index
+ * @param[in] value
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_vector_set_user_type(CassVector* vector,
+                          size_t index,
+                          const CassUserType* value);
+
+/**
+ * Sets a "vector" in a vector at the specified index.
+ *
+ * @public @memberof CassVector
+ *
+ * @param[in] vector
+ * @param[in] index
+ * @param[in] value
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_vector_set_vector(CassVector* vector,
+                       size_t index,
+                       const CassVector* value);
 
 /***********************************************************************************
  *
@@ -8543,6 +9040,56 @@ cass_user_type_set_user_type_by_name_n(CassUserType* user_type,
                                        size_t name_length,
                                        const CassUserType* value);
 
+/**
+ * Sets a vector in a user defined type at the specified index.
+ *
+ * @public @memberof CassUserType
+ *
+ * @param[in] user_type
+ * @param[in] index
+ * @param[in] value
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_user_type_set_vector(CassUserType* user_type,
+                          size_t index,
+                          const CassVector* value);
+
+/**
+ * Sets a vector in a user defined type at the specified name.
+ *
+ * @public @memberof CassUserType
+ *
+ * @param[in] user_type
+ * @param[in] name
+ * @param[in] value
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_user_type_set_vector_by_name(CassUserType* user_type,
+                                  const char* name,
+                                  const CassVector* value);
+
+/**
+ * Same as cass_user_type_set_vector_by_name(), but with lengths for string
+ * parameters.
+ *
+ * @public @memberof CassUserType
+ *
+ * @param[in] user_type
+ * @param[in] name
+ * @param[in] name_length
+ * @param[in] value
+ * @return same as cass_user_type_set_vector_by_name()
+ *
+ * @see cass_user_type_set_vector_by_name()
+ */
+CASS_EXPORT CassError
+cass_user_type_set_vector_by_name_n(CassUserType* user_type,
+                                    const char* name,
+                                    size_t name_length,
+                                    const CassVector* value);
+
 /***********************************************************************************
  *
  * Result
@@ -9000,6 +9547,21 @@ cass_iterator_from_map(const CassValue* value);
  */
 CASS_EXPORT CassIterator*
 cass_iterator_from_tuple(const CassValue* value);
+
+/**
+ * Creates a new iterator for the specified vector. This can be
+ * used to iterate over elements in a vector.
+ *
+ * @public @memberof CassValue
+ *
+ * @param[in] value
+ * @return A new iterator that must be freed. NULL returned if the
+ * value is not a vector.
+ *
+ * @see cass_iterator_free()
+ */
+CASS_EXPORT CassIterator*
+cass_iterator_from_vector(const CassValue* value);
 
 /**
  * Creates a new iterator for the specified user defined type. This can be

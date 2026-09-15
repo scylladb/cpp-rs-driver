@@ -234,3 +234,9 @@ make_binders!(
     cass_user_type_set_user_type_by_name,
     cass_user_type_set_user_type_by_name_n
 );
+make_binders!(
+    vector,
+    cass_user_type_set_vector,
+    cass_user_type_set_vector_by_name,
+    cass_user_type_set_vector_by_name_n
+);

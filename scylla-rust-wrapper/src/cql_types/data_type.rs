@@ -130,6 +130,15 @@ pub(crate) enum CassDataTypeInner {
     },
     // Empty vector stands for untyped tuple.
     Tuple(Vec<Arc<CassDataType>>),
+    /// A CQL vector: a fixed-size sequence of values of the same type.
+    ///
+    /// Notice that, contrary to collections and tuples, there is no untyped
+    /// vector: both the element type and the number of dimensions are part
+    /// of the type and are required upfront.
+    Vector {
+        typ: Arc<CassDataType>,
+        dimensions: u16,
+    },
     Custom(String),
 }
 
@@ -212,6 +221,24 @@ impl CassDataTypeInner {
                 }
                 _ => false,
             },
+            CassDataTypeInner::Vector {
+                typ,
+                dimensions: dims,
+            } => match other {
+                CassDataTypeInner::Vector {
+                    typ: other_typ,
+                    dimensions: other_dims,
+                } => {
+                    // Contrary to collections and tuples, vectors are always fully typed,
+                    // so there is no untyped case to skip the typecheck for.
+                    dims == other_dims
+                        && unsafe {
+                            typ.get_unchecked()
+                                .typecheck_equals(other_typ.get_unchecked())
+                        }
+                }
+                _ => false,
+            },
             CassDataTypeInner::Custom(_) => {
                 unimplemented!("cpp-rs-driver does not support custom types!")
             }
@@ -289,6 +316,38 @@ fn native_type_to_cass_value_type(native_type: &NativeType) -> CassValueType {
     }
 }
 
+/// The inverse of [`native_type_to_cass_value_type`].
+///
+/// Returns `None` for value types that are not native types.
+fn cass_value_type_to_native_type(value_type: CassValueType) -> Option<NativeType> {
+    use CassValueType as V;
+    let native_type = match value_type {
+        V::CASS_VALUE_TYPE_ASCII => NativeType::Ascii,
+        V::CASS_VALUE_TYPE_BIGINT => NativeType::BigInt,
+        V::CASS_VALUE_TYPE_BLOB => NativeType::Blob,
+        V::CASS_VALUE_TYPE_BOOLEAN => NativeType::Boolean,
+        V::CASS_VALUE_TYPE_COUNTER => NativeType::Counter,
+        V::CASS_VALUE_TYPE_DECIMAL => NativeType::Decimal,
+        V::CASS_VALUE_TYPE_DOUBLE => NativeType::Double,
+        V::CASS_VALUE_TYPE_DURATION => NativeType::Duration,
+        V::CASS_VALUE_TYPE_FLOAT => NativeType::Float,
+        V::CASS_VALUE_TYPE_INT => NativeType::Int,
+        V::CASS_VALUE_TYPE_TEXT | V::CASS_VALUE_TYPE_VARCHAR => NativeType::Text,
+        V::CASS_VALUE_TYPE_TIMESTAMP => NativeType::Timestamp,
+        V::CASS_VALUE_TYPE_UUID => NativeType::Uuid,
+        V::CASS_VALUE_TYPE_VARINT => NativeType::Varint,
+        V::CASS_VALUE_TYPE_TIMEUUID => NativeType::Timeuuid,
+        V::CASS_VALUE_TYPE_INET => NativeType::Inet,
+        V::CASS_VALUE_TYPE_DATE => NativeType::Date,
+        V::CASS_VALUE_TYPE_TIME => NativeType::Time,
+        V::CASS_VALUE_TYPE_SMALL_INT => NativeType::SmallInt,
+        V::CASS_VALUE_TYPE_TINY_INT => NativeType::TinyInt,
+        _ => return None,
+    };
+
+    Some(native_type)
+}
+
 impl CassDataTypeInner {
     fn get_sub_data_type(&self, index: usize) -> Option<&Arc<CassDataType>> {
         match self {
@@ -315,6 +374,7 @@ impl CassDataTypeInner {
                 _ => None,
             },
             CassDataTypeInner::Tuple(v) => v.get(index),
+            CassDataTypeInner::Vector { typ, .. } => (index == 0).then_some(typ),
             _ => None,
         }
     }
@@ -367,6 +427,28 @@ impl CassDataTypeInner {
         }
     }
 
+    /// The size of a value of this type, in bytes, when it is an element of a vector -
+    /// or `None` if values of this type are of variable size.
+    ///
+    /// This decides how elements of a vector are encoded: fixed-size elements are
+    /// written raw, while variable-size ones are prefixed with an unsigned vint length.
+    pub(crate) fn type_size_for_vector(&self) -> Option<usize> {
+        match self {
+            CassDataTypeInner::Value(value_type) => {
+                cass_value_type_to_native_type(*value_type)?.type_size_for_vector()
+            }
+            CassDataTypeInner::Vector { typ, dimensions } => unsafe { typ.get_unchecked() }
+                .type_size_for_vector()
+                .map(|size| size * *dimensions as usize),
+            CassDataTypeInner::Udt(_)
+            | CassDataTypeInner::List { .. }
+            | CassDataTypeInner::Set { .. }
+            | CassDataTypeInner::Map { .. }
+            | CassDataTypeInner::Tuple(_)
+            | CassDataTypeInner::Custom(_) => None,
+        }
+    }
+
     pub(crate) fn get_value_type(&self) -> CassValueType {
         match &self {
             CassDataTypeInner::Value(value_data_type) => *value_data_type,
@@ -375,6 +457,7 @@ impl CassDataTypeInner {
             CassDataTypeInner::Set { .. } => CassValueType::CASS_VALUE_TYPE_SET,
             CassDataTypeInner::Map { .. } => CassValueType::CASS_VALUE_TYPE_MAP,
             CassDataTypeInner::Tuple(..) => CassValueType::CASS_VALUE_TYPE_TUPLE,
+            CassDataTypeInner::Vector { .. } => CassValueType::CASS_VALUE_TYPE_VECTOR,
             CassDataTypeInner::Custom(..) => CassValueType::CASS_VALUE_TYPE_CUSTOM,
         }
     }
@@ -429,6 +512,10 @@ pub(crate) fn get_column_type(column_type: &ColumnType) -> CassDataType {
                 .map(|col_type| Arc::new(get_column_type(col_type)))
                 .collect(),
         ),
+        Vector { typ, dimensions } => CassDataTypeInner::Vector {
+            typ: Arc::new(get_column_type(typ.as_ref())),
+            dimensions: *dimensions,
+        },
 
         // ColumnType is non_exhaustive.
         _ => CassDataTypeInner::Value(CassValueType::CASS_VALUE_TYPE_UNKNOWN),
@@ -457,6 +544,9 @@ pub unsafe extern "C" fn cass_data_type_new(
         },
         CassValueType::CASS_VALUE_TYPE_UDT => CassDataTypeInner::Udt(UdtDataType::new()),
         CassValueType::CASS_VALUE_TYPE_CUSTOM => CassDataTypeInner::Custom("".to_string()),
+        // A vector cannot be created this way: both its element type and its number
+        // of dimensions are part of the type. Use `cass_data_type_new_vector` instead.
+        CassValueType::CASS_VALUE_TYPE_VECTOR => return ArcFFI::null(),
         CassValueType::CASS_VALUE_TYPE_UNKNOWN => return ArcFFI::null(),
         t if t < CassValueType::CASS_VALUE_TYPE_LAST_ENTRY => CassDataTypeInner::Value(t),
         _ => return ArcFFI::null(),
@@ -494,6 +584,53 @@ pub unsafe extern "C" fn cass_data_type_new_udt(
     ArcFFI::into_ptr(CassDataType::new_arced(CassDataTypeInner::Udt(
         UdtDataType::with_capacity(field_count as usize),
     )))
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cass_data_type_new_vector(
+    element_type: CassBorrowedSharedPtr<CassDataType, CConst>,
+    dimensions: size_t,
+) -> CassOwnedSharedPtr<CassDataType, CMut> {
+    let Some(element_type) = ArcFFI::cloned_from_ptr(element_type) else {
+        tracing::error!("Provided null element type pointer to cass_data_type_new_vector!");
+        return ArcFFI::null();
+    };
+
+    let Ok(dimensions) = u16::try_from(dimensions) else {
+        tracing::error!(
+            "Provided invalid number of dimensions to cass_data_type_new_vector: {dimensions}!"
+        );
+        return ArcFFI::null();
+    };
+
+    if dimensions == 0 {
+        tracing::error!("Provided zero dimensions to cass_data_type_new_vector!");
+        return ArcFFI::null();
+    }
+
+    ArcFFI::into_ptr(CassDataType::new_arced(CassDataTypeInner::Vector {
+        typ: element_type,
+        dimensions,
+    }))
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cass_data_type_vector_dimensions(
+    data_type: CassBorrowedSharedPtr<CassDataType, CConst>,
+    dimensions: *mut size_t,
+) -> CassError {
+    let Some(data_type) = ArcFFI::as_ref(data_type) else {
+        tracing::error!("Provided null data type pointer to cass_data_type_vector_dimensions!");
+        return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+    };
+
+    match unsafe { data_type.get_unchecked() } {
+        CassDataTypeInner::Vector { dimensions: d, .. } => {
+            unsafe { std::ptr::write(dimensions, *d as size_t) };
+            CassError::CASS_OK
+        }
+        _ => CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE,
+    }
 }
 
 #[unsafe(no_mangle)]
@@ -738,6 +875,8 @@ pub unsafe extern "C" fn cass_data_type_sub_type_count(
             MapDataType::KeyAndValue(_, _) => 2,
         },
         CassDataTypeInner::Tuple(v) => v.len() as size_t,
+        // A vector has exactly one sub type: the type of its elements.
+        CassDataTypeInner::Vector { .. } => 1,
         CassDataTypeInner::Custom(..) => 0,
     }
 }
