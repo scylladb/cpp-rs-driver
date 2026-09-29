@@ -1,0 +1,159 @@
+name: Code coverage
+
+# Measures the coverage of the driver's Rust implementation by the test suites
+# (see the "Code coverage" section of the Makefile). It runs apart from the
+# jobs in build-lint-and-test.yml, which it does not change: coverage needs an
+# instrumented build of its own, and none of its suites run under valgrind.
+
+on:
+  push:
+    branches: [master]
+    # As in pkg.yml, except that Markdown files are ignored in every directory
+    # ("**.md"), not only at the top ("*.md"). Nothing here builds or runs
+    # these files, so a change to them alone cannot change coverage.
+    paths-ignore:
+      - "docs/**"
+      - ".github/workflows/docs-**"
+      - "examples/**"
+      - "**.md"
+  pull_request:
+    branches: [master]
+    paths-ignore:
+      - "docs/**"
+      - ".github/workflows/docs-**"
+      - "examples/**"
+      - "**.md"
+  workflow_dispatch:
+
+# The workflow's GITHUB_TOKEN only has to read the repository, for checkout: no
+# step uses it to write anything. The image cache, the artifacts and the step
+# summary are stored through the Actions runtime's own credentials, which these
+# permissions do not govern.
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: full
+  RUST_LOG: trace
+  # The same log directories as in build-lint-and-test.yml.
+  CCM_LOGS_PATTERN: |
+    /tmp/ccm*/ccm*/node*/logs/*
+    /tmp/ccm-rust/*/*/node*/logs/*
+
+jobs:
+  coverage:
+    name: Measure code coverage
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    env:
+      # One fixed ScyllaDB version, the Makefile's default, rather than the
+      # latest release that build-lint-and-test.yml looks up: a coverage number
+      # is compared with the one of the commit before it, and the server
+      # version decides which paths some tests take, so it should change only
+      # when this line does. Nor is there a lookup to fail quietly (the lookup
+      # step there still exits 0, with an empty version, when ci/version_fetch.py
+      # fails). Fully qualified, so that CCM does not resolve it on every call.
+      SCYLLA_VERSION: release:2026.2.2
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Python 3
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.11"
+
+      # Tests of ci/merge_coverage.py, which decides what the report counts,
+      # and of how the Makefile's coverage targets handle a failing step. They
+      # build and run nothing, so they come before anything is measured.
+      - name: Test the coverage scripts
+        run: python3 -m unittest discover --start-directory ci --pattern 'test_*.py' -v
+
+      - name: Update apt cache
+        run: sudo apt-get update -y
+
+      - name: Install dependencies
+        run: make install-build-dependencies
+
+      - name: Install CCM
+        run: make install-ccm-if-missing
+
+      - name: Update Rust toolchain
+        run: |
+          make update-rust-tooling
+          rustup component add llvm-tools
+
+      # Pinned: the Makefile relies on how this version sets up instrumentation,
+      # through a rustc wrapper, which the RUSTFLAGS that the Makefile and CMake
+      # set explicitly do not replace.
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@4cef1412cce204788f482e778a0b9187f9626a29 # v2.87.21
+        with:
+          tool: cargo-llvm-cov@0.9.1
+
+      - name: Pull CCM image from the cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        id: pull-image
+        with:
+          path: ~/.ccm/scylla-repository
+          key: image-scylla-${{ runner.os }}-${{ env.SCYLLA_VERSION }}
+
+      - name: Download Scylla (${{ env.SCYLLA_VERSION }}) image
+        if: steps.pull-image.outputs.cache-hit != 'true'
+        run: make download-ccm-scylla-image
+
+      - name: Save CCM image cache
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        if: steps.pull-image.outputs.cache-hit != 'true'
+        with:
+          path: ~/.ccm/scylla-repository
+          key: image-scylla-${{ runner.os }}-${{ env.SCYLLA_VERSION }}
+
+      # Runs every suite even when one fails, writes the reports, and fails
+      # afterwards; it also fails when a suite ran no instrumented code, or a
+      # test binary or gtest filter no test at all.
+      - name: Run tests with coverage
+        id: run-tests
+        env:
+          # Preserve failed Rust CCM clusters (and their /tmp/ccm-rust node
+          # logs) so the "Upload CCM logs" step can collect diagnostics.
+          TEST_KEEP_CLUSTER_ON_FAILURE: "true"
+        run: make run-test-coverage-scylla
+
+      - name: Publish coverage summary
+        if: always()
+        run: |
+          {
+            echo '## Coverage report'
+            echo '```'
+            cat build-coverage/llvm-cov/summary.txt || echo 'No coverage report was written.'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: coverage-report
+          path: |
+            build-coverage/llvm-cov/html
+            build-coverage/llvm-cov/lcov.info
+            build-coverage/llvm-cov/summary.txt
+
+      - name: Upload test logs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: failure() && steps.run-tests.outcome == 'failure'
+        with:
+          name: test-logs-scylla
+          path: ./log/*
+
+      - name: Upload CCM logs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: failure()
+        with:
+          name: ccm-log-scylla
+          path: ${{ env.CCM_LOGS_PATTERN }}

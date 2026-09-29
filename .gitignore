@@ -2,6 +2,8 @@
 .zed
 build/
 build-macos/
+build-coverage/
+__pycache__/
 **/build/
 **/build-macos/
 scylla-rust-wrapper/target/
