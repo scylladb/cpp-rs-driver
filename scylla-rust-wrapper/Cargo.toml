@@ -15,6 +15,7 @@ scylla = { git = "https://github.com/scylladb/scylla-rust-driver.git", rev = "v1
     "openssl-010",
     "metrics",
     "unstable-cpp-rs",
+    "unstable-client-routes",
     "unstable-host-listener",
     "unstable-reconnect-policy",
 ] }
