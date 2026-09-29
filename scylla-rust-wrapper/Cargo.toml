@@ -40,7 +40,9 @@ bindgen = "0.72.1"
 [dev-dependencies]
 scylla-proxy = { git = "https://github.com/scylladb/scylla-rust-driver.git", rev = "v1.10.0" }
 scylla-cql = { git = "https://github.com/scylladb/scylla-rust-driver.git", rev = "v1.10.0" }
-scylla-ccm-bridge = { git = "https://github.com/scylladb/scylla-rust-driver.git", rev = "v1.10.0" }
+scylla-ccm-bridge = { git = "https://github.com/scylladb/scylla-rust-driver.git", rev = "v1.10.0", features = [
+    "unstable-client-routes",
+] }
 bytes = "1.10.0"
 itertools = "0.10.3"
 assert_matches = "1.5.0"
