@@ -1975,12 +1975,12 @@ mod tests {
         argconv::{CassStrLen, CassStrLenDelimited, make_c_str},
         cass_error::CassError,
         exec_profile::{cass_execution_profile_free, cass_execution_profile_new},
+        future::{cass_future_error_code, cass_future_free},
+        session::{cass_session_connect, cass_session_free, cass_session_new},
         ssl::{cass_ssl_free, cass_ssl_new},
     };
     use assert_matches::assert_matches;
-    use scylla::client::session::Session;
     use scylla::cluster::KnownNode;
-    use scylla::errors::NewSessionError;
     use std::net::{Ipv4Addr, Ipv6Addr};
     use std::{
         collections::HashSet,
@@ -2168,17 +2168,16 @@ mod tests {
             let ssl = cass_ssl_new();
             cass_cluster_set_ssl(cluster_raw.borrow_mut(), ssl.borrow());
 
-            let config_future = BoxFFI::as_ref(cluster_raw.borrow())
-                .unwrap()
-                .build_session_config();
-            let result = tokio::runtime::Runtime::new()
-                .unwrap()
-                .block_on(async { Session::connect(config_future.await).await });
-            assert_matches!(
-                result,
-                Err(NewSessionError::IllegalConfig(message)) if message.contains("TLS")
+            let session_raw = cass_session_new();
+            let connect_future =
+                cass_session_connect(session_raw.borrow(), cluster_raw.borrow().into_c_const());
+            assert_cass_error_eq!(
+                cass_future_error_code(connect_future.borrow()),
+                CassError::CASS_ERROR_LIB_BAD_PARAMS
             );
 
+            cass_future_free(connect_future);
+            cass_session_free(session_raw);
             cass_ssl_free(ssl);
             cass_cluster_free(cluster_raw);
         }
