@@ -1,5 +1,7 @@
 # ScyllaDB CPP RS Driver
 ___
+[![Codecov](https://codecov.io/gh/scylladb/cpp-rs-driver/branch/master/graph/badge.svg)](https://codecov.io/gh/scylladb/cpp-rs-driver)
+
 Wrapper around [ScyllaDB's Rust Driver](https://cpp-rs-driver.docs.scylladb.com/stable), which is API-compatible with both ScyllaDB and Datastax C/C++ Driver and may be considered a drop-in replacement (with some minor limitations, see [Limitations](#limitations)).
 
 #### Note: It is work in progress, bug reports and pull requests are welcome!
@@ -496,6 +498,13 @@ the coverage targets handle a failing step, without building or running anything
 ```shell
 python3 -m unittest discover -s ci -p 'test_*.py'
 ```
+
+CI uploads the resulting `lcov.info` to [Codecov](https://codecov.io/gh/scylladb/cpp-rs-driver), which comments the
+coverage delta on the pull request and reports it as a check. Both of its statuses are `informational` in `codecov.yml`,
+so a drop annotates the pull request but never blocks merging it. Only a successful run uploads: a run with failing
+tests still keeps its report as a workflow artifact, but sends nothing to Codecov, and a push or pull request the
+workflow skips uploads nothing either. Codecov has no report for such a commit, and compares the pull requests that
+build on it against the nearest ancestor that has one.
 
 # Creating Installable Packages
 ___

@@ -1,0 +1,42 @@
+# Codecov configuration for the coverage lane in .github/workflows/coverage.yml,
+# which uploads the lcov.info that `make run-test-coverage-scylla` writes.
+# Reference: https://docs.codecov.com/docs/codecov-yaml
+
+codecov:
+  # The coverage lane is a workflow of its own, independent of the rest of CI
+  # and the only thing that uploads, so its report stands on its own. Codecov's
+  # defaults tie it to the other checks in two separate ways, and both are
+  # turned off: require_ci_to_pass withholds the report when any other check
+  # failed, and notify.wait_for_ci holds it back while any other check (the
+  # integration test jobs of build-lint-and-test.yml, say) is still running.
+  require_ci_to_pass: false
+  notify:
+    wait_for_ci: false
+
+# There are no `fixes` or `ignore` entries. lcov.info names every file by its
+# absolute path in the coverage job's checkout, and Codecov's default path
+# fixing maps each of those onto the right file in the repository; and it
+# covers only the driver's own sources, as the Makefile leaves the test code
+# out. The upload job in coverage.yml checks that the report keeps that shape.
+
+coverage:
+  status:
+    # informational: report the delta, never fail a pull request on it. A
+    # failed run uploads nothing (see the upload job in coverage.yml), so a
+    # partial report is not the concern here. What remains is that the
+    # integration suites run against live ScyllaDB clusters, and which lines
+    # they reach -- retries, reconnects, topology and schema events, timeouts --
+    # depends on cluster timing as much as on the diff, so two clean runs of
+    # one commit can land a little apart. This can be revisited, and
+    # informational turned off, once the run-to-run spread has a track record
+    # of staying inside the threshold.
+    project:
+      default:
+        target: auto
+        threshold: 1%
+        informational: true
+    patch:
+      default:
+        target: auto
+        threshold: 1%
+        informational: true
