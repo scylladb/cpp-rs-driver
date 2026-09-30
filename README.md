@@ -1,5 +1,7 @@
 # ScyllaDB CPP RS Driver
 ___
+[![Codecov](https://codecov.io/gh/scylladb/cpp-rs-driver/branch/master/graph/badge.svg)](https://codecov.io/gh/scylladb/cpp-rs-driver)
+
 Wrapper around [ScyllaDB's Rust Driver](https://cpp-rs-driver.docs.scylladb.com/stable), which is API-compatible with both ScyllaDB and Datastax C/C++ Driver and may be considered a drop-in replacement (with some minor limitations, see [Limitations](#limitations)).
 
 #### Note: It is work in progress, bug reports and pull requests are welcome!
@@ -461,6 +463,49 @@ Now, use `--gtest_filter` to run certain integration tests:
 ```
 
 ##### Note: Tests that pass with ScyllaDB and Cassandra clusters can be found in Makefile: `SCYLLA_TEST_FILTER` and `CASSANDRA_TEST_FILTER` env variables.
+
+## Code coverage
+
+The coverage of the driver's Rust implementation in `scylla-rust-wrapper/src` by the tests is measured with LLVM
+source-based coverage, set up by [cargo-llvm-cov](https://github.com/taiki-e/cargo-llvm-cov). The HTML report is
+rendered with [lcov](https://github.com/linux-test-project/lcov)'s `genhtml`:
+
+```shell
+# The version CI uses: the Makefile relies on how it sets up the instrumentation.
+cargo install cargo-llvm-cov --version 0.9.1 --locked
+rustup component add llvm-tools
+sudo apt-get install lcov
+
+# The Rust unit and proxy tests; needs no cluster.
+make run-test-coverage-unit
+# Those, the C++ integration tests and the Rust CCM tests against ScyllaDB (needs CCM, like
+# `make run-test-integration-scylla`); `SCYLLA_VERSION` selects the version.
+make run-test-coverage-scylla
+```
+
+Both build everything instrumented in `build-coverage/` and write an lcov report to `build-coverage/llvm-cov/lcov.info`,
+an HTML report to `build-coverage/llvm-cov/html/` and a per-file summary to `build-coverage/llvm-cov/summary.txt`. They
+run every suite even when one fails, and fail afterwards, so a failed run still leaves its report behind. The C and C++
+code in `src/` and `tests/` is test harness code that never ends up in the driver library, so it is not measured, and
+neither is the Rust test code: `scylla-rust-wrapper/tests/`, `scylla-rust-wrapper/src/testing/`, and the test modules
+and helpers that are built only with `cfg(test)`.
+
+The `Code coverage` workflow (`.github/workflows/coverage.yml`) runs `make run-test-coverage-scylla` for pull requests
+and pushes to `master`, except those that only touch the documentation, the examples or Markdown files, and keeps the
+reports as a workflow artifact. Before that, it runs the tests in `ci/`, which check how the report is merged, how the
+coverage targets handle a failing step and how they spot a Rust test binary that ran no test, without building or
+running anything:
+
+```shell
+python3 -m unittest discover -s ci -p 'test_*.py'
+```
+
+CI uploads the resulting `lcov.info` to [Codecov](https://codecov.io/gh/scylladb/cpp-rs-driver), which comments the
+coverage delta on the pull request and reports it as a check. Both of its statuses are `informational` in `codecov.yml`,
+so a drop annotates the pull request but never blocks merging it. Only a successful run uploads: a run with failing
+tests still keeps its report as a workflow artifact, but sends nothing to Codecov, and a push or pull request the
+workflow skips uploads nothing either. Codecov has no report for such a commit, and compares the pull requests that
+build on it against the nearest ancestor that has one.
 
 # Creating Installable Packages
 ___

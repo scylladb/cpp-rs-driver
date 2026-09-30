@@ -1,0 +1,287 @@
+name: Code coverage
+
+# Measures the coverage of the driver's Rust implementation by the test suites
+# (see the "Code coverage" section of the Makefile). It runs apart from the
+# jobs in build-lint-and-test.yml, which it does not change: coverage needs an
+# instrumented build of its own, and none of its suites run under valgrind.
+
+on:
+  push:
+    branches: [master]
+    # As in pkg.yml, except that Markdown files are ignored in every directory
+    # ("**.md"), not only at the top ("*.md"). Nothing here builds or runs
+    # these files, so a change to them alone cannot change coverage.
+    paths-ignore:
+      - "docs/**"
+      - ".github/workflows/docs-**"
+      - "examples/**"
+      - "**.md"
+  pull_request:
+    branches: [master]
+    paths-ignore:
+      - "docs/**"
+      - ".github/workflows/docs-**"
+      - "examples/**"
+      - "**.md"
+  workflow_dispatch:
+
+# The workflow's GITHUB_TOKEN only has to read the repository, for checkout: no
+# step uses it to write anything. The image cache, the artifacts and the step
+# summary are stored through the Actions runtime's own credentials, which these
+# permissions do not govern.
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: full
+  RUST_LOG: trace
+  # The same log directories as in build-lint-and-test.yml.
+  CCM_LOGS_PATTERN: |
+    /tmp/ccm*/ccm*/node*/logs/*
+    /tmp/ccm-rust/*/*/node*/logs/*
+
+jobs:
+  coverage:
+    name: Measure code coverage
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    env:
+      # One fixed ScyllaDB version, the Makefile's default, rather than the
+      # latest release that build-lint-and-test.yml looks up: a coverage number
+      # is compared with the one of the commit before it, and the server
+      # version decides which paths some tests take, so it should change only
+      # when this line does. Nor is there a lookup to fail quietly (the lookup
+      # step there still exits 0, with an empty version, when ci/version_fetch.py
+      # fails). Fully qualified, so that CCM does not resolve it on every call.
+      SCYLLA_VERSION: release:2026.2.2
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Python 3
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.11"
+
+      # Tests of ci/merge_coverage.py, which decides what the report counts,
+      # and of how the Makefile's coverage targets handle a failing step and
+      # spot a Rust test binary that ran no test. They build and run nothing,
+      # so they come before anything is measured.
+      - name: Test the coverage scripts
+        run: python3 -m unittest discover --start-directory ci --pattern 'test_*.py' -v
+
+      - name: Update apt cache
+        run: sudo apt-get update -y
+
+      - name: Install dependencies
+        run: make install-build-dependencies
+
+      - name: Install CCM
+        run: make install-ccm-if-missing
+
+      - name: Update Rust toolchain
+        run: |
+          make update-rust-tooling
+          rustup component add llvm-tools
+
+      # Pinned: the Makefile relies on how this version sets up instrumentation,
+      # through a rustc wrapper, which the RUSTFLAGS that the Makefile and CMake
+      # set explicitly do not replace.
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@4cef1412cce204788f482e778a0b9187f9626a29 # v2.87.21
+        with:
+          tool: cargo-llvm-cov@0.9.1
+
+      - name: Pull CCM image from the cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        id: pull-image
+        with:
+          path: ~/.ccm/scylla-repository
+          key: image-scylla-${{ runner.os }}-${{ env.SCYLLA_VERSION }}
+
+      - name: Download Scylla (${{ env.SCYLLA_VERSION }}) image
+        if: steps.pull-image.outputs.cache-hit != 'true'
+        run: make download-ccm-scylla-image
+
+      - name: Save CCM image cache
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        if: steps.pull-image.outputs.cache-hit != 'true'
+        with:
+          path: ~/.ccm/scylla-repository
+          key: image-scylla-${{ runner.os }}-${{ env.SCYLLA_VERSION }}
+
+      # Runs every suite even when one fails, writes the reports, and fails
+      # afterwards; it also fails when a suite ran no instrumented code, or a
+      # test binary or gtest filter no test at all.
+      - name: Run tests with coverage
+        id: run-tests
+        env:
+          # Preserve failed Rust CCM clusters (and their /tmp/ccm-rust node
+          # logs) so the "Upload CCM logs" step can collect diagnostics.
+          TEST_KEEP_CLUSTER_ON_FAILURE: "true"
+        run: make run-test-coverage-scylla
+
+      - name: Publish coverage summary
+        if: always()
+        run: |
+          {
+            echo '## Coverage report'
+            echo '```'
+            cat build-coverage/llvm-cov/summary.txt || echo 'No coverage report was written.'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: coverage-report
+          path: |
+            build-coverage/llvm-cov/html
+            build-coverage/llvm-cov/lcov.info
+            build-coverage/llvm-cov/summary.txt
+
+      # What the upload job needs, and nothing else: the HTML report is most of
+      # the coverage-report artifact. Only a successful run gets this far, and
+      # only a successful run is uploaded.
+      - name: Keep lcov.info for the upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: coverage-lcov
+          path: build-coverage/llvm-cov/lcov.info
+          if-no-files-found: error
+
+      - name: Upload test logs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: failure() && steps.run-tests.outcome == 'failure'
+        with:
+          name: test-logs-scylla
+          path: ./log/*
+
+      - name: Upload CCM logs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: failure()
+        with:
+          name: ccm-log-scylla
+          path: ${{ env.CCM_LOGS_PATTERN }}
+
+  # The upload is a job of its own so that CODECOV_TOKEN never shares a runner
+  # with the code the coverage job executes: the driver build and the build
+  # scripts of every crate it pulls in, CCM as installed from its master
+  # branch, and the test suites. In the same job, a process any of those left
+  # behind could read the upload step's environment, token included. This job
+  # runs no repository code: it checks out the tree only so that the path check
+  # and the Codecov CLI can see which files exist, and everything it executes
+  # is defined right here. That protects the token from the code this workflow
+  # runs, not from edits to the workflow itself: a pull request from a branch
+  # of this repository runs its own version of this file, secrets included.
+  #
+  # `needs` also makes the upload conditional on the coverage job succeeding.
+  # A failed run still leaves an lcov.info behind: `make run-test-coverage-scylla`
+  # writes the reports before it fails, and the coverage-report artifact keeps
+  # them, for diagnosis. Uploading it is not merely noise: on master it becomes the
+  # baseline `target: auto` compares the next pull request against, so an
+  # artificially low number reads as a phantom improvement on every pull
+  # request after it, with a real regression free to hide inside that margin.
+  # The informational statuses in codecov.yml stop a bad number from blocking
+  # a merge; they do not stop it from being recorded. Uploading nothing is the
+  # better failure: Codecov falls back to the nearest ancestor that has a
+  # report.
+  #
+  # A green coverage job is also a complete one. SCYLLA_VERSION is fixed
+  # rather than looked up, every suite runs unconditionally, and
+  # `make run-test-coverage-scylla` fails when a suite fails, when a suite ran
+  # no instrumented driver code (its binaries lost their instrumentation, or a
+  # Rust test filter matched nothing), when a Rust test binary or a gtest
+  # filter ran no test, and when a binary covers no line of the report.
+  upload:
+    name: Upload coverage to Codecov
+    needs: coverage
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      # The artifact holds lcov.info alone, at its root, so lcov.info lands at
+      # the top of the checkout.
+      - name: Download coverage report
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: coverage-lcov
+
+      # codecov.yml has no path fixes because none are needed: lcov.info names
+      # every file by its absolute path in the coverage job's checkout -- the
+      # same directory as this job's $GITHUB_WORKSPACE on GitHub-hosted
+      # runners -- and Codecov's default path fixing maps each such path onto
+      # the right file by suffix. It has no `ignore` entries either, because the
+      # report covers only the driver's own sources. That holds only while the
+      # report keeps this shape, and Codecov accepts an upload whose paths match
+      # nothing and still reports green, so check the shape here, where a
+      # mismatch fails the job instead of silently emptying the report.
+      - name: Check lcov.info paths
+        shell: python
+        run: |
+          import os, subprocess, sys
+
+          workspace = os.environ["GITHUB_WORKSPACE"] + "/"
+          sources, excluded = "scylla-rust-wrapper/src/", "scylla-rust-wrapper/src/testing/"
+          if not os.path.isfile("lcov.info"):
+              sys.exit("the coverage-lcov artifact has no lcov.info")
+          tracked = set(subprocess.run(["git", "ls-files", "-z"], check=True,
+                                       capture_output=True, text=True).stdout.split("\0")) - {""}
+          files, covered = [], 0
+          with open("lcov.info") as report:
+              for line in report:
+                  if line.startswith("SF:"):
+                      files.append(line[3:].rstrip("\n"))
+                  elif line.startswith("DA:") and int(line[3:].split(",")[1]) > 0:
+                      covered += 1
+          if not files:
+              sys.exit("lcov.info names no source files")
+          bad = [f for f in files
+                 if not f.startswith(workspace) or f[len(workspace):] not in tracked]
+          if bad:
+              sys.exit(f"{len(bad)} of {len(files)} lcov.info files are not tracked files "
+                       f"under {workspace}, which Codecov's default path fixing relies "
+                       f"on: {bad[:10]}")
+          bad = [f for f in files if not f[len(workspace):].startswith(sources)
+                 or f[len(workspace):].startswith(excluded)]
+          if bad:
+              sys.exit(f"{len(bad)} of {len(files)} lcov.info files are not driver sources "
+                       f"(under {sources}, but not under {excluded}): {bad[:10]}")
+          if not covered:
+              sys.exit("lcov.info reports no covered lines")
+          print(f"{len(files)} files, all tracked driver sources under {workspace}, "
+                f"{covered} lines covered")
+
+      # Pull requests from forks get no secrets, so `token` comes through empty
+      # and the upload falls back to Codecov's tokenless path for public
+      # repositories. That path is best-effort and must not be what turns such
+      # a pull request red, hence fail_ci_if_error is off for forks only.
+      # Everywhere else it stays on, so a missing or revoked CODECOV_TOKEN fails
+      # the job instead of quietly uploading nothing. That includes pull
+      # requests from Dependabot, which get Dependabot's secrets rather than
+      # this one, but none reaches this job today: .github/dependabot.yml only
+      # updates docs/, which this workflow ignores, and no Dependabot security
+      # update has been opened here. Should one fail here, give Dependabot a
+      # CODECOV_TOKEN secret of its own rather than exempting it.
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: lcov.info
+          # The file is named explicitly, so there is nothing to gain from
+          # letting the action sweep the tree for other report-shaped files or
+          # from running the CLI's plugins (gcov, Xcode, pycoverage): the report
+          # is already built by `make run-test-coverage-scylla`.
+          disable_search: true
+          plugins: noop
+          fail_ci_if_error: ${{ github.event.pull_request.head.repo.fork != true }}
