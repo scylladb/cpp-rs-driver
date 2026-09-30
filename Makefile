@@ -650,19 +650,26 @@ define check-gtest-ran
 	fi
 endef
 
-# Fails unless every test binary in the `cargo test` output $(1) ran at least
-# one test. check-coverage-profile fails a suite whose binaries all ran none,
-# but not a binary that ran none next to one that ran some. Doc tests do not
-# count: they are not instrumented.
+# Fails unless every test binary in the `cargo test` output of the $(1) suite
+# ran at least one test. check-coverage-profile fails a suite whose binaries
+# all ran none, but not a binary that ran none next to one that ran some. Doc
+# tests do not count: they are not instrumented. When no test binary in the
+# output reports how many tests it ran, the check fails too: cargo printing
+# its output differently would look like that, and would otherwise turn the
+# check off without a word.
 define check-rust-tests-ran
-	sed 's/\x1b\[[0-9;]*m//g' "$(1)" | awk '
+	sed 's/\x1b\[[0-9;]*m//g' "${COVERAGE_TARGET_DIR}/$(1)-tests.log" | awk '
 		/^ *Running / { binary = $$NF; gsub(/^\(|\)$$/, "", binary); next }
 		/^ *Doc-tests / { binary = ""; next }
 		binary != "" && /^running [0-9]+ tests?$$/ {
 			if ($$2 == 0) { print binary " ran no test." > "/dev/stderr"; failed = 1 }
-			binary = ""
+			binaries++; tests += $$2; binary = ""
 		}
-		END { exit failed }'
+		END {
+			if (!binaries) { print "No test binary of the $(1) suite reported how many tests it ran." > "/dev/stderr"; exit 1 }
+			if (!failed) printf "The $(1) suite ran %d %s in %d test %s.\n", tests, (tests == 1 ? "test" : "tests"), binaries, (binaries == 1 ? "binary" : "binaries")
+			exit failed
+		}'
 endef
 
 .coverage-clean: install-cargo-if-missing
@@ -696,7 +703,7 @@ endef
 	@# coverage-report has profile data for each of them.
 	set -o pipefail
 	LLVM_PROFILE_FILE="${COVERAGE_TARGET_DIR}/unit-%p-%4m.profraw" RUSTFLAGS="${FULL_RUSTFLAGS}" cargo test --no-fail-fast -- --skip ccm 2>&1 | tee "${COVERAGE_TARGET_DIR}/unit-tests.log"
-	$(call check-rust-tests-ran,${COVERAGE_TARGET_DIR}/unit-tests.log)
+	$(call check-rust-tests-ran,unit)
 	$(call check-coverage-profile,unit)
 
 .coverage-build-integration-test-bin: install-cargo-if-missing
@@ -731,7 +738,7 @@ endef
 	@# The same tests, cluster setup and CCM root as in `run-test-integration-scylla`.
 	set -o pipefail
 	SCYLLA_TEST_CLUSTER="${SCYLLA_VERSION}" CCM_ROOT_DIR=/tmp/ccm-rust LLVM_PROFILE_FILE="${COVERAGE_TARGET_DIR}/ccm-%p-%4m.profraw" RUSTFLAGS="${FULL_RUSTFLAGS}" cargo test --test integration ccm 2>&1 | tee "${COVERAGE_TARGET_DIR}/ccm-tests.log"
-	$(call check-rust-tests-ran,${COVERAGE_TARGET_DIR}/ccm-tests.log)
+	$(call check-rust-tests-ran,ccm)
 	$(call check-coverage-profile,ccm)
 
 run-test-coverage-unit: .coverage-clean

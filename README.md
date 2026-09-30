@@ -492,8 +492,9 @@ and helpers that are built only with `cfg(test)`.
 
 The `Code coverage` workflow (`.github/workflows/coverage.yml`) runs `make run-test-coverage-scylla` for pull requests
 and pushes to `master`, except those that only touch the documentation, the examples or Markdown files, and keeps the
-reports as a workflow artifact. Before that, it runs the tests in `ci/`, which check how the report is merged and how
-the coverage targets handle a failing step, without building or running anything:
+reports as a workflow artifact. Before that, it runs the tests in `ci/`, which check how the report is merged, how the
+coverage targets handle a failing step and how they spot a Rust test binary that ran no test, without building or
+running anything:
 
 ```shell
 python3 -m unittest discover -s ci -p 'test_*.py'

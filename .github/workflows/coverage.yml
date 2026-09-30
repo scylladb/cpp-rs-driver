@@ -68,8 +68,9 @@ jobs:
           python-version: "3.11"
 
       # Tests of ci/merge_coverage.py, which decides what the report counts,
-      # and of how the Makefile's coverage targets handle a failing step. They
-      # build and run nothing, so they come before anything is measured.
+      # and of how the Makefile's coverage targets handle a failing step and
+      # spot a Rust test binary that ran no test. They build and run nothing,
+      # so they come before anything is measured.
       - name: Test the coverage scripts
         run: python3 -m unittest discover --start-directory ci --pattern 'test_*.py' -v
 
