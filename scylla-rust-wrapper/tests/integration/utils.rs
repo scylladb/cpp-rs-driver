@@ -198,10 +198,10 @@ pub(crate) fn proxy_uris_to_contact_points(proxy_uris: [String; 3]) -> CString {
 
 /// This assumes 0 bind variables and 0 returned columns.
 pub(crate) fn forge_prepare_response(request_frame: RequestFrame) -> ResponseFrame {
-    ResponseFrame {
-        params: request_frame.params.for_response(),
-        opcode: scylla_proxy::ResponseOpcode::Result,
-        body: {
+    ResponseFrame::new(
+        request_frame.params.for_response(),
+        scylla_proxy::ResponseOpcode::Result,
+        {
             let mut body = BytesMut::new();
 
             // Write result kind for prepared statement.
@@ -245,5 +245,5 @@ pub(crate) fn forge_prepare_response(request_frame: RequestFrame) -> ResponseFra
 
             body.freeze()
         },
-    }
+    )
 }

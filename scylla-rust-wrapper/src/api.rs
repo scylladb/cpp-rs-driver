@@ -79,6 +79,7 @@ pub mod cluster {
         cass_cluster_set_core_connections_per_shard,
         cass_cluster_set_credentials,
         cass_cluster_set_credentials_n,
+        cass_cluster_set_driver_config_reporting,
         cass_cluster_set_execution_profile,
         cass_cluster_set_execution_profile_n,
         cass_cluster_set_exponential_reconnect,
