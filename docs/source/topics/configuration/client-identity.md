@@ -46,3 +46,30 @@ cass_session_free(session);
 
 **Note**: A session's unique identifier is constant for its lifetime and does
           not change when re-establishing connection to a cluster.
+
+## Driver Configuration Reporting
+
+By default, each session reports its effective driver configuration to
+ScyllaDB. The control connection sends one compact JSON document under the
+`DRIVER_CONFIG` startup option. It uses the cross-driver schema version 1 and
+describes connection, control-plane, and query settings such as timeouts,
+socket options, and policies.
+
+On supported ScyllaDB versions, the report is available in
+`system.clients.client_options`. This table is node-local. Every connection of
+the session also sends the same `SESSION_ID`, allowing the control connection's
+report to be correlated with the session's other connections.
+
+Applications that must not disclose configuration can disable only the report:
+
+```c
+CassCluster* cluster = cass_cluster_new();
+
+cass_cluster_set_driver_config_reporting(cluster, cass_false);
+
+/* ... */
+
+cass_cluster_free(cluster);
+```
+
+Disabling configuration reporting does not disable `SESSION_ID`.

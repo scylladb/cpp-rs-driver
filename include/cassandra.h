@@ -2857,6 +2857,23 @@ CASS_EXPORT void
 cass_cluster_set_client_id(CassCluster* cluster, CassUuid client_id);
 
 /**
+ * Enables or disables reporting the effective driver configuration to the
+ * server in the DRIVER_CONFIG startup option.
+ *
+ * The report is enabled by default and is available in
+ * system.clients.client_options on supported ScyllaDB versions. Disabling the
+ * report does not disable the per-session SESSION_ID startup option.
+ *
+ * @public @memberof CassCluster
+ *
+ * @param[in] cluster
+ * @param[in] enabled
+ */
+CASS_EXPORT void
+cass_cluster_set_driver_config_reporting(CassCluster* cluster,
+                                         cass_bool_t enabled);
+
+/**
  * Sets the preferred compression algorithm.
  * <b>Default:</b> no compression.
  * If it is not supported by database server Session will fall back to no compression.
