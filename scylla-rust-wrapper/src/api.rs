@@ -443,6 +443,9 @@ pub mod statement {
         cass_statement_bind_user_type,
         cass_statement_bind_user_type_by_name,
         cass_statement_bind_user_type_by_name_n,
+        cass_statement_bind_vector,
+        cass_statement_bind_vector_by_name,
+        cass_statement_bind_vector_by_name_n,
         cass_statement_bind_uuid,
         cass_statement_bind_uuid_by_name,
         cass_statement_bind_uuid_by_name_n,
@@ -542,6 +545,7 @@ pub mod data_type {
         cass_data_type_new_from_existing,
         cass_data_type_new_tuple,
         cass_data_type_new_udt,
+        cass_data_type_new_vector,
         cass_data_type_set_class_name,
         cass_data_type_set_class_name_n,
         cass_data_type_set_keyspace,
@@ -555,6 +559,7 @@ pub mod data_type {
         cass_data_type_sub_type_name,
         cass_data_type_type,
         cass_data_type_type_name,
+        cass_data_type_vector_dimensions,
     };
 }
 
@@ -583,6 +588,7 @@ pub mod collection {
         cass_collection_append_uint32,
         cass_collection_append_user_type,
         cass_collection_append_uuid,
+        cass_collection_append_vector,
         cass_collection_data_type,
         cass_collection_free,
         cass_collection_new,
@@ -620,6 +626,38 @@ pub mod tuple {
         cass_tuple_set_uint32,
         cass_tuple_set_user_type,
         cass_tuple_set_uuid,
+        cass_tuple_set_vector,
+    };
+}
+
+pub mod vector {
+    // Disabling rustfmt to have one item per line for better readability.
+    #[rustfmt::skip]
+    pub use crate::cql_types::vector::{
+        CassVector,
+        cass_vector_data_type,
+        cass_vector_free,
+        cass_vector_new,
+        cass_vector_new_from_data_type,
+        cass_vector_set_bool,
+        cass_vector_set_bytes,
+        cass_vector_set_collection,
+        cass_vector_set_decimal,
+        cass_vector_set_duration,
+        cass_vector_set_double,
+        cass_vector_set_float,
+        cass_vector_set_inet,
+        cass_vector_set_int8,
+        cass_vector_set_int16,
+        cass_vector_set_int32,
+        cass_vector_set_int64,
+        cass_vector_set_string,
+        cass_vector_set_string_n,
+        cass_vector_set_tuple,
+        cass_vector_set_uint32,
+        cass_vector_set_user_type,
+        cass_vector_set_uuid,
+        cass_vector_set_vector,
     };
 }
 
@@ -687,6 +725,9 @@ pub mod user_type {
         cass_user_type_set_user_type,
         cass_user_type_set_user_type_by_name,
         cass_user_type_set_user_type_by_name_n,
+        cass_user_type_set_vector,
+        cass_user_type_set_vector_by_name,
+        cass_user_type_set_vector_by_name_n,
         cass_user_type_set_uuid,
         cass_user_type_set_uuid_by_name,
         cass_user_type_set_uuid_by_name_n,
@@ -746,6 +787,7 @@ pub mod iterator {
         cass_iterator_from_result,
         cass_iterator_from_row,
         cass_iterator_from_tuple,
+        cass_iterator_from_vector,
         // cass_iterator_aggregates_from_keyspace_meta, UNIMPLEMENTED
         cass_iterator_columns_from_materialized_view_meta,
         cass_iterator_columns_from_table_meta,

@@ -879,6 +879,12 @@ make_binders!(
     cass_statement_bind_user_type_by_name,
     cass_statement_bind_user_type_by_name_n
 );
+make_binders!(
+    vector,
+    cass_statement_bind_vector,
+    cass_statement_bind_vector_by_name,
+    cass_statement_bind_vector_by_name_n
+);
 
 #[cfg(test)]
 mod tests {
