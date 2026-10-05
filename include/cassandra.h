@@ -1700,6 +1700,79 @@ cass_cluster_set_contact_points_n(CassCluster* cluster,
                                   size_t contact_points_length);
 
 /**
+ * Enables Client Routes mode and appends a proxy configuration.
+ *
+ * Use Client Routes for private endpoint connections, such as AWS PrivateLink
+ * and Google Cloud Private Service Connect, when the client cannot reach the
+ * addresses advertised by cluster nodes. The driver replaces those addresses
+ * with per-node proxy endpoints discovered from `system.client_routes`.
+ *
+ * Contact points are still required as bootstrap endpoints. On session startup
+ * and metadata refreshes, the driver reads routes from the
+ * `system.client_routes` table, filtering by the configured connection IDs.
+ * The driver also processes `CLIENT_ROUTES_CHANGE` events to keep the routes up
+ * to date. Each non-empty connection ID is assigned to the private connection
+ * by the cloud infrastructure. Calling this function more than once appends
+ * another proxy configuration.
+ *
+ * The hostname override is optional. If supplied, it replaces the hostname or
+ * IP address reported by `system.client_routes` for the connection ID. Passing
+ * NULL or an empty string uses the table value.
+ *
+ * Mixed direct and routed topologies are not supported. TLS is not supported
+ * in Client Routes mode; configuring TLS causes the asynchronous session
+ * connection to fail. Advanced shard-aware source-port selection is disabled,
+ * but basic shard awareness remains available. Other supported cluster
+ * settings, including authentication, compression, execution profiles, and
+ * timeouts, remain usable.
+ *
+ * @public @memberof CassCluster
+ *
+ * @param[in] cluster
+ * @param[in] connection_id A non-empty connection ID used to select rows from
+ * `system.client_routes`. The string is copied into the cluster configuration;
+ * the memory pointed to by this parameter can be freed after this call.
+ * @param[in] hostname_override Optional proxy hostname override. Pass NULL or
+ * an empty string to use the hostname from `system.client_routes`. The string
+ * is copied into the cluster configuration; the memory pointed to by this
+ * parameter can be freed after this call.
+ * @return CASS_OK if successful, otherwise an error occurred.
+ *
+ * @see cass_cluster_add_client_routes_proxy_n()
+ * @see cass_cluster_set_contact_points()
+ */
+CASS_EXPORT CassError
+cass_cluster_add_client_routes_proxy(CassCluster* cluster,
+                                     const char* connection_id,
+                                     const char* hostname_override);
+
+/**
+ * Same as cass_cluster_add_client_routes_proxy(), but with lengths for string
+ * parameters.
+ *
+ * @public @memberof CassCluster
+ *
+ * @param[in] cluster
+ * @param[in] connection_id A non-empty connection ID used to select rows from
+ * `system.client_routes`.
+ * @param[in] connection_id_length Length of connection_id in bytes.
+ * @param[in] hostname_override Optional proxy hostname override. Pass NULL
+ * with hostname_override_length set to zero, or set hostname_override_length
+ * to zero for an empty string, to use the hostname from
+ * `system.client_routes`.
+ * @param[in] hostname_override_length Length of hostname_override in bytes.
+ * @return same as cass_cluster_add_client_routes_proxy()
+ *
+ * @see cass_cluster_add_client_routes_proxy()
+ */
+CASS_EXPORT CassError
+cass_cluster_add_client_routes_proxy_n(CassCluster* cluster,
+                                       const char* connection_id,
+                                       size_t connection_id_length,
+                                       const char* hostname_override,
+                                       size_t hostname_override_length);
+
+/**
  * Sets the port.
  *
  * <b>Default:</b> 9042

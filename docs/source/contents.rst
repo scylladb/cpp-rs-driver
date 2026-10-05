@@ -15,6 +15,7 @@ ScyllaDB CPP RS Driver
     topics/building
     topics/testing
     topics/using/index
+    topics/connectivity/index
     topics/configuration/index
     topics/security/index
     topics/observability/index

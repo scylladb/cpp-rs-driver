@@ -49,6 +49,8 @@ pub mod cluster {
     #[rustfmt::skip]
     pub use crate::cluster::{
         CassCluster,
+        cass_cluster_add_client_routes_proxy,
+        cass_cluster_add_client_routes_proxy_n,
         cass_cluster_free,
         cass_cluster_new,
         cass_cluster_set_application_name,
