@@ -39,8 +39,58 @@ protected:
    */
   void check_hosts(Session session, const std::set<unsigned short>& expected_nodes) {
     // Execute multiple requests and store the hosts used
+    std::set<std::string> hosts = query_hosts(session, expected_nodes.size() + 2);
+
+    // Validate the hosts used during request execution and the expected
+    ASSERT_EQ(expected_nodes.size(), hosts.size());
+    for (std::set<unsigned short>::const_iterator it = expected_nodes.begin();
+         it != expected_nodes.end(); ++it) {
+      std::stringstream node_ip_address;
+      node_ip_address << ccm_->get_ip_prefix() << *it;
+      ASSERT_GT(hosts.count(node_ip_address.str()), 0u);
+    }
+  }
+
+  /**
+   * Repeatedly execute requests until exactly the expected nodes are used, or
+   * the timeout elapses. Topology changes are published to the driver's query
+   * routing asynchronously, so the first requests after a topology event may
+   * still observe the old cluster state.
+   *
+   * @param session Session to execute the requests with
+   * @param expected_nodes The nodes that should eventually be used
+   * @param timeout_ms Maximum time to wait for the expected nodes (in ms)
+   */
+  void wait_for_hosts(Session session, const std::set<unsigned short>& expected_nodes,
+                      unsigned int timeout_ms = 10000) {
+    std::set<std::string> expected_hosts;
+    for (std::set<unsigned short>::const_iterator it = expected_nodes.begin();
+         it != expected_nodes.end(); ++it) {
+      std::stringstream node_ip_address;
+      node_ip_address << ccm_->get_ip_prefix() << *it;
+      expected_hosts.insert(node_ip_address.str());
+    }
+
+    uint64_t deadline = uv_hrtime() + static_cast<uint64_t>(timeout_ms) * 1000000UL;
+    while (uv_hrtime() < deadline) {
+      if (query_hosts(session, expected_nodes.size() + 2) == expected_hosts) return;
+      msleep(100);
+    }
+
+    // Timed out; perform the final check to report a deterministic failure
+    check_hosts(session, expected_nodes);
+  }
+
+  /**
+   * Execute multiple requests and return the hosts used
+   *
+   * @param session Session to execute the requests with
+   * @param count Number of requests to execute
+   * @return Set of host addresses that served the requests
+   */
+  std::set<std::string> query_hosts(Session session, size_t count) {
     std::set<std::string> hosts;
-    for (size_t i = 0; i < (expected_nodes.size() + 2); ++i) {
+    for (size_t i = 0; i < count; ++i) {
       Statement statement("SELECT * FROM " + system_schema_keyspaces_);
       Result result = session.execute(statement, false);
       if (result.error_code() == CASS_OK) {
@@ -51,15 +101,7 @@ protected:
                                                << result.error_code() << "]");
       }
     }
-
-    // Validate the hosts used during request execution and the expected
-    ASSERT_EQ(expected_nodes.size(), hosts.size());
-    for (std::set<unsigned short>::const_iterator it = expected_nodes.begin();
-         it != expected_nodes.end(); ++it) {
-      std::stringstream node_ip_address;
-      node_ip_address << ccm_->get_ip_prefix() << *it;
-      ASSERT_GT(hosts.count(node_ip_address.str()), 0u);
-    }
+    return hosts;
   }
 
   /**
@@ -331,11 +373,13 @@ CASSANDRA_INTEGRATION_TEST_F(ControlConnectionTests, TopologyChange) {
   // host_id is not known ahead of time.
   logger_.add_critera("- " + (ccm_->get_ip_prefix() + "2") + ":9042");
   EXPECT_EQ(2u, ccm_->bootstrap_node()); // Triggers a `NEW_NODE` event
+  // The log only confirms discovery, not readiness for query routing; keep it
+  // as a diagnostic and wait for the hosts to actually be used instead.
   EXPECT_TRUE(wait_for_logger(1));
   std::set<unsigned short> expected_nodes;
   expected_nodes.insert(1);
   expected_nodes.insert(2);
-  check_hosts(session, expected_nodes);
+  wait_for_hosts(session, expected_nodes);
 
   /*
    * Decommission the bootstrapped node and ensure only the first node is
@@ -343,7 +387,7 @@ CASSANDRA_INTEGRATION_TEST_F(ControlConnectionTests, TopologyChange) {
    */
   decommission_node(2); // Triggers a `REMOVE_NODE` event
   expected_nodes.erase(2);
-  check_hosts(session, expected_nodes);
+  wait_for_hosts(session, expected_nodes);
 }
 
 /**
