@@ -8,6 +8,7 @@
 
 use scylla_ccm_bridge::CLUSTER_VERSION;
 
+mod data_types;
 mod tls;
 
 /// Returns whether `version` is a *partial* (not fully-qualified) `scylla-ccm`
