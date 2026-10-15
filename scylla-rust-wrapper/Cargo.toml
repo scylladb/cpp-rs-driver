@@ -15,6 +15,7 @@ scylla = { git = "https://github.com/scylladb/scylla-rust-driver.git", rev = "v1
     "openssl-010",
     "metrics",
     "unstable-cpp-rs",
+    "unstable-client-routes",
     "unstable-host-listener",
     "unstable-reconnect-policy",
 ] }
@@ -40,7 +41,9 @@ chrono = "0.4.20"
 [dev-dependencies]
 scylla-proxy = { git = "https://github.com/scylladb/scylla-rust-driver.git", rev = "v1.8.0" }
 scylla-cql = { git = "https://github.com/scylladb/scylla-rust-driver.git", rev = "v1.8.0" }
-scylla-ccm-bridge = { git = "https://github.com/scylladb/scylla-rust-driver.git", rev = "v1.8.0" }
+scylla-ccm-bridge = { git = "https://github.com/scylladb/scylla-rust-driver.git", rev = "v1.8.0", features = [
+    "unstable-client-routes",
+] }
 bytes = "1.10.0"
 itertools = "0.10.3"
 assert_matches = "1.5.0"

@@ -75,3 +75,18 @@ CASSANDRA_INTEGRATION_TEST_F(ConfigTests, ContactPointsAppend) {
   EXPECT_STREQ("127.0.0.1,127.0.0.2,127.0.0.3",
                datastax::internal::testing::get_contact_points_from_cluster(cluster.get()).c_str());
 }
+
+CASSANDRA_INTEGRATION_TEST_F(ConfigTests, ClientRoutesProxyConfiguration) {
+  test::driver::Cluster cluster = test::driver::Cluster::build();
+
+  EXPECT_EQ(CASS_ERROR_LIB_BAD_PARAMS,
+            cass_cluster_add_client_routes_proxy(cluster.get(), NULL, NULL));
+  EXPECT_EQ(CASS_ERROR_LIB_BAD_PARAMS,
+            cass_cluster_add_client_routes_proxy(cluster.get(), "", NULL));
+  EXPECT_EQ(CASS_OK, cass_cluster_add_client_routes_proxy(cluster.get(), "connection-id", NULL));
+
+  const char connection_id[] = "connection-id-with-ignored-suffix";
+  const char hostname_override[] = "proxy.example-with-ignored-suffix";
+  EXPECT_EQ(CASS_OK, cass_cluster_add_client_routes_proxy_n(cluster.get(), connection_id, 13,
+                                                            hostname_override, 13));
+}

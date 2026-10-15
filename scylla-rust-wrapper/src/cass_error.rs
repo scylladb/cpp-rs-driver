@@ -183,6 +183,7 @@ impl ToCassError for NewSessionError {
             NewSessionError::UseKeyspaceError(_) => {
                 CassError::CASS_ERROR_LIB_UNABLE_TO_SET_KEYSPACE
             }
+            NewSessionError::IllegalConfig(_) => CassError::CASS_ERROR_LIB_BAD_PARAMS,
             // NS error is non_exhaustive
             _ => CassError::CASS_ERROR_LAST_ENTRY,
         }
