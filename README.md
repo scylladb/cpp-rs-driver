@@ -433,14 +433,6 @@ ___
 Integration tests from the original `cpp-driver` are compilable but not all tests pass yet.
 Some tests are added to GitHub Actions workflows and are used to test every pull request on both ScyllaDB and Cassandra clusters.
 
-`SelectWithoutFromTests` covers `SELECT 1` and `SELECT now()` through simple and
-prepared statements, checking result metadata and decoded values through the C API.
-It connects without creating or selecting a keyspace or table. This syntax requires
-a server that supports SELECT without FROM; only a syntax error from the initial
-`SELECT 1` probe skips the test. Other query, connection, and preparation errors fail.
-These queries have no bind parameters, so this coverage does not exercise parameter
-binding or routing based on table metadata.
-
 To build and run the integration tests several requirements need to be met:
 
 * Install `libuv` and `openssl` on your system:

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) DataStax, Inc.
+  Copyright (c) 2026 ScyllaDB Ltd.
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -18,6 +18,26 @@
 
 class SelectWithoutFromTests : public Integration {
 public:
+  SelectWithoutFromTests()
+      : is_select_without_from_supported_(false) {}
+
+  void SetUp() {
+    Integration::SetUp();
+    CHECK_FAILURE;
+
+    // Detect the backing table independently of the SELECT syntax under test.
+    Result result =
+        session_.execute("SELECT * FROM system.one_row", CASS_CONSISTENCY_LOCAL_ONE, false, false);
+    if (result.error_code() == CASS_ERROR_SERVER_INVALID_QUERY &&
+        result.error_message().find("unconfigured table") != std::string::npos &&
+        result.error_message().find("one_row") != std::string::npos) {
+      return;
+    }
+    ASSERT_EQ(CASS_OK, result.error_code())
+        << result.error_description() << ": " << result.error_message();
+    is_select_without_from_supported_ = true;
+  }
+
   void connect(Cluster cluster) {
     // Connect without creating or selecting the integration fixture's keyspace.
     cluster_ = cluster;
@@ -28,16 +48,18 @@ public:
   void TearDown() {
     // This fixture creates no schema and never stops or pauses cluster nodes.
   }
+
+protected:
+  bool is_select_without_from_supported_;
 };
 
 namespace {
 
-bool is_select_without_from_unsupported(CassError error_code) {
-  return error_code == CASS_ERROR_SERVER_SYNTAX_ERROR;
-}
+const uint64_t CLOCK_SKEW_TOLERANCE_MS = 5000;
 
 void assert_single_column(Result result, const std::string& name, CassValueType value_type) {
-  ASSERT_EQ(CASS_OK, result.error_code());
+  ASSERT_EQ(CASS_OK, result.error_code())
+      << result.error_description() << ": " << result.error_message();
   ASSERT_TRUE(result.get() != NULL);
   ASSERT_EQ(1u, cass_result_row_count(result.get()));
   ASSERT_EQ(1u, cass_result_column_count(result.get()));
@@ -54,7 +76,7 @@ void assert_single_column(Result result, const std::string& name, CassValueType 
 }
 
 void assert_literal_result(Result result) {
-  ASSERT_NO_FATAL_FAILURE(assert_single_column(result, "1", CASS_VALUE_TYPE_INT));
+  ASSERT_NO_FATAL_FAILURE(assert_single_column(result, "one", CASS_VALUE_TYPE_INT));
   const CassRow* row = cass_result_first_row(result.get());
   ASSERT_TRUE(row != NULL);
   const CassValue* value = cass_row_get_column(row, 0);
@@ -66,8 +88,8 @@ void assert_literal_result(Result result) {
   EXPECT_EQ(1, decoded);
 }
 
-void assert_now_result(Result result) {
-  ASSERT_NO_FATAL_FAILURE(assert_single_column(result, "system.now()", CASS_VALUE_TYPE_TIMEUUID));
+void assert_now_result(Result result, uint64_t before_ms, uint64_t after_ms) {
+  ASSERT_NO_FATAL_FAILURE(assert_single_column(result, "t", CASS_VALUE_TYPE_TIMEUUID));
   const CassRow* row = cass_result_first_row(result.get());
   ASSERT_TRUE(row != NULL);
   const CassValue* value = cass_row_get_column(row, 0);
@@ -77,30 +99,68 @@ void assert_now_result(Result result) {
   CassUuid decoded;
   ASSERT_EQ(CASS_OK, cass_value_get_uuid(value, &decoded));
   EXPECT_EQ(1u, cass_uuid_version(decoded));
-  EXPECT_NE(0u, cass_uuid_timestamp(decoded));
+  const uint64_t timestamp_ms = cass_uuid_timestamp(decoded);
+  EXPECT_GE(timestamp_ms, before_ms - CLOCK_SKEW_TOLERANCE_MS);
+  EXPECT_LE(timestamp_ms, after_ms + CLOCK_SKEW_TOLERANCE_MS);
 }
 
 } // namespace
 
-CASSANDRA_INTEGRATION_TEST_F(SelectWithoutFromTests, SimpleAndPrepared) {
+/**
+ * Executes literal and function selectors without creating or selecting a keyspace or table.
+ *
+ * Both tests skip only when the independent system.one_row probe reports an unconfigured table.
+ * All other probe errors and all SELECT without FROM errors fail, including syntax errors.
+ * This fixture does not exercise routing based on user-table metadata.
+ *
+ * @test_category queries
+ * @expected_result Aliased column metadata and decoded integer/timeuuid values are correct.
+ */
+CASSANDRA_INTEGRATION_TEST_F(SelectWithoutFromTests, Simple) {
   CHECK_FAILURE;
-
-  Result result = session_.execute("SELECT 1", CASS_CONSISTENCY_LOCAL_ONE, false, false);
-  if (is_select_without_from_unsupported(result.error_code())) {
+  if (!is_select_without_from_supported_) {
     SKIP_TEST("Server does not support SELECT without FROM");
   }
-  ASSERT_EQ(CASS_OK, result.error_code());
 
-  ASSERT_NO_FATAL_FAILURE(assert_literal_result(result));
-  ASSERT_NO_FATAL_FAILURE(assert_now_result(session_.execute("SELECT now()")));
+  ASSERT_NO_FATAL_FAILURE(assert_literal_result(
+      session_.execute("SELECT 1 AS one", CASS_CONSISTENCY_LOCAL_ONE, false, false)));
 
-  Prepared prepared = session_.prepare("SELECT 1");
-  ASSERT_EQ(CASS_OK, prepared.error_code());
+  const uint64_t before_ms = time_since_epoch_in_ms();
+  Result result = session_.execute("SELECT now() AS t", CASS_CONSISTENCY_LOCAL_ONE, false, false);
+  const uint64_t after_ms = time_since_epoch_in_ms();
+  ASSERT_NO_FATAL_FAILURE(assert_now_result(result, before_ms, after_ms));
+}
+
+/**
+ * Prepares literal and function selectors without a keyspace or user table, binding a LIMIT value.
+ *
+ * Uses the same independent support probe and skip rules as the simple-statement test.
+ *
+ * @test_category prepared
+ * @expected_result Binding succeeds and result metadata and decoded values match simple execution.
+ */
+CASSANDRA_INTEGRATION_TEST_F(SelectWithoutFromTests, Prepared) {
+  CHECK_FAILURE;
+  if (!is_select_without_from_supported_) {
+    SKIP_TEST("Server does not support SELECT without FROM");
+  }
+
+  Prepared prepared = session_.prepare("SELECT 1 AS one LIMIT ?", false);
+  ASSERT_EQ(CASS_OK, prepared.error_code())
+      << prepared.error_description() << ": " << prepared.error_message();
   ASSERT_TRUE(prepared.get() != NULL);
-  ASSERT_NO_FATAL_FAILURE(assert_literal_result(session_.execute(prepared.bind())));
+  Statement statement = prepared.bind();
+  ASSERT_EQ(CASS_OK, cass_statement_bind_int32(statement.get(), 0, 1));
+  ASSERT_NO_FATAL_FAILURE(assert_literal_result(session_.execute(statement, false)));
 
-  prepared = session_.prepare("SELECT now()");
-  ASSERT_EQ(CASS_OK, prepared.error_code());
+  prepared = session_.prepare("SELECT now() AS t LIMIT ?", false);
+  ASSERT_EQ(CASS_OK, prepared.error_code())
+      << prepared.error_description() << ": " << prepared.error_message();
   ASSERT_TRUE(prepared.get() != NULL);
-  ASSERT_NO_FATAL_FAILURE(assert_now_result(session_.execute(prepared.bind())));
+  statement = prepared.bind();
+  ASSERT_EQ(CASS_OK, cass_statement_bind_int32(statement.get(), 0, 1));
+  const uint64_t before_ms = time_since_epoch_in_ms();
+  Result result = session_.execute(statement, false);
+  const uint64_t after_ms = time_since_epoch_in_ms();
+  ASSERT_NO_FATAL_FAILURE(assert_now_result(result, before_ms, after_ms));
 }
