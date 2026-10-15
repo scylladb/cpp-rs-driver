@@ -44,6 +44,7 @@ SCYLLA_TEST_FILTER := $(subst ${SPACE},${EMPTY},ClusterTests.*\
 :LatencyAwarePolicyTest.*\
 :LoggingTests.*\
 :PreparedMetadataTests.*\
+:SelectWithoutFromTests.*\
 :UseKeyspaceCaseSensitiveTests.*\
 :ServerSideFailureTests.*\
 :ServerSideFailureThreeNodeTests.*\
@@ -102,6 +103,7 @@ CASSANDRA_TEST_FILTER := $(subst ${SPACE},${EMPTY},ClusterTests.*\
 :LatencyAwarePolicyTest.*\
 :LoggingTests.*\
 :PreparedMetadataTests.*\
+:SelectWithoutFromTests.*\
 :UseKeyspaceCaseSensitiveTests.*\
 :ServerSideFailureTests.*\
 :ServerSideFailureThreeNodeTests.*\
