@@ -8,7 +8,9 @@
 
 use scylla_ccm_bridge::CLUSTER_VERSION;
 
+mod data_types;
 mod tls;
+mod vector_nesting;
 
 /// Returns whether `version` is a *partial* (not fully-qualified) `scylla-ccm`
 /// cluster version, i.e. one that ccm cannot resolve to an install directory
