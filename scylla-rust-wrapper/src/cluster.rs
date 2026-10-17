@@ -20,7 +20,9 @@ use crate::types::*;
 use openssl::ssl::SslContextBuilder;
 use openssl_sys::SSL_CTX_up_ref;
 use rand::seq::SliceRandom;
+use scylla::authentication::PlainTextAuthenticator;
 use scylla::client::execution_profile::ExecutionProfileBuilder;
+use scylla::client::session::SessionConfig;
 use scylla::client::session_builder::SessionBuilder;
 use scylla::client::{PoolSize, SelfIdentity, WriteCoalescingDelay};
 use scylla::frame::Compression;
@@ -189,10 +191,10 @@ impl FFI for CassCluster {
 impl CassCluster {
     // We want to make sure that the returned future does not depend
     // on the provided &CassCluster, hence the `static here.
-    pub(crate) fn build_session_builder(&self) -> impl Future<Output = SessionBuilder> + 'static {
+    pub(crate) fn build_session_config(&self) -> impl Future<Output = SessionConfig> + 'static {
         let mut execution_profile_builder = self.default_execution_profile_builder.clone();
         let load_balancing_config = self.load_balancing_config.clone();
-        let mut session_builder = self.session_builder.clone();
+        let mut session_config = self.session_builder.config.clone();
         let known_nodes = self
             .contact_points
             .iter()
@@ -200,21 +202,25 @@ impl CassCluster {
         if self.shuffle_contact_points {
             let mut collected_contact_points = known_nodes.collect::<Vec<_>>();
             collected_contact_points.shuffle(&mut rand::rng());
-            session_builder = session_builder.known_nodes(collected_contact_points);
+            session_config.add_known_nodes(collected_contact_points);
         } else {
-            session_builder = session_builder.known_nodes(known_nodes);
+            session_config.add_known_nodes(known_nodes);
         }
 
         if let (Some(username), Some(password)) = (&self.auth_username, &self.auth_password) {
-            session_builder = session_builder.user(username, password)
+            session_config.authenticator = Some(Arc::new(PlainTextAuthenticator::new(
+                username.clone(),
+                password.clone(),
+            )));
         }
 
         async move {
             let load_balancing = load_balancing_config.clone().build().await;
             execution_profile_builder =
                 execution_profile_builder.load_balancing_policy(load_balancing);
-            session_builder
-                .default_execution_profile_handle(execution_profile_builder.build().into_handle())
+            session_config.default_execution_profile_handle =
+                execution_profile_builder.build().into_handle();
+            session_config
         }
     }
 }
@@ -1839,11 +1845,8 @@ mod tests {
             let profile = BoxFFI::from_ptr(cass_execution_profile_new()).unwrap();
 
             let cluster = BoxFFI::as_ref(cluster_raw.borrow()).unwrap();
-            let session_builder = cluster.build_session_builder().await;
-            let default_profile = session_builder
-                .config
-                .default_execution_profile_handle
-                .to_profile();
+            let session_config = cluster.build_session_config().await;
+            let default_profile = session_config.default_execution_profile_handle.to_profile();
             let named_profile = profile.clone().build(&default_profile).await;
 
             // Explicit settings must survive building the session's default profile.
@@ -1856,11 +1859,8 @@ mod tests {
                 CassConsistency::CASS_CONSISTENCY_SERIAL,
             );
             let cluster = BoxFFI::from_ptr(cluster_raw).unwrap();
-            let session_builder = cluster.build_session_builder().await;
-            let overridden_profile = session_builder
-                .config
-                .default_execution_profile_handle
-                .to_profile();
+            let session_config = cluster.build_session_config().await;
+            let overridden_profile = session_config.default_execution_profile_handle.to_profile();
             let inherited_profile = profile.clone().build(&overridden_profile).await;
 
             assert_eq!(default_profile.get_consistency(), Consistency::LocalQuorum);

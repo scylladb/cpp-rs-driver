@@ -72,8 +72,7 @@ impl CassConnectedSession {
         cluster: &CassCluster,
         keyspace: Option<String>,
     ) -> CassOwnedSharedPtr<CassFuture, CMut> {
-        let session_builder = cluster.build_session_builder();
-        let session_config = async move { session_builder.await.config };
+        let session_config = cluster.build_session_config();
         let exec_profile_map = cluster.execution_profile_map().clone();
         let host_filter = cluster.build_host_filter();
         let cluster_client_id = cluster.get_client_id();
