@@ -449,6 +449,13 @@ pub unsafe extern "C" fn cass_cluster_add_client_routes_proxy_n(
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
+    // Session::connect rejects this combination too. Reject it here as well,
+    // so that the error is reported where the user made it.
+    if cluster.session_config.tls_context.is_some() {
+        tracing::error!("Client Routes is not supported together with TLS!");
+        return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+    }
+
     let connection_id = match unsafe { connection_id.to_str(connection_id_length) } {
         Ok("") => {
             tracing::error!("Provided empty Client Routes connection ID!");
@@ -1468,6 +1475,14 @@ pub unsafe extern "C" fn cass_cluster_set_ssl(
     // Reference count is increased as tokio_openssl will try to free `ssl_context` when calling `SSL_free`.
     unsafe { SSL_CTX_up_ref(cass_ssl.ssl_context) };
 
+    // This function cannot return an error. Session::connect rejects the
+    // configuration later.
+    if !cluster_from_raw.client_routes_proxies.is_empty() {
+        tracing::error!(
+            "TLS is not supported together with Client Routes! The session connection will fail."
+        );
+    }
+
     cluster_from_raw.session_config.tls_context = Some(ssl_context_builder.build().into());
 }
 
@@ -2150,6 +2165,34 @@ mod tests {
             assert!(config.client_routes_config.is_some());
             assert!(!config.disallow_shard_aware_port);
 
+            cass_cluster_free(cluster_raw);
+        }
+    }
+
+    #[test]
+    fn test_client_routes_proxy_rejected_when_tls_is_set() {
+        setup_tracing();
+
+        unsafe {
+            let mut cluster_raw = cass_cluster_new();
+            let ssl = cass_ssl_new();
+            cass_cluster_set_ssl(cluster_raw.borrow_mut(), ssl.borrow());
+
+            assert_cass_error_eq!(
+                cass_cluster_add_client_routes_proxy(
+                    cluster_raw.borrow_mut(),
+                    CassStrNulTerminated::from_cstr(c"connection-id"),
+                    CassStrNulTerminated::from_raw(std::ptr::null()),
+                ),
+                CassError::CASS_ERROR_LIB_BAD_PARAMS
+            );
+
+            let cluster = BoxFFI::as_ref(cluster_raw.borrow()).unwrap();
+            assert!(cluster.client_routes_proxies.is_empty());
+            assert!(cluster.session_config.client_routes_config.is_none());
+            assert!(!cluster.session_config.disallow_shard_aware_port);
+
+            cass_ssl_free(ssl);
             cass_cluster_free(cluster_raw);
         }
     }

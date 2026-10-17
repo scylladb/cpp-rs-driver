@@ -1751,8 +1751,9 @@ cass_cluster_set_contact_points_n(CassCluster* cluster,
  * NULL or an empty string uses the table value.
  *
  * Mixed direct and routed topologies are not supported. TLS is not supported
- * in Client Routes mode; configuring TLS causes the asynchronous session
- * connection to fail. Other supported cluster
+ * in Client Routes mode. If TLS is already configured, this function fails
+ * with CASS_ERROR_LIB_BAD_PARAMS. If TLS is configured after this function,
+ * the asynchronous session connection fails. Other supported cluster
  * settings, including authentication, compression, execution profiles, and
  * timeouts, remain usable.
  *
@@ -1882,6 +1883,9 @@ CassError cass_cluster_set_local_port_range(CassCluster* cluster,
 
 /**
  * Sets the SSL context and enables SSL.
+ *
+ * SSL is not supported in Client Routes mode. If a Client Routes proxy is
+ * configured, the asynchronous session connection fails.
  *
  * @public @memberof CassCluster
  *
