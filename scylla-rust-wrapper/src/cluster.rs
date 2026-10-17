@@ -23,7 +23,6 @@ use rand::seq::SliceRandom;
 use scylla::authentication::PlainTextAuthenticator;
 use scylla::client::execution_profile::ExecutionProfileBuilder;
 use scylla::client::session::SessionConfig;
-use scylla::client::session_builder::SessionBuilder;
 use scylla::client::{PoolSize, SelfIdentity, WriteCoalescingDelay};
 use scylla::frame::Compression;
 use scylla::policies::host_filter::HostFilter;
@@ -102,7 +101,7 @@ pub struct CassCluster {
     /// If not set, the default tokio runtime is used.
     num_threads_io: Option<usize>,
 
-    session_builder: SessionBuilder,
+    session_config: SessionConfig,
     default_execution_profile_builder: ExecutionProfileBuilder,
     execution_profile_map: HashMap<ExecProfileName, CassExecProfile>,
 
@@ -170,7 +169,7 @@ impl CassCluster {
 impl CassCluster {
     #[inline]
     pub(crate) fn get_session_config(&self) -> &scylla::client::session::SessionConfig {
-        &self.session_builder.config
+        &self.session_config
     }
 
     #[inline]
@@ -194,7 +193,7 @@ impl CassCluster {
     pub(crate) fn build_session_config(&self) -> impl Future<Output = SessionConfig> + 'static {
         let mut execution_profile_builder = self.default_execution_profile_builder.clone();
         let load_balancing_config = self.load_balancing_config.clone();
-        let mut session_config = self.session_builder.config.clone();
+        let mut session_config = self.session_config.clone();
         let known_nodes = self
             .contact_points
             .iter()
@@ -335,35 +334,37 @@ pub unsafe extern "C" fn cass_cluster_new() -> CassOwnedExclusivePtr<CassCluster
      *  }
      * ```
      */
-    let default_session_builder = {
+    let default_session_config = {
+        let mut config = SessionConfig::new();
+
         // Set DRIVER_NAME and DRIVER_VERSION of CPP RS Driver.
-        let custom_identity = SelfIdentity::new()
+        config.identity = SelfIdentity::new()
             .with_custom_driver_name(DRIVER_NAME)
             .with_custom_driver_version(DRIVER_VERSION);
 
-        SessionBuilder::new()
-            .custom_identity(custom_identity)
-            .fetch_schema_metadata(DEFAULT_DO_FETCH_SCHEMA_METADATA)
-            .schema_agreement_timeout(DEFAULT_MAX_SCHEMA_WAIT_TIME)
-            .schema_agreement_interval(DEFAULT_SCHEMA_AGREEMENT_INTERVAL)
-            .tcp_nodelay(DEFAULT_SET_TCP_NO_DELAY)
-            .tcp_keepalive_interval(DEFAULT_TCP_KEEPALIVE_INTERVAL)
-            .connection_timeout(DEFAULT_CONNECT_TIMEOUT)
-            .pool_size(DEFAULT_CONNECTION_POOL_SIZE)
-            .write_coalescing(DEFAULT_ENABLE_WRITE_COALESCING)
-            .write_coalescing_delay(DEFAULT_WRITE_COALESCING_DELAY)
-            .keepalive_interval(DEFAULT_KEEPALIVE_INTERVAL)
-            .keepalive_timeout(DEFAULT_KEEPALIVE_TIMEOUT)
-            .local_ip_address(DEFAULT_LOCAL_IP_ADDRESS)
-            .shard_aware_local_port_range(DEFAULT_SHARD_AWARE_LOCAL_PORT_RANGE)
-            .timestamp_generator(Arc::new(MonotonicTimestampGenerator::new()))
-            .hostname_resolution_timeout(Some(DEFAULT_DNS_RESOLVE_TIMEOUT))
+        config.fetch_schema_metadata = DEFAULT_DO_FETCH_SCHEMA_METADATA;
+        config.schema_agreement_timeout = DEFAULT_MAX_SCHEMA_WAIT_TIME;
+        config.schema_agreement_interval = DEFAULT_SCHEMA_AGREEMENT_INTERVAL;
+        config.tcp_nodelay = DEFAULT_SET_TCP_NO_DELAY;
+        config.tcp_keepalive_interval = Some(DEFAULT_TCP_KEEPALIVE_INTERVAL);
+        config.connect_timeout = DEFAULT_CONNECT_TIMEOUT;
+        config.connection_pool_size = DEFAULT_CONNECTION_POOL_SIZE;
+        config.enable_write_coalescing = DEFAULT_ENABLE_WRITE_COALESCING;
+        config.write_coalescing_delay = DEFAULT_WRITE_COALESCING_DELAY;
+        config.keepalive_interval = Some(DEFAULT_KEEPALIVE_INTERVAL);
+        config.keepalive_timeout = Some(DEFAULT_KEEPALIVE_TIMEOUT);
+        config.local_ip_address = DEFAULT_LOCAL_IP_ADDRESS;
+        config.shard_aware_local_port_range = DEFAULT_SHARD_AWARE_LOCAL_PORT_RANGE;
+        config.timestamp_generator = Some(Arc::new(MonotonicTimestampGenerator::new()));
+        config.hostname_resolution_timeout = Some(DEFAULT_DNS_RESOLVE_TIMEOUT);
+
+        config
     };
 
     BoxFFI::into_ptr(Box::new(CassCluster {
         num_threads_io: None,
 
-        session_builder: default_session_builder,
+        session_config: default_session_config,
         port: 9042,
         contact_points: Vec::new(),
         // Per DataStax documentation: Without additional configuration the C/C++ driver
@@ -505,8 +506,7 @@ pub unsafe extern "C" fn cass_cluster_set_application_name_n(
     };
 
     cluster
-        .session_builder
-        .config
+        .session_config
         .identity
         .set_application_name(app_name)
 }
@@ -547,8 +547,7 @@ pub unsafe extern "C" fn cass_cluster_set_application_version_n(
     };
 
     cluster
-        .session_builder
-        .config
+        .session_config
         .identity
         .set_application_version(app_version);
 }
@@ -568,8 +567,7 @@ pub unsafe extern "C" fn cass_cluster_set_client_id(
 
     cluster.client_id = Some(client_uuid);
     cluster
-        .session_builder
-        .config
+        .session_config
         .identity
         .set_client_id(client_uuid_str)
 }
@@ -584,7 +582,7 @@ pub unsafe extern "C" fn cass_cluster_set_use_schema(
         return;
     };
 
-    cluster.session_builder.config.fetch_schema_metadata = enabled != 0;
+    cluster.session_config.fetch_schema_metadata = enabled != 0;
 }
 
 #[unsafe(no_mangle)]
@@ -612,7 +610,7 @@ pub unsafe extern "C" fn cass_cluster_set_tcp_nodelay(
         return;
     };
 
-    cluster.session_builder.config.tcp_nodelay = enabled != 0;
+    cluster.session_config.tcp_nodelay = enabled != 0;
 }
 
 #[unsafe(no_mangle)]
@@ -629,7 +627,7 @@ pub unsafe extern "C" fn cass_cluster_set_tcp_keepalive(
     let enabled = enabled != 0;
     let tcp_keepalive_interval = enabled.then(|| Duration::from_secs(delay_secs as u64));
 
-    cluster.session_builder.config.tcp_keepalive_interval = tcp_keepalive_interval;
+    cluster.session_config.tcp_keepalive_interval = tcp_keepalive_interval;
 }
 
 #[unsafe(no_mangle)]
@@ -656,7 +654,7 @@ pub unsafe extern "C" fn cass_cluster_set_timestamp_gen(
         }
     };
 
-    cluster.session_builder.config.timestamp_generator = rust_timestamp_gen;
+    cluster.session_config.timestamp_generator = rust_timestamp_gen;
 }
 
 #[unsafe(no_mangle)]
@@ -673,7 +671,7 @@ pub unsafe extern "C" fn cass_cluster_set_connection_heartbeat_interval(
 
     let keepalive_interval = (interval_secs > 0).then(|| Duration::from_secs(interval_secs as u64));
 
-    cluster.session_builder.config.keepalive_interval = keepalive_interval;
+    cluster.session_config.keepalive_interval = keepalive_interval;
 }
 
 #[unsafe(no_mangle)]
@@ -690,7 +688,7 @@ pub unsafe extern "C" fn cass_cluster_set_connection_idle_timeout(
 
     let keepalive_timeout = (timeout_secs > 0).then(|| Duration::from_secs(timeout_secs as u64));
 
-    cluster.session_builder.config.keepalive_timeout = keepalive_timeout;
+    cluster.session_config.keepalive_timeout = keepalive_timeout;
 }
 
 #[unsafe(no_mangle)]
@@ -703,7 +701,7 @@ pub unsafe extern "C" fn cass_cluster_set_connect_timeout(
         return;
     };
 
-    cluster.session_builder.config.connect_timeout = Duration::from_millis(timeout_ms.into());
+    cluster.session_config.connect_timeout = Duration::from_millis(timeout_ms.into());
 }
 
 #[unsafe(no_mangle)]
@@ -720,7 +718,7 @@ pub unsafe extern "C" fn cass_cluster_set_core_connections_per_host(
 
     match NonZeroUsize::new(num_connections as usize) {
         Some(non_zero_conns) => {
-            cluster.session_builder.config.connection_pool_size = PoolSize::PerHost(non_zero_conns);
+            cluster.session_config.connection_pool_size = PoolSize::PerHost(non_zero_conns);
             CassError::CASS_OK
         }
         None => {
@@ -746,8 +744,7 @@ pub unsafe extern "C" fn cass_cluster_set_core_connections_per_shard(
 
     match NonZeroUsize::new(num_connections as usize) {
         Some(non_zero_conns) => {
-            cluster.session_builder.config.connection_pool_size =
-                PoolSize::PerShard(non_zero_conns);
+            cluster.session_config.connection_pool_size = PoolSize::PerShard(non_zero_conns);
             CassError::CASS_OK
         }
         None => {
@@ -784,10 +781,10 @@ pub unsafe extern "C" fn cass_cluster_set_coalesce_delay(
 
     match delay {
         Some(d) => {
-            cluster.session_builder.config.enable_write_coalescing = true;
-            cluster.session_builder.config.write_coalescing_delay = d;
+            cluster.session_config.enable_write_coalescing = true;
+            cluster.session_config.write_coalescing_delay = d;
         }
-        None => cluster.session_builder.config.enable_write_coalescing = false,
+        None => cluster.session_config.enable_write_coalescing = false,
     }
 
     CassError::CASS_OK
@@ -820,7 +817,7 @@ pub unsafe extern "C" fn cass_cluster_set_resolve_timeout(
     };
 
     // This matches cpp-driver behavior, as it also disables the timeout if value is 0.
-    cluster.session_builder.config.hostname_resolution_timeout =
+    cluster.session_config.hostname_resolution_timeout =
         (timeout_ms > 0).then(|| Duration::from_millis(timeout_ms.into()))
 }
 
@@ -834,8 +831,7 @@ pub unsafe extern "C" fn cass_cluster_set_max_schema_wait_time(
         return;
     };
 
-    cluster.session_builder.config.schema_agreement_timeout =
-        Duration::from_millis(wait_time_ms.into());
+    cluster.session_config.schema_agreement_timeout = Duration::from_millis(wait_time_ms.into());
 }
 
 #[unsafe(no_mangle)]
@@ -850,8 +846,7 @@ pub unsafe extern "C" fn cass_cluster_set_schema_agreement_interval(
         return;
     };
 
-    cluster.session_builder.config.schema_agreement_interval =
-        Duration::from_millis(interval_ms.into());
+    cluster.session_config.schema_agreement_interval = Duration::from_millis(interval_ms.into());
 }
 
 #[unsafe(no_mangle)]
@@ -914,7 +909,7 @@ pub unsafe extern "C" fn cass_cluster_set_local_address_n(
         }
     };
 
-    cluster.session_builder.config.local_ip_address = local_addr;
+    cluster.session_config.local_ip_address = local_addr;
 
     CassError::CASS_OK
 }
@@ -955,7 +950,7 @@ pub unsafe extern "C" fn cass_cluster_set_local_port_range(
         }
     };
 
-    cluster.session_builder.config.shard_aware_local_port_range = range;
+    cluster.session_config.shard_aware_local_port_range = range;
 
     CassError::CASS_OK
 }
@@ -1369,7 +1364,7 @@ pub unsafe extern "C" fn cass_cluster_set_ssl(
     // Reference count is increased as tokio_openssl will try to free `ssl_context` when calling `SSL_free`.
     unsafe { SSL_CTX_up_ref(cass_ssl.ssl_context) };
 
-    cluster_from_raw.session_builder.config.tls_context = Some(ssl_context_builder.build().into());
+    cluster_from_raw.session_config.tls_context = Some(ssl_context_builder.build().into());
 }
 
 #[unsafe(no_mangle)]
@@ -1389,7 +1384,7 @@ pub unsafe extern "C" fn cass_cluster_set_compression(
         _ => None,
     };
 
-    cluster_from_raw.session_builder.config.compression = compression;
+    cluster_from_raw.session_config.compression = compression;
 }
 
 #[unsafe(no_mangle)]
@@ -1719,7 +1714,7 @@ pub unsafe extern "C" fn cass_cluster_set_constant_reconnect(
         return;
     };
 
-    cluster.session_builder.config.reconnect_policy = Arc::new(ConstantReconnectPolicy::new(
+    cluster.session_config.reconnect_policy = Arc::new(ConstantReconnectPolicy::new(
         Duration::from_millis(wait_time_ms),
     ))
 }
@@ -1750,7 +1745,7 @@ pub unsafe extern "C" fn cass_cluster_set_exponential_reconnect(
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     }
 
-    cluster.session_builder.config.reconnect_policy =
+    cluster.session_config.reconnect_policy =
         Arc::new(ExponentialReconnectPolicy::new().with_backoff_limits(
             Duration::from_millis(base_delay_ms),
             Duration::from_millis(max_delay_ms),
@@ -1789,8 +1784,7 @@ pub unsafe extern "C" fn cass_cluster_set_metadata_request_serverside_timeout(
     let metadata_request_timeout = (timeout_ms > 0).then(|| Duration::from_millis(timeout_ms));
 
     cluster_from_raw
-        .session_builder
-        .config
+        .session_config
         .metadata_request_serverside_timeout = metadata_request_timeout;
 }
 
@@ -1807,7 +1801,7 @@ pub unsafe extern "C" fn cass_cluster_set_host_listener_callback(
         return CassError::CASS_ERROR_LIB_BAD_PARAMS;
     };
 
-    cluster.session_builder.config.host_listener = callback
+    cluster.session_config.host_listener = callback
         .map(|cb| Arc::new(CCallbackBasedHostListener::new(cb, data)) as Arc<dyn HostListener>);
 
     CassError::CASS_OK
@@ -1901,7 +1895,7 @@ mod tests {
             // Check default address
             {
                 let cluster = BoxFFI::as_ref(cluster_raw.borrow()).unwrap();
-                assert!(cluster.session_builder.config.local_ip_address.is_none());
+                assert!(cluster.session_config.local_ip_address.is_none());
             }
 
             // null ip pointer
@@ -1915,7 +1909,7 @@ mod tests {
                 );
 
                 let cluster = BoxFFI::as_ref(cluster_raw.borrow()).unwrap();
-                assert!(cluster.session_builder.config.local_ip_address.is_none());
+                assert!(cluster.session_config.local_ip_address.is_none());
             }
 
             // empty string
@@ -1929,7 +1923,7 @@ mod tests {
                 );
 
                 let cluster = BoxFFI::as_ref(cluster_raw.borrow()).unwrap();
-                assert!(cluster.session_builder.config.local_ip_address.is_none());
+                assert!(cluster.session_config.local_ip_address.is_none());
             }
 
             // valid ipv4 address
@@ -1944,7 +1938,7 @@ mod tests {
 
                 let cluster = BoxFFI::as_ref(cluster_raw.borrow()).unwrap();
                 assert_eq!(
-                    cluster.session_builder.config.local_ip_address,
+                    cluster.session_config.local_ip_address,
                     Some(Ipv4Addr::new(1, 2, 3, 4).into())
                 );
             }
@@ -1961,7 +1955,7 @@ mod tests {
 
                 let cluster = BoxFFI::as_ref(cluster_raw.borrow()).unwrap();
                 assert_eq!(
-                    cluster.session_builder.config.local_ip_address,
+                    cluster.session_config.local_ip_address,
                     Some(Ipv6Addr::new(0x2001, 0x0db8, 0, 0, 0, 0x8a2e, 0x0370, 0x7334,).into())
                 );
             }
@@ -2088,9 +2082,9 @@ mod tests {
             // Check the defaults
             {
                 let cluster = BoxFFI::as_ref(cluster_raw.borrow()).unwrap();
-                assert!(cluster.session_builder.config.enable_write_coalescing);
+                assert!(cluster.session_config.enable_write_coalescing);
                 assert_eq!(
-                    DelayEqWrapper(&cluster.session_builder.config.write_coalescing_delay),
+                    DelayEqWrapper(&cluster.session_config.write_coalescing_delay),
                     DelayEqWrapper(&WriteCoalescingDelay::SmallNondeterministic)
                 );
             }
@@ -2111,7 +2105,7 @@ mod tests {
                 );
 
                 let cluster = BoxFFI::as_ref(cluster_raw.borrow()).unwrap();
-                assert!(!cluster.session_builder.config.enable_write_coalescing);
+                assert!(!cluster.session_config.enable_write_coalescing);
             }
 
             // Provide sub-millisecond delay
@@ -2122,9 +2116,9 @@ mod tests {
                 );
 
                 let cluster = BoxFFI::as_ref(cluster_raw.borrow()).unwrap();
-                assert!(cluster.session_builder.config.enable_write_coalescing);
+                assert!(cluster.session_config.enable_write_coalescing);
                 assert_eq!(
-                    DelayEqWrapper(&cluster.session_builder.config.write_coalescing_delay),
+                    DelayEqWrapper(&cluster.session_config.write_coalescing_delay),
                     DelayEqWrapper(&WriteCoalescingDelay::SmallNondeterministic)
                 );
             }
@@ -2137,9 +2131,9 @@ mod tests {
                 );
 
                 let cluster = BoxFFI::as_ref(cluster_raw.borrow()).unwrap();
-                assert!(cluster.session_builder.config.enable_write_coalescing);
+                assert!(cluster.session_config.enable_write_coalescing);
                 assert_eq!(
-                    DelayEqWrapper(&cluster.session_builder.config.write_coalescing_delay),
+                    DelayEqWrapper(&cluster.session_config.write_coalescing_delay),
                     DelayEqWrapper(&WriteCoalescingDelay::Milliseconds(
                         NonZero::new(1).unwrap()
                     ))
@@ -2154,9 +2148,9 @@ mod tests {
                 );
 
                 let cluster = BoxFFI::as_ref(cluster_raw.borrow()).unwrap();
-                assert!(cluster.session_builder.config.enable_write_coalescing);
+                assert!(cluster.session_config.enable_write_coalescing);
                 assert_eq!(
-                    DelayEqWrapper(&cluster.session_builder.config.write_coalescing_delay),
+                    DelayEqWrapper(&cluster.session_config.write_coalescing_delay),
                     DelayEqWrapper(&WriteCoalescingDelay::Milliseconds(
                         NonZero::new(2).unwrap()
                     ))
