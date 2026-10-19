@@ -205,8 +205,12 @@ CASSANDRA_INTEGRATION_TEST_F(DcAwarePolicyTest, AllowRemoteDcsForLocalCl) {
     validate_with_statement(statement_with_local_consistency, false, false);
 
     // Stop the whole local DC.
-    stop_node(1, true);
-    stop_node(2, true);
+    // Stop gently: the nodes then announce the shutdown through gossip.
+    // A kill would let the remote coordinators still consider the dead
+    // nodes alive for a while. A CL=TWO read could then pick a dead
+    // replica and time out.
+    stop_node(1);
+    stop_node(2);
 
     std::cerr << "Running nonlocal statement with local DC unavailable" << std::endl;
     // With local DC unavailable, remote DC available and nonlocal consistency used, remote hosts should be used and the request should succeed.
