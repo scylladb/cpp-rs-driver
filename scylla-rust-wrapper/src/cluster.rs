@@ -569,6 +569,21 @@ pub unsafe extern "C" fn cass_cluster_set_client_id(
 }
 
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn cass_cluster_set_driver_config_reporting(
+    cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
+    enabled: cass_bool_t,
+) {
+    let Some(cluster) = BoxFFI::as_mut_ref(cluster_raw) else {
+        tracing::error!(
+            "Provided null cluster pointer to cass_cluster_set_driver_config_reporting!"
+        );
+        return;
+    };
+
+    cluster.session_builder.config.driver_config_reporting = enabled != 0;
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn cass_cluster_set_use_schema(
     cluster_raw: CassBorrowedExclusivePtr<CassCluster, CMut>,
     enabled: cass_bool_t,
@@ -1824,6 +1839,26 @@ mod tests {
         convert::{TryFrom, TryInto},
         os::raw::c_char,
     };
+
+    #[test]
+    fn test_driver_config_reporting() {
+        unsafe {
+            let mut cluster_raw = cass_cluster_new();
+
+            let cluster = BoxFFI::as_ref(cluster_raw.borrow()).unwrap();
+            assert!(cluster.session_builder.config.driver_config_reporting);
+
+            cass_cluster_set_driver_config_reporting(cluster_raw.borrow_mut(), cass_false);
+            let cluster = BoxFFI::as_ref(cluster_raw.borrow()).unwrap();
+            assert!(!cluster.session_builder.config.driver_config_reporting);
+
+            cass_cluster_set_driver_config_reporting(cluster_raw.borrow_mut(), cass_true);
+            let cluster = BoxFFI::as_ref(cluster_raw.borrow()).unwrap();
+            assert!(cluster.session_builder.config.driver_config_reporting);
+
+            cass_cluster_free(cluster_raw);
+        }
+    }
 
     #[test]
     fn test_local_ip_address() {
