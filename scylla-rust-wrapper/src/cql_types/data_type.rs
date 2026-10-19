@@ -89,6 +89,22 @@ fn any_string_empty_or_both_equal(s1: &str, s2: &str) -> bool {
     s1.is_empty() || s2.is_empty() || s1 == s2
 }
 
+/// Compares two scalar value types for the purpose of a typecheck.
+fn value_types_equal(t1: CassValueType, t2: CassValueType) -> bool {
+    use CassValueType as V;
+    match (t1, t2) {
+        // `CASS_VALUE_TYPE_TEXT` and `CASS_VALUE_TYPE_VARCHAR` both denote the CQL
+        // `text` type. The protocol has a single representation of it, which
+        // rust-driver models as [`NativeType::Text`], and which we map back to
+        // `CASS_VALUE_TYPE_VARCHAR`. A data type that the user built with
+        // `CASS_VALUE_TYPE_TEXT` thus has to compare equal to one that was built
+        // from result metadata.
+        (V::CASS_VALUE_TYPE_TEXT, V::CASS_VALUE_TYPE_VARCHAR)
+        | (V::CASS_VALUE_TYPE_VARCHAR, V::CASS_VALUE_TYPE_TEXT) => true,
+        (t1, t2) => t1 == t2,
+    }
+}
+
 impl Default for UdtDataType {
     fn default() -> Self {
         Self::new()
@@ -143,7 +159,7 @@ impl CassDataTypeInner {
     /// This takes into account the fact that tuples/collections may be untyped.
     pub(crate) fn typecheck_equals(&self, other: &CassDataTypeInner) -> bool {
         match self {
-            CassDataTypeInner::Value(t) => *t == other.get_value_type(),
+            CassDataTypeInner::Value(t) => value_types_equal(*t, other.get_value_type()),
             CassDataTypeInner::Udt(udt) => match other {
                 CassDataTypeInner::Udt(other_udt) => udt.typecheck_equals(other_udt),
                 _ => false,
@@ -955,5 +971,148 @@ pub(crate) fn make_batch_type(type_: CassBatchType) -> Result<BatchType, ()> {
         CassBatchType::CASS_BATCH_TYPE_UNLOGGED => Ok(BatchType::Unlogged),
         CassBatchType::CASS_BATCH_TYPE_COUNTER => Ok(BatchType::Counter),
         _ => Err(()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use scylla::cluster::metadata::{CollectionType, ColumnType, NativeType, UserDefinedType};
+
+    use super::*;
+
+    /// Builds the data type that a user gets from result metadata.
+    fn from_metadata(column_type: ColumnType) -> CassDataType {
+        get_column_type(&column_type)
+    }
+
+    /// Builds a data type the way a user would, with the C API.
+    fn user_built(inner: CassDataTypeInner) -> CassDataType {
+        CassDataType::new(inner)
+    }
+
+    fn value(value_type: CassValueType) -> Arc<CassDataType> {
+        Arc::new(CassDataType::new(CassDataTypeInner::Value(value_type)))
+    }
+
+    fn typechecks(user: &CassDataType, metadata: &CassDataType) -> bool {
+        unsafe {
+            user.get_unchecked()
+                .typecheck_equals(metadata.get_unchecked())
+        }
+    }
+
+    /// `CASS_VALUE_TYPE_TEXT` and `CASS_VALUE_TYPE_VARCHAR` denote the same CQL
+    /// type, so they have to typecheck against each other. Result metadata only
+    /// ever uses the latter.
+    #[test]
+    fn test_text_and_varchar_typecheck_equal() {
+        let text = user_built(CassDataTypeInner::Value(
+            CassValueType::CASS_VALUE_TYPE_TEXT,
+        ));
+        let varchar = from_metadata(ColumnType::Native(NativeType::Text));
+
+        assert!(typechecks(&text, &varchar));
+        assert!(typechecks(&varchar, &text));
+    }
+
+    /// Other value types must keep comparing unequal.
+    #[test]
+    fn test_distinct_value_types_do_not_typecheck_equal() {
+        for (t1, t2) in [
+            (
+                CassValueType::CASS_VALUE_TYPE_TEXT,
+                CassValueType::CASS_VALUE_TYPE_ASCII,
+            ),
+            (
+                CassValueType::CASS_VALUE_TYPE_VARCHAR,
+                CassValueType::CASS_VALUE_TYPE_BLOB,
+            ),
+            (
+                CassValueType::CASS_VALUE_TYPE_INT,
+                CassValueType::CASS_VALUE_TYPE_BIGINT,
+            ),
+        ] {
+            let d1 = user_built(CassDataTypeInner::Value(t1));
+            let d2 = user_built(CassDataTypeInner::Value(t2));
+            assert!(!typechecks(&d1, &d2), "{t1:?} must not equal {t2:?}");
+            assert!(!typechecks(&d2, &d1), "{t2:?} must not equal {t1:?}");
+        }
+    }
+
+    /// The same has to hold for a `text` nested in a container. A container
+    /// built with `cass_*_new_from_data_type()` is fully typed, so - unlike an
+    /// untyped one - its subtypes are really compared.
+    #[test]
+    fn test_text_typechecks_inside_containers() {
+        let text = || value(CassValueType::CASS_VALUE_TYPE_TEXT);
+        let metadata_text = || ColumnType::Native(NativeType::Text);
+
+        let cases: Vec<(&str, CassDataType, CassDataType)> = vec![
+            (
+                "list<text>",
+                user_built(CassDataTypeInner::List {
+                    typ: Some(text()),
+                    frozen: false,
+                }),
+                from_metadata(ColumnType::Collection {
+                    frozen: false,
+                    typ: CollectionType::List(Box::new(metadata_text())),
+                }),
+            ),
+            (
+                "set<text>",
+                user_built(CassDataTypeInner::Set {
+                    typ: Some(text()),
+                    frozen: false,
+                }),
+                from_metadata(ColumnType::Collection {
+                    frozen: false,
+                    typ: CollectionType::Set(Box::new(metadata_text())),
+                }),
+            ),
+            (
+                "map<text, text>",
+                user_built(CassDataTypeInner::Map {
+                    typ: MapDataType::KeyAndValue(text(), text()),
+                    frozen: false,
+                }),
+                from_metadata(ColumnType::Collection {
+                    frozen: false,
+                    typ: CollectionType::Map(Box::new(metadata_text()), Box::new(metadata_text())),
+                }),
+            ),
+            (
+                "tuple<text>",
+                user_built(CassDataTypeInner::Tuple(vec![text()])),
+                from_metadata(ColumnType::Tuple(vec![metadata_text()])),
+            ),
+            (
+                "udt with a text field",
+                user_built(CassDataTypeInner::Udt(UdtDataType {
+                    field_types: vec![("field".to_owned(), text())],
+                    keyspace: "ks".to_owned(),
+                    name: "udt".to_owned(),
+                    frozen: false,
+                })),
+                from_metadata(ColumnType::UserDefinedType {
+                    frozen: false,
+                    definition: Arc::new(UserDefinedType {
+                        name: "udt".into(),
+                        keyspace: "ks".into(),
+                        field_types: vec![("field".into(), metadata_text())],
+                    }),
+                }),
+            ),
+        ];
+
+        // Check every shape, so that a failure names all of the affected ones.
+        let failed: Vec<&str> = cases
+            .iter()
+            .filter(|(_, user, metadata)| !typechecks(user, metadata))
+            .map(|(name, _, _)| *name)
+            .collect();
+        assert!(failed.is_empty(), "failed to typecheck: {failed:?}");
     }
 }
