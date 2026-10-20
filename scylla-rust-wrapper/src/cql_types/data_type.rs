@@ -270,38 +270,40 @@ impl CassDataType {
     }
 }
 
-fn native_type_to_cass_value_type(native_type: &NativeType) -> CassValueType {
-    use NativeType::*;
-    match native_type {
-        Ascii => CassValueType::CASS_VALUE_TYPE_ASCII,
-        Boolean => CassValueType::CASS_VALUE_TYPE_BOOLEAN,
-        Blob => CassValueType::CASS_VALUE_TYPE_BLOB,
-        Counter => CassValueType::CASS_VALUE_TYPE_COUNTER,
-        Date => CassValueType::CASS_VALUE_TYPE_DATE,
-        Decimal => CassValueType::CASS_VALUE_TYPE_DECIMAL,
-        Double => CassValueType::CASS_VALUE_TYPE_DOUBLE,
-        Duration => CassValueType::CASS_VALUE_TYPE_DURATION,
-        Float => CassValueType::CASS_VALUE_TYPE_FLOAT,
-        Int => CassValueType::CASS_VALUE_TYPE_INT,
-        BigInt => CassValueType::CASS_VALUE_TYPE_BIGINT,
-        // Rust Driver unifies both VARCHAR and TEXT into NativeType::Text.
-        // CPP Driver, in accordance to the CQL protocol, has separate types for VARCHAR and TEXT.
-        // Even worse, Rust Driver even does not handle CQL TEXT correctly! It errors out on TEXT
-        // type...
-        // As the DBs (Cassandra and ScyllaDB) seem to send the VARCHAR type in the protocol,
-        // we will assume that the NativeType::Text is actually a VARCHAR type.
-        Text => CassValueType::CASS_VALUE_TYPE_VARCHAR,
-        Timestamp => CassValueType::CASS_VALUE_TYPE_TIMESTAMP,
-        Inet => CassValueType::CASS_VALUE_TYPE_INET,
-        SmallInt => CassValueType::CASS_VALUE_TYPE_SMALL_INT,
-        TinyInt => CassValueType::CASS_VALUE_TYPE_TINY_INT,
-        Time => CassValueType::CASS_VALUE_TYPE_TIME,
-        Timeuuid => CassValueType::CASS_VALUE_TYPE_TIMEUUID,
-        Uuid => CassValueType::CASS_VALUE_TYPE_UUID,
-        Varint => CassValueType::CASS_VALUE_TYPE_VARINT,
+impl From<&NativeType> for CassValueType {
+    fn from(native_type: &NativeType) -> Self {
+        use NativeType::*;
+        match native_type {
+            Ascii => CassValueType::CASS_VALUE_TYPE_ASCII,
+            Boolean => CassValueType::CASS_VALUE_TYPE_BOOLEAN,
+            Blob => CassValueType::CASS_VALUE_TYPE_BLOB,
+            Counter => CassValueType::CASS_VALUE_TYPE_COUNTER,
+            Date => CassValueType::CASS_VALUE_TYPE_DATE,
+            Decimal => CassValueType::CASS_VALUE_TYPE_DECIMAL,
+            Double => CassValueType::CASS_VALUE_TYPE_DOUBLE,
+            Duration => CassValueType::CASS_VALUE_TYPE_DURATION,
+            Float => CassValueType::CASS_VALUE_TYPE_FLOAT,
+            Int => CassValueType::CASS_VALUE_TYPE_INT,
+            BigInt => CassValueType::CASS_VALUE_TYPE_BIGINT,
+            // Rust Driver unifies both VARCHAR and TEXT into NativeType::Text.
+            // CPP Driver, in accordance to the CQL protocol, has separate types for VARCHAR and TEXT.
+            // Even worse, Rust Driver even does not handle CQL TEXT correctly! It errors out on TEXT
+            // type...
+            // As the DBs (Cassandra and ScyllaDB) seem to send the VARCHAR type in the protocol,
+            // we will assume that the NativeType::Text is actually a VARCHAR type.
+            Text => CassValueType::CASS_VALUE_TYPE_VARCHAR,
+            Timestamp => CassValueType::CASS_VALUE_TYPE_TIMESTAMP,
+            Inet => CassValueType::CASS_VALUE_TYPE_INET,
+            SmallInt => CassValueType::CASS_VALUE_TYPE_SMALL_INT,
+            TinyInt => CassValueType::CASS_VALUE_TYPE_TINY_INT,
+            Time => CassValueType::CASS_VALUE_TYPE_TIME,
+            Timeuuid => CassValueType::CASS_VALUE_TYPE_TIMEUUID,
+            Uuid => CassValueType::CASS_VALUE_TYPE_UUID,
+            Varint => CassValueType::CASS_VALUE_TYPE_VARINT,
 
-        // NativeType is non_exhaustive
-        _ => CassValueType::CASS_VALUE_TYPE_UNKNOWN,
+            // NativeType is non_exhaustive
+            _ => CassValueType::CASS_VALUE_TYPE_UNKNOWN,
+        }
     }
 }
 
@@ -400,7 +402,7 @@ pub(crate) fn get_column_type(column_type: &ColumnType) -> CassDataType {
     use CollectionType::*;
     use ColumnType::*;
     let inner = match column_type {
-        Native(native) => CassDataTypeInner::Value(native_type_to_cass_value_type(native)),
+        Native(native) => CassDataTypeInner::Value(native.into()),
         Collection {
             typ: List(boxed_type),
             frozen,
