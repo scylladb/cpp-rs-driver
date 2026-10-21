@@ -326,6 +326,16 @@ typedef struct CassCollection_ CassCollection;
 typedef struct CassTuple_ CassTuple;
 
 /**
+ * A fixed-size sequence of values of the same type.
+ *
+ * Note that a vector is not a CQL collection: its size is part of its type,
+ * its elements cannot be null, and it can only be updated as a whole.
+ *
+ * @struct CassVector
+ */
+typedef struct CassVector_ CassVector;
+
+/**
  * A user defined type.
  *
  * @struct CassUserType
@@ -7595,6 +7605,74 @@ CASS_EXPORT CassError
 cass_tuple_set_user_type(CassTuple* tuple,
                          size_t index,
                          const CassUserType* value);
+
+/***********************************************************************************
+ *
+ * Vector
+ *
+ ***********************************************************************************/
+
+/**
+ * Creates a new vector with elements of the given native type.
+ *
+ * Contrary to a collection or a tuple, a vector is always fully typed: the wire
+ * representation of its elements depends on their type, so the element type must
+ * be known upfront. For a vector whose elements are not of a native type (a UDT,
+ * a tuple, a collection or another vector), build the data type and use
+ * cass_vector_new_from_data_type() instead.
+ *
+ * Unlike tuple items, vector elements cannot be null, and there is no
+ * cass_vector_set_null(). Leaving any element unset results in an error.
+ *
+ * @public @memberof CassVector
+ *
+ * @param[in] element_type The value type of the vector's elements.
+ * @param[in] dimensions The number of elements of the vector, which must not
+ * be zero.
+ * @return Returns a vector that must be freed. NULL is returned if `element_type`
+ * is not a native value type or `dimensions` is zero.
+ *
+ * @see cass_vector_free()
+ */
+CASS_EXPORT CassVector*
+cass_vector_new(CassValueType element_type,
+                cass_uint16_t dimensions);
+
+/**
+ * Creates a new vector from an existing data type.
+ *
+ * @public @memberof CassVector
+ *
+ * @param[in] data_type
+ * @return Returns a vector that must be freed. NULL is returned if the data
+ * type is not a vector.
+ *
+ * @see cass_vector_free();
+ */
+CASS_EXPORT CassVector*
+cass_vector_new_from_data_type(const CassDataType* data_type);
+
+/**
+ * Frees a vector instance.
+ *
+ * @public @memberof CassVector
+ *
+ * @param[in] vector
+ */
+CASS_EXPORT void
+cass_vector_free(CassVector* vector);
+
+/**
+ * Gets the data type of a vector.
+ *
+ * @public @memberof CassVector
+ *
+ * @param[in] vector
+ * @return Returns a reference to the data type of the vector. Do not free
+ * this reference as it is bound to the lifetime of the vector.
+ */
+CASS_EXPORT const CassDataType*
+cass_vector_data_type(const CassVector* vector);
 
 /***********************************************************************************
  *
