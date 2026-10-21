@@ -560,6 +560,16 @@ typedef enum CassIndexType_ {
   CASS_INDEX_TYPE_COMPOSITES
 } CassIndexType;
 
+/* The numbers below are the option ids that the CQL protocol defines for the
+ * types it knows. The protocol has no option id for a vector: a vector column
+ * arrives as a custom type, named
+ * `org.apache.cassandra.db.marshal.VectorType(<element>, <dimensions>)`.
+ *
+ * CASS_VALUE_TYPE_VECTOR is therefore a driver-local number, not a protocol
+ * one. The driver never reads it from the wire and never writes it there. It
+ * is 0x0023 because that follows CASS_VALUE_TYPE_SET, which keeps the
+ * container types together.
+ */
 #define CASS_VALUE_TYPE_MAPPING(XX) \
   XX(CASS_VALUE_TYPE_CUSTOM,  0x0000, "", "") \
   XX(CASS_VALUE_TYPE_ASCII,  0x0001, "ascii", "org.apache.cassandra.db.marshal.AsciiType") \
@@ -586,6 +596,7 @@ typedef enum CassIndexType_ {
   XX(CASS_VALUE_TYPE_LIST,  0x0020, "list", "org.apache.cassandra.db.marshal.ListType") \
   XX(CASS_VALUE_TYPE_MAP,  0x0021, "map", "org.apache.cassandra.db.marshal.MapType") \
   XX(CASS_VALUE_TYPE_SET,  0x0022, "set", "org.apache.cassandra.db.marshal.SetType") \
+  XX(CASS_VALUE_TYPE_VECTOR,  0x0023, "vector", "org.apache.cassandra.db.marshal.VectorType") \
   XX(CASS_VALUE_TYPE_UDT,  0x0030, "", "") \
   XX(CASS_VALUE_TYPE_TUPLE,  0x0031, "tuple", "org.apache.cassandra.db.marshal.TupleType")
 
@@ -6494,6 +6505,51 @@ cass_data_type_new_tuple(size_t item_count);
  */
 CASS_EXPORT CassDataType*
 cass_data_type_new_udt(size_t field_count);
+
+/**
+ * Creates a new vector data type.
+ *
+ * Note that, unlike a collection or a tuple, a vector data type is always
+ * fully specified: both the element type and the number of dimensions are
+ * required upfront, and they cannot be changed afterwards. In particular,
+ * cass_data_type_add_sub_type() cannot be used with a vector data type.
+ *
+ * This extends to `element_type`, which must name all of its own sub-types.
+ * A collection without its element type, a map without its value type, or an
+ * empty tuple or UDT is rejected.
+ *
+ * The reason is the typecheck. A missing sub-type matches anything, so a
+ * vector of an untyped list would bind to a `vector<list<int>, N>` column and
+ * to a `vector<list<text>, N>` column alike, and cass_vector_set_collection()
+ * would accept any list. A collection can be built untyped, for compatibility
+ * with cpp-driver. A vector has no such legacy form, so it does not get one.
+ *
+ * @public @memberof CassDataType
+ *
+ * @param[in] element_type The type of the vector's elements
+ * @param[in] dimensions The number of elements of the vector, which must not
+ * be zero
+ * @return Returns a data type that must be freed. NULL is returned if
+ * `element_type` is NULL or not fully specified, or if `dimensions` is zero.
+ *
+ * @see cass_data_type_free()
+ */
+CASS_EXPORT CassDataType*
+cass_data_type_new_vector(const CassDataType* element_type,
+                          cass_uint16_t dimensions);
+
+/**
+ * Gets the number of dimensions of a vector data type.
+ *
+ * @public @memberof CassDataType
+ *
+ * @param[in] data_type
+ * @param[out] dimensions The number of elements of the vector
+ * @return CASS_OK if successful, otherwise an error occurred.
+ */
+CASS_EXPORT CassError
+cass_data_type_vector_dimensions(const CassDataType* data_type,
+                                 cass_uint16_t* dimensions);
 
 /**
  * Frees a data type instance.
