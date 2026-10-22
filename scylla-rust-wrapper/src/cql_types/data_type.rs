@@ -146,6 +146,15 @@ pub(crate) enum CassDataTypeInner {
     },
     // Empty vector stands for untyped tuple.
     Tuple(Vec<Arc<CassDataType>>),
+    /// A CQL vector: a fixed-size sequence of values of the same type.
+    ///
+    /// Notice that, contrary to collections and tuples, there is no untyped
+    /// vector: both the element type and the number of dimensions are part
+    /// of the type and are required upfront.
+    Vector {
+        typ: Arc<CassDataType>,
+        dimensions: u16,
+    },
     Custom(String),
 }
 
@@ -157,6 +166,53 @@ impl CassDataTypeInner {
     /// Checks for equality during typechecks.
     ///
     /// This takes into account the fact that tuples/collections may be untyped.
+    /// Returns whether this data type names all of its subtypes.
+    ///
+    /// A collection, a tuple or a UDT may be built without them, and
+    /// [`Self::typecheck_equals`] then treats the missing ones as wildcards.
+    /// That is harmless for those types: their wire representation does not
+    /// depend on the type of the values they hold. A vector is different -
+    /// its elements are written according to their type - so a wildcard in a
+    /// vector's element type could not be served.
+    pub(crate) fn is_fully_typed(&self) -> bool {
+        // SAFETY: the caller of a public API that reaches here holds the
+        // data type, and `CassDataType` is only mutated through the C API.
+        let sub_is_fully_typed =
+            |typ: &Arc<CassDataType>| unsafe { typ.get_unchecked() }.is_fully_typed();
+
+        match self {
+            CassDataTypeInner::Value(_) => true,
+            // A custom type is never fully typed, named or not. The driver has
+            // no representation of what is inside one, and `typecheck_equals()`
+            // cannot compare two of them. A name alone describes nothing.
+            CassDataTypeInner::Custom(_) => false,
+            CassDataTypeInner::List { typ, .. } | CassDataTypeInner::Set { typ, .. } => {
+                typ.as_ref().is_some_and(sub_is_fully_typed)
+            }
+            CassDataTypeInner::Map { typ, .. } => match typ {
+                // A map needs both its key and its value type.
+                MapDataType::Untyped | MapDataType::Key(_) => false,
+                MapDataType::KeyAndValue(key, value) => {
+                    sub_is_fully_typed(key) && sub_is_fully_typed(value)
+                }
+            },
+            // An empty tuple or UDT is the untyped one: `cass_data_type_new_tuple()`
+            // and `cass_data_type_new_udt()` only reserve capacity for the subtypes.
+            CassDataTypeInner::Tuple(subtypes) => {
+                !subtypes.is_empty() && subtypes.iter().all(sub_is_fully_typed)
+            }
+            CassDataTypeInner::Udt(udt) => {
+                !udt.field_types.is_empty()
+                    && udt
+                        .field_types
+                        .iter()
+                        .all(|(_, typ)| sub_is_fully_typed(typ))
+            }
+            // A vector is fully typed by construction, but recurse all the same.
+            CassDataTypeInner::Vector { typ, .. } => sub_is_fully_typed(typ),
+        }
+    }
+
     pub(crate) fn typecheck_equals(&self, other: &CassDataTypeInner) -> bool {
         match self {
             CassDataTypeInner::Value(t) => value_types_equal(*t, other.get_value_type()),
@@ -228,6 +284,24 @@ impl CassDataTypeInner {
                 }
                 _ => false,
             },
+            CassDataTypeInner::Vector {
+                typ,
+                dimensions: dims,
+            } => match other {
+                CassDataTypeInner::Vector {
+                    typ: other_typ,
+                    dimensions: other_dims,
+                } => {
+                    // Contrary to collections and tuples, vectors are always fully typed,
+                    // so there is no untyped case to skip the typecheck for.
+                    dims == other_dims
+                        && unsafe {
+                            typ.get_unchecked()
+                                .typecheck_equals(other_typ.get_unchecked())
+                        }
+                }
+                _ => false,
+            },
             CassDataTypeInner::Custom(_) => {
                 unimplemented!("cpp-rs-driver does not support custom types!")
             }
@@ -270,38 +344,78 @@ impl CassDataType {
     }
 }
 
-fn native_type_to_cass_value_type(native_type: &NativeType) -> CassValueType {
-    use NativeType::*;
-    match native_type {
-        Ascii => CassValueType::CASS_VALUE_TYPE_ASCII,
-        Boolean => CassValueType::CASS_VALUE_TYPE_BOOLEAN,
-        Blob => CassValueType::CASS_VALUE_TYPE_BLOB,
-        Counter => CassValueType::CASS_VALUE_TYPE_COUNTER,
-        Date => CassValueType::CASS_VALUE_TYPE_DATE,
-        Decimal => CassValueType::CASS_VALUE_TYPE_DECIMAL,
-        Double => CassValueType::CASS_VALUE_TYPE_DOUBLE,
-        Duration => CassValueType::CASS_VALUE_TYPE_DURATION,
-        Float => CassValueType::CASS_VALUE_TYPE_FLOAT,
-        Int => CassValueType::CASS_VALUE_TYPE_INT,
-        BigInt => CassValueType::CASS_VALUE_TYPE_BIGINT,
-        // Rust Driver unifies both VARCHAR and TEXT into NativeType::Text.
-        // CPP Driver, in accordance to the CQL protocol, has separate types for VARCHAR and TEXT.
-        // Even worse, Rust Driver even does not handle CQL TEXT correctly! It errors out on TEXT
-        // type...
-        // As the DBs (Cassandra and ScyllaDB) seem to send the VARCHAR type in the protocol,
-        // we will assume that the NativeType::Text is actually a VARCHAR type.
-        Text => CassValueType::CASS_VALUE_TYPE_VARCHAR,
-        Timestamp => CassValueType::CASS_VALUE_TYPE_TIMESTAMP,
-        Inet => CassValueType::CASS_VALUE_TYPE_INET,
-        SmallInt => CassValueType::CASS_VALUE_TYPE_SMALL_INT,
-        TinyInt => CassValueType::CASS_VALUE_TYPE_TINY_INT,
-        Time => CassValueType::CASS_VALUE_TYPE_TIME,
-        Timeuuid => CassValueType::CASS_VALUE_TYPE_TIMEUUID,
-        Uuid => CassValueType::CASS_VALUE_TYPE_UUID,
-        Varint => CassValueType::CASS_VALUE_TYPE_VARINT,
+impl From<&NativeType> for CassValueType {
+    fn from(native_type: &NativeType) -> Self {
+        use NativeType::*;
+        match native_type {
+            Ascii => CassValueType::CASS_VALUE_TYPE_ASCII,
+            Boolean => CassValueType::CASS_VALUE_TYPE_BOOLEAN,
+            Blob => CassValueType::CASS_VALUE_TYPE_BLOB,
+            Counter => CassValueType::CASS_VALUE_TYPE_COUNTER,
+            Date => CassValueType::CASS_VALUE_TYPE_DATE,
+            Decimal => CassValueType::CASS_VALUE_TYPE_DECIMAL,
+            Double => CassValueType::CASS_VALUE_TYPE_DOUBLE,
+            Duration => CassValueType::CASS_VALUE_TYPE_DURATION,
+            Float => CassValueType::CASS_VALUE_TYPE_FLOAT,
+            Int => CassValueType::CASS_VALUE_TYPE_INT,
+            BigInt => CassValueType::CASS_VALUE_TYPE_BIGINT,
+            // Rust Driver unifies both VARCHAR and TEXT into NativeType::Text.
+            // CPP Driver, in accordance to the CQL protocol, has separate types for VARCHAR and TEXT.
+            // Even worse, Rust Driver even does not handle CQL TEXT correctly! It errors out on TEXT
+            // type...
+            // As the DBs (Cassandra and ScyllaDB) seem to send the VARCHAR type in the protocol,
+            // we will assume that the NativeType::Text is actually a VARCHAR type.
+            Text => CassValueType::CASS_VALUE_TYPE_VARCHAR,
+            Timestamp => CassValueType::CASS_VALUE_TYPE_TIMESTAMP,
+            Inet => CassValueType::CASS_VALUE_TYPE_INET,
+            SmallInt => CassValueType::CASS_VALUE_TYPE_SMALL_INT,
+            TinyInt => CassValueType::CASS_VALUE_TYPE_TINY_INT,
+            Time => CassValueType::CASS_VALUE_TYPE_TIME,
+            Timeuuid => CassValueType::CASS_VALUE_TYPE_TIMEUUID,
+            Uuid => CassValueType::CASS_VALUE_TYPE_UUID,
+            Varint => CassValueType::CASS_VALUE_TYPE_VARINT,
 
-        // NativeType is non_exhaustive
-        _ => CassValueType::CASS_VALUE_TYPE_UNKNOWN,
+            // NativeType is non_exhaustive
+            _ => CassValueType::CASS_VALUE_TYPE_UNKNOWN,
+        }
+    }
+}
+
+/// The inverse of [`From<&NativeType> for CassValueType`].
+///
+/// The error carries nothing: the only way to fail is that the value type is
+/// not a native one, which the type of the conversion already says. A richer
+/// error type would have to be public, because [`NativeType`] is.
+impl TryFrom<CassValueType> for NativeType {
+    type Error = ();
+
+    fn try_from(value_type: CassValueType) -> Result<Self, Self::Error> {
+        use CassValueType as V;
+        let native_type = match value_type {
+            V::CASS_VALUE_TYPE_ASCII => NativeType::Ascii,
+            V::CASS_VALUE_TYPE_BIGINT => NativeType::BigInt,
+            V::CASS_VALUE_TYPE_BLOB => NativeType::Blob,
+            V::CASS_VALUE_TYPE_BOOLEAN => NativeType::Boolean,
+            V::CASS_VALUE_TYPE_COUNTER => NativeType::Counter,
+            V::CASS_VALUE_TYPE_DECIMAL => NativeType::Decimal,
+            V::CASS_VALUE_TYPE_DOUBLE => NativeType::Double,
+            V::CASS_VALUE_TYPE_DURATION => NativeType::Duration,
+            V::CASS_VALUE_TYPE_FLOAT => NativeType::Float,
+            V::CASS_VALUE_TYPE_INT => NativeType::Int,
+            V::CASS_VALUE_TYPE_TEXT | V::CASS_VALUE_TYPE_VARCHAR => NativeType::Text,
+            V::CASS_VALUE_TYPE_TIMESTAMP => NativeType::Timestamp,
+            V::CASS_VALUE_TYPE_UUID => NativeType::Uuid,
+            V::CASS_VALUE_TYPE_VARINT => NativeType::Varint,
+            V::CASS_VALUE_TYPE_TIMEUUID => NativeType::Timeuuid,
+            V::CASS_VALUE_TYPE_INET => NativeType::Inet,
+            V::CASS_VALUE_TYPE_DATE => NativeType::Date,
+            V::CASS_VALUE_TYPE_TIME => NativeType::Time,
+            V::CASS_VALUE_TYPE_SMALL_INT => NativeType::SmallInt,
+            V::CASS_VALUE_TYPE_TINY_INT => NativeType::TinyInt,
+            _ => return Err(()),
+        };
+
+        Ok(native_type)
     }
 }
 
@@ -331,6 +445,7 @@ impl CassDataTypeInner {
                 _ => None,
             },
             CassDataTypeInner::Tuple(v) => v.get(index),
+            CassDataTypeInner::Vector { typ, .. } => (index == 0).then_some(typ),
             _ => None,
         }
     }
@@ -383,6 +498,24 @@ impl CassDataTypeInner {
         }
     }
 
+    /// Whether a value of this type is prefixed with an unsigned vint length
+    /// when it is an element of a vector.
+    pub(crate) fn uses_variable_length_encoding_in_vector(&self) -> bool {
+        match self {
+            CassDataTypeInner::Value(value_type) => !NativeType::try_from(*value_type)
+                .is_ok_and(|native_type| native_type.type_size_for_vector().is_some()),
+            CassDataTypeInner::Vector { typ, .. } => {
+                unsafe { typ.get_unchecked() }.uses_variable_length_encoding_in_vector()
+            }
+            CassDataTypeInner::Udt(_)
+            | CassDataTypeInner::List { .. }
+            | CassDataTypeInner::Set { .. }
+            | CassDataTypeInner::Map { .. }
+            | CassDataTypeInner::Tuple(_)
+            | CassDataTypeInner::Custom(_) => true,
+        }
+    }
+
     pub(crate) fn get_value_type(&self) -> CassValueType {
         match &self {
             CassDataTypeInner::Value(value_data_type) => *value_data_type,
@@ -391,6 +524,7 @@ impl CassDataTypeInner {
             CassDataTypeInner::Set { .. } => CassValueType::CASS_VALUE_TYPE_SET,
             CassDataTypeInner::Map { .. } => CassValueType::CASS_VALUE_TYPE_MAP,
             CassDataTypeInner::Tuple(..) => CassValueType::CASS_VALUE_TYPE_TUPLE,
+            CassDataTypeInner::Vector { .. } => CassValueType::CASS_VALUE_TYPE_VECTOR,
             CassDataTypeInner::Custom(..) => CassValueType::CASS_VALUE_TYPE_CUSTOM,
         }
     }
@@ -400,7 +534,7 @@ pub(crate) fn get_column_type(column_type: &ColumnType) -> CassDataType {
     use CollectionType::*;
     use ColumnType::*;
     let inner = match column_type {
-        Native(native) => CassDataTypeInner::Value(native_type_to_cass_value_type(native)),
+        Native(native) => CassDataTypeInner::Value(native.into()),
         Collection {
             typ: List(boxed_type),
             frozen,
@@ -445,6 +579,10 @@ pub(crate) fn get_column_type(column_type: &ColumnType) -> CassDataType {
                 .map(|col_type| Arc::new(get_column_type(col_type)))
                 .collect(),
         ),
+        Vector { typ, dimensions } => CassDataTypeInner::Vector {
+            typ: Arc::new(get_column_type(typ.as_ref())),
+            dimensions: *dimensions,
+        },
 
         // ColumnType is non_exhaustive.
         _ => CassDataTypeInner::Value(CassValueType::CASS_VALUE_TYPE_UNKNOWN),
@@ -473,6 +611,9 @@ pub unsafe extern "C" fn cass_data_type_new(
         },
         CassValueType::CASS_VALUE_TYPE_UDT => CassDataTypeInner::Udt(UdtDataType::new()),
         CassValueType::CASS_VALUE_TYPE_CUSTOM => CassDataTypeInner::Custom("".to_string()),
+        // A vector cannot be created this way: both its element type and its number
+        // of dimensions are part of the type. Use `cass_data_type_new_vector` instead.
+        CassValueType::CASS_VALUE_TYPE_VECTOR => return ArcFFI::null(),
         CassValueType::CASS_VALUE_TYPE_UNKNOWN => return ArcFFI::null(),
         t if t < CassValueType::CASS_VALUE_TYPE_LAST_ENTRY => CassDataTypeInner::Value(t),
         _ => return ArcFFI::null(),
@@ -510,6 +651,56 @@ pub unsafe extern "C" fn cass_data_type_new_udt(
     ArcFFI::into_ptr(CassDataType::new_arced(CassDataTypeInner::Udt(
         UdtDataType::with_capacity(field_count as usize),
     )))
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cass_data_type_new_vector(
+    element_type: CassBorrowedSharedPtr<CassDataType, CConst>,
+    dimensions: cass_uint16_t,
+) -> CassOwnedSharedPtr<CassDataType, CMut> {
+    let Some(element_type) = ArcFFI::cloned_from_ptr(element_type) else {
+        tracing::error!("Provided null element type pointer to cass_data_type_new_vector!");
+        return ArcFFI::null();
+    };
+
+    // A missing subtype is a wildcard in `typecheck_equals()`. An element type
+    // that does not name its own subtypes would therefore let this vector bind
+    // to a column of any matching shape, and would make every setter skip the
+    // element check. A collection can be built untyped, for compatibility with
+    // cpp-driver. A vector has no such legacy form, so it does not get one.
+    if !unsafe { element_type.get_unchecked() }.is_fully_typed() {
+        tracing::error!("Provided a not fully typed element type to cass_data_type_new_vector!");
+        return ArcFFI::null();
+    }
+
+    if dimensions == 0 {
+        tracing::error!("Provided zero dimensions to cass_data_type_new_vector!");
+        return ArcFFI::null();
+    }
+
+    ArcFFI::into_ptr(CassDataType::new_arced(CassDataTypeInner::Vector {
+        typ: element_type,
+        dimensions,
+    }))
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cass_data_type_vector_dimensions(
+    data_type: CassBorrowedSharedPtr<CassDataType, CConst>,
+    dimensions: *mut cass_uint16_t,
+) -> CassError {
+    let Some(data_type) = ArcFFI::as_ref(data_type) else {
+        tracing::error!("Provided null data type pointer to cass_data_type_vector_dimensions!");
+        return CassError::CASS_ERROR_LIB_BAD_PARAMS;
+    };
+
+    match unsafe { data_type.get_unchecked() } {
+        CassDataTypeInner::Vector { dimensions: d, .. } => {
+            unsafe { std::ptr::write(dimensions, *d) };
+            CassError::CASS_OK
+        }
+        _ => CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE,
+    }
 }
 
 #[unsafe(no_mangle)]
@@ -754,6 +945,8 @@ pub unsafe extern "C" fn cass_data_type_sub_type_count(
             MapDataType::KeyAndValue(_, _) => 2,
         },
         CassDataTypeInner::Tuple(v) => v.len() as size_t,
+        // A vector has exactly one sub type: the type of its elements.
+        CassDataTypeInner::Vector { .. } => 1,
         CassDataTypeInner::Custom(..) => 0,
     }
 }
@@ -980,7 +1173,214 @@ mod tests {
 
     use scylla::cluster::metadata::{CollectionType, ColumnType, NativeType, UserDefinedType};
 
+    use crate::testing::utils::assert_cass_error_eq;
+
     use super::*;
+
+    /// The data type functions of a vector must reject a null pointer and an
+    /// invalid argument, instead of dereferencing or panicking.
+    #[test]
+    fn test_vector_data_type_api_rejects_invalid_arguments() {
+        unsafe {
+            let element = cass_data_type_new(CassValueType::CASS_VALUE_TYPE_FLOAT);
+
+            // A null element type.
+            let vector_type = cass_data_type_new_vector(ArcFFI::null(), 2);
+            assert!(ArcFFI::as_ref(vector_type.borrow().into_c_const()).is_none());
+
+            // No dimensions at all.
+            let vector_type = cass_data_type_new_vector(element.borrow().into_c_const(), 0);
+            assert!(ArcFFI::as_ref(vector_type.borrow().into_c_const()).is_none());
+
+            let mut dimensions: cass_uint16_t = 0;
+            // A null data type.
+            assert_eq!(
+                cass_data_type_vector_dimensions(ArcFFI::null(), &raw mut dimensions),
+                CassError::CASS_ERROR_LIB_BAD_PARAMS
+            );
+            // A data type that is not a vector.
+            assert_eq!(
+                cass_data_type_vector_dimensions(
+                    element.borrow().into_c_const(),
+                    &raw mut dimensions
+                ),
+                CassError::CASS_ERROR_LIB_INVALID_VALUE_TYPE
+            );
+
+            cass_data_type_free(element);
+        }
+    }
+
+    /// A vector data type answers the generic sub-type questions too, and it
+    /// does not typecheck equal to a type that is not a vector.
+    #[test]
+    fn test_vector_data_type_as_a_generic_data_type() {
+        unsafe {
+            let element = cass_data_type_new(CassValueType::CASS_VALUE_TYPE_FLOAT);
+            let vector_type = cass_data_type_new_vector(element.borrow().into_c_const(), 3);
+
+            assert_eq!(
+                cass_data_type_sub_type_count(vector_type.borrow().into_c_const()),
+                1
+            );
+            let sub = cass_data_type_sub_data_type(vector_type.borrow().into_c_const(), 0);
+            assert_eq!(
+                cass_data_type_type(sub),
+                CassValueType::CASS_VALUE_TYPE_FLOAT
+            );
+            // A vector has exactly one sub-type.
+            assert!(
+                ArcFFI::as_ref(cass_data_type_sub_data_type(
+                    vector_type.borrow().into_c_const(),
+                    1
+                ))
+                .is_none()
+            );
+
+            // A vector never typechecks equal to a type that is not a vector.
+            let vector = ArcFFI::as_ref(vector_type.borrow().into_c_const()).unwrap();
+            let other = ArcFFI::as_ref(element.borrow().into_c_const()).unwrap();
+            assert!(
+                !vector
+                    .get_unchecked()
+                    .typecheck_equals(other.get_unchecked())
+            );
+
+            cass_data_type_free(vector_type);
+            cass_data_type_free(element);
+        }
+    }
+
+    /// A vector's element type has to name all of its own subtypes. A missing
+    /// one cannot be treated as a wildcard, the way it is for a collection or
+    /// a tuple, because a vector's elements are written according to their
+    /// type.
+    #[test]
+    fn test_vector_data_type_requires_a_fully_typed_element() {
+        unsafe {
+            /// Builds a data type and returns whether a vector of it can be created.
+            unsafe fn accepts(
+                build: impl FnOnce() -> CassOwnedSharedPtr<CassDataType, CMut>,
+            ) -> bool {
+                unsafe {
+                    let element_type = build();
+                    let vector_type =
+                        cass_data_type_new_vector(element_type.borrow().into_c_const(), 2);
+                    let accepted = ArcFFI::as_ref(vector_type.borrow().into_c_const()).is_some();
+                    cass_data_type_free(vector_type);
+                    cass_data_type_free(element_type);
+                    accepted
+                }
+            }
+
+            /// Builds a data type of `value_type` and adds `sub_types` to it.
+            unsafe fn with_sub_types(
+                value_type: CassValueType,
+                sub_types: &[CassValueType],
+            ) -> CassOwnedSharedPtr<CassDataType, CMut> {
+                unsafe {
+                    let data_type = cass_data_type_new(value_type);
+                    for sub_type in sub_types {
+                        assert_cass_error_eq!(
+                            cass_data_type_add_sub_value_type(data_type.borrow(), *sub_type),
+                            CassError::CASS_OK
+                        );
+                    }
+                    data_type
+                }
+            }
+
+            use CassValueType as V;
+
+            // Element types that name nothing, or not all of their subtypes.
+            let wrongly_accepted: Vec<&str> = [
+                ("list<?>", V::CASS_VALUE_TYPE_LIST),
+                ("set<?>", V::CASS_VALUE_TYPE_SET),
+                ("map<?, ?>", V::CASS_VALUE_TYPE_MAP),
+            ]
+            .into_iter()
+            .filter(|(_, value_type)| accepts(|| with_sub_types(*value_type, &[])))
+            .map(|(name, _)| name)
+            .collect();
+            assert!(
+                wrongly_accepted.is_empty(),
+                "wrongly accepted: {wrongly_accepted:?}"
+            );
+
+            // A map with only its key type is not fully typed either.
+            assert!(!accepts(|| with_sub_types(
+                V::CASS_VALUE_TYPE_MAP,
+                &[V::CASS_VALUE_TYPE_INT]
+            )));
+            // Neither is an empty tuple or UDT.
+            assert!(!accepts(|| cass_data_type_new_tuple(1)));
+            assert!(!accepts(|| cass_data_type_new_udt(1)));
+            // Nor a custom type. The driver cannot compare two custom types, so
+            // a vector of one would abort the caller when it is typechecked. A
+            // class name does not help: it describes nothing the driver can use.
+            assert!(!accepts(|| cass_data_type_new(V::CASS_VALUE_TYPE_CUSTOM)));
+            assert!(!accepts(|| {
+                let custom = cass_data_type_new(V::CASS_VALUE_TYPE_CUSTOM);
+                assert_cass_error_eq!(
+                    cass_data_type_set_class_name(
+                        custom.borrow(),
+                        CassStrNulTerminated::from_cstr(c"org.example.Foo")
+                    ),
+                    CassError::CASS_OK
+                );
+                custom
+            }));
+            // Nor a fully typed collection of a not fully typed one.
+            assert!(!accepts(|| {
+                let inner = cass_data_type_new(V::CASS_VALUE_TYPE_LIST);
+                let outer = cass_data_type_new(V::CASS_VALUE_TYPE_LIST);
+                assert_cass_error_eq!(
+                    cass_data_type_add_sub_type(outer.borrow(), inner.borrow().into_c_const()),
+                    CassError::CASS_OK
+                );
+                cass_data_type_free(inner);
+                outer
+            }));
+
+            // Fully typed element types are accepted.
+            assert!(accepts(|| with_sub_types(
+                V::CASS_VALUE_TYPE_LIST,
+                &[V::CASS_VALUE_TYPE_INT]
+            )));
+            assert!(accepts(|| with_sub_types(
+                V::CASS_VALUE_TYPE_MAP,
+                &[V::CASS_VALUE_TYPE_INT, V::CASS_VALUE_TYPE_TEXT]
+            )));
+            assert!(accepts(|| {
+                let tuple = cass_data_type_new_tuple(1);
+                assert_cass_error_eq!(
+                    cass_data_type_add_sub_value_type(tuple.borrow(), V::CASS_VALUE_TYPE_INT),
+                    CassError::CASS_OK
+                );
+                tuple
+            }));
+            assert!(accepts(|| {
+                let udt = cass_data_type_new_udt(1);
+                let field = std::ffi::CString::new("f").unwrap();
+                assert_cass_error_eq!(
+                    cass_data_type_add_sub_value_type_by_name(
+                        udt.borrow(),
+                        CassStrNulTerminated::from_raw(field.as_ptr()),
+                        V::CASS_VALUE_TYPE_INT
+                    ),
+                    CassError::CASS_OK
+                );
+                udt
+            }));
+            // A vector of vectors: the inner one is fully typed by construction.
+            assert!(accepts(|| {
+                let element = cass_data_type_new(V::CASS_VALUE_TYPE_FLOAT);
+                let inner = cass_data_type_new_vector(element.borrow().into_c_const(), 2);
+                cass_data_type_free(element);
+                inner
+            }));
+        }
+    }
 
     /// Builds the data type that a user gets from result metadata.
     fn from_metadata(column_type: ColumnType) -> CassDataType {

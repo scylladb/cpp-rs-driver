@@ -885,7 +885,7 @@ mod tests {
             cass_execution_profile_free, cass_execution_profile_new,
             cass_statement_set_execution_profile, cass_statement_set_execution_profile_n,
         },
-        future::cass_future_error_code,
+        future::{cass_future_error_code, cass_future_free},
         statements::batch::{
             CassBatchType, cass_batch_add_statement, cass_batch_free, cass_batch_new,
         },
@@ -1124,16 +1124,15 @@ mod tests {
                     );
 
                     // Make a query - this should resolve the profile.
+                    let fut = cass_session_execute(
+                        session_raw.borrow(),
+                        statement_raw.borrow().into_c_const(),
+                    );
                     assert_cass_error_eq!(
-                        cass_future_error_code(
-                            cass_session_execute(
-                                session_raw.borrow(),
-                                statement_raw.borrow().into_c_const()
-                            )
-                            .borrow()
-                        ),
+                        cass_future_error_code(fut.borrow()),
                         CassError::CASS_ERROR_SERVER_WRITE_FAILURE
                     );
+                    cass_future_free(fut);
                     assert!(
                         statement
                             .exec_profile
@@ -1145,16 +1144,15 @@ mod tests {
                             .as_handle()
                             .is_some()
                     );
+                    let fut = cass_session_execute_batch(
+                        session_raw.borrow(),
+                        batch_raw.borrow().into_c_const(),
+                    );
                     assert_cass_error_eq!(
-                        cass_future_error_code(
-                            cass_session_execute_batch(
-                                session_raw.borrow(),
-                                batch_raw.borrow().into_c_const(),
-                            )
-                            .borrow()
-                        ),
+                        cass_future_error_code(fut.borrow()),
                         CassError::CASS_ERROR_SERVER_WRITE_FAILURE
                     );
+                    cass_future_free(fut);
                     assert!(
                         batch
                             .exec_profile
@@ -1234,16 +1232,15 @@ mod tests {
                     );
 
                     // So when we now issue a query, it should end with error and leave exec_profile_handle uninitialised.
+                    let fut = cass_session_execute(
+                        session_raw.borrow(),
+                        statement_raw.borrow().into_c_const(),
+                    );
                     assert_cass_error_eq!(
-                        cass_future_error_code(
-                            cass_session_execute(
-                                session_raw.borrow(),
-                                statement_raw.borrow().into_c_const()
-                            )
-                            .borrow()
-                        ),
+                        cass_future_error_code(fut.borrow()),
                         CassError::CASS_ERROR_LIB_EXECUTION_PROFILE_INVALID
                     );
+                    cass_future_free(fut);
                     assert_eq!(
                         statement
                             .exec_profile
@@ -1256,16 +1253,15 @@ mod tests {
                             .unwrap(),
                         &nonexisting_name.to_owned().try_into().unwrap()
                     );
+                    let fut = cass_session_execute_batch(
+                        session_raw.borrow(),
+                        batch_raw.borrow().into_c_const(),
+                    );
                     assert_cass_error_eq!(
-                        cass_future_error_code(
-                            cass_session_execute_batch(
-                                session_raw.borrow(),
-                                batch_raw.borrow().into_c_const()
-                            )
-                            .borrow()
-                        ),
+                        cass_future_error_code(fut.borrow()),
                         CassError::CASS_ERROR_LIB_EXECUTION_PROFILE_INVALID
                     );
+                    cass_future_free(fut);
                     assert_eq!(
                         batch
                             .exec_profile
