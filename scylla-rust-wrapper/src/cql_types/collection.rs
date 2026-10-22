@@ -359,6 +359,7 @@ mod tests {
                     cass_collection_append_float(untyped_map.borrow_mut(), 42.42),
                     CassError::CASS_OK
                 );
+                ArcFFI::free(dt_ptr);
                 cass_collection_free(untyped_map);
             }
 
@@ -398,6 +399,7 @@ mod tests {
                     cass_collection_append_double(half_typed_map.borrow_mut(), 42.42),
                     CassError::CASS_OK
                 );
+                ArcFFI::free(dt_ptr);
                 cass_collection_free(half_typed_map);
             }
 
@@ -480,6 +482,7 @@ mod tests {
                     cass_collection_append_int16(untyped_set.borrow_mut(), 42),
                     CassError::CASS_OK
                 );
+                ArcFFI::free(dt_ptr);
                 cass_collection_free(untyped_set);
             }
 
@@ -540,6 +543,7 @@ mod tests {
                     cass_collection_append_int16(untyped_list.borrow_mut(), 42),
                     CassError::CASS_OK
                 );
+                ArcFFI::free(dt_ptr);
                 cass_collection_free(untyped_list);
             }
 
@@ -585,7 +589,8 @@ mod tests {
             // Previously, this would fail, because `empty_list_dt` did not originate from an Arc allocation.
             cass_data_type_add_sub_type(empty_set_dt.borrow(), empty_list_dt);
 
-            cass_data_type_free(empty_set_dt)
+            cass_data_type_free(empty_set_dt);
+            cass_collection_free(empty_list);
         }
     }
 
