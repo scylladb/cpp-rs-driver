@@ -142,7 +142,7 @@ mod tests {
         },
     };
 
-    use super::{cass_tuple_data_type, cass_tuple_new};
+    use super::{cass_tuple_data_type, cass_tuple_free, cass_tuple_new};
 
     #[test]
     fn regression_empty_tuple_data_type_test() {
@@ -160,7 +160,8 @@ mod tests {
             // Previously, this would fail, because `empty_tuple_dt` did not originate from an Arc allocation.
             cass_data_type_add_sub_type(empty_set_dt.borrow(), empty_tuple_dt);
 
-            cass_data_type_free(empty_set_dt)
+            cass_data_type_free(empty_set_dt);
+            cass_tuple_free(empty_tuple);
         }
     }
 }
