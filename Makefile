@@ -57,6 +57,7 @@ SCYLLA_TEST_FILTER := $(subst ${SPACE},${EMPTY},ClusterTests.*\
 :MetricsTests.*\
 :DcAwarePolicyTest.*\
 :AsyncTests.*\
+:VectorTests.*\
 :-SchemaMetadataTest.Integration_Cassandra_RegularMetadataNotMarkedVirtual\
 :SchemaMetadataTest.Integration_Cassandra_VirtualMetadata\
 :HeartbeatTests.Integration_Cassandra_HeartbeatFailed\
@@ -116,6 +117,7 @@ CASSANDRA_TEST_FILTER := $(subst ${SPACE},${EMPTY},ClusterTests.*\
 :MetricsTests.*\
 :DcAwarePolicyTest.*\
 :AsyncTests.*\
+:VectorTests.*\
 :-PreparedTests.Integration_Cassandra_FailFastWhenPreparedIDChangesDuringReprepare\
 :SchemaMetadataTest.Integration_Cassandra_RegularMetadataNotMarkedVirtual\
 :SchemaMetadataTest.Integration_Cassandra_VirtualMetadata\
@@ -169,6 +171,7 @@ SCYLLA_EXAMPLES_TO_RUN := \
 	tuple \
 	udt \
 	uuids \
+	vector_insert_select \
 
 	# auth <- unimplemented `cass_cluster_set_authenticator_callbacks()`
 	# host_listener <- never terminates by design; loops forever listening to events.
