@@ -1,13 +1,18 @@
 use std::{
+    collections::HashMap,
     ffi::c_void,
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
 };
 
 use rusty_fork::rusty_fork_test;
 use scylla::errors::DbError;
-use scylla_cql::Consistency;
+use scylla_cql::{Consistency, frame::request::options, frame::types};
 use scylla_proxy::{
-    Condition, ProxyError, RequestOpcode, RequestReaction, RequestRule, RunningProxy, WorkerError,
+    Condition, ProxyError, Reaction as _, RequestFrame, RequestOpcode, RequestReaction,
+    RequestRule, ResponseFrame, RunningProxy, WorkerError,
 };
 use scylladb::{
     api::{
@@ -17,8 +22,9 @@ use scylladb::{
         },
         cluster::{
             cass_cluster_free, cass_cluster_new, cass_cluster_set_client_id,
-            cass_cluster_set_contact_points, cass_cluster_set_execution_profile,
-            cass_cluster_set_latency_aware_routing, cass_cluster_set_retry_policy,
+            cass_cluster_set_contact_points, cass_cluster_set_driver_config_reporting,
+            cass_cluster_set_execution_profile, cass_cluster_set_latency_aware_routing,
+            cass_cluster_set_retry_policy,
         },
         error::CassError,
         execution_profile::{
@@ -49,6 +55,7 @@ use scylladb::{
     },
     types::cass_bool_t,
 };
+use tokio::sync::mpsc;
 use tracing::instrument::WithSubscriber as _;
 
 use crate::utils::{
@@ -56,6 +63,141 @@ use crate::utils::{
     handshake_rules, make_c_str, mock_init_rules, proxy_uris_to_contact_points, setup_tracing,
     test_with_3_node_dry_mode_cluster,
 };
+
+fn driver_config_startup_rules(
+    startup_tx: mpsc::UnboundedSender<(RequestFrame, Option<u16>)>,
+) -> impl IntoIterator<Item = RequestRule> {
+    [
+        RequestRule(
+            Condition::RequestOpcode(RequestOpcode::Options),
+            RequestReaction::forge_response(Arc::new(move |frame: RequestFrame| {
+                ResponseFrame::forged_supported(frame.params, &HashMap::new()).unwrap()
+            })),
+        ),
+        RequestRule(
+            Condition::RequestOpcode(RequestOpcode::Startup),
+            RequestReaction::forge_response(Arc::new(move |frame: RequestFrame| {
+                ResponseFrame::forged_ready(frame.params)
+            }))
+            .with_feedback_when_performed(startup_tx),
+        ),
+        RequestRule(
+            Condition::RequestOpcode(RequestOpcode::Register),
+            RequestReaction::forge_response(Arc::new(move |frame: RequestFrame| {
+                ResponseFrame::forged_ready(frame.params)
+            })),
+        ),
+        RequestRule(
+            Condition::any([
+                Condition::RequestOpcode(RequestOpcode::Query),
+                Condition::RequestOpcode(RequestOpcode::Execute),
+                Condition::RequestOpcode(RequestOpcode::Prepare),
+                Condition::RequestOpcode(RequestOpcode::Batch),
+            ]),
+            RequestReaction::forge().server_error(),
+        ),
+    ]
+}
+
+#[tokio::test]
+#[ntest::timeout(30000)]
+async fn driver_config_is_reported_once_and_can_be_disabled() {
+    for reporting_enabled in [true, false] {
+        let (startup_tx, startup_rx) = mpsc::unbounded_channel();
+        let res = test_with_3_node_dry_mode_cluster(
+            move || driver_config_startup_rules(startup_tx.clone()),
+            move |proxy_uris, proxy| {
+                driver_config_is_reported_once_and_can_be_disabled_do(
+                    proxy_uris,
+                    proxy,
+                    startup_rx,
+                    reporting_enabled,
+                )
+            },
+        )
+        .with_current_subscriber()
+        .await;
+
+        match res {
+            Ok(()) => (),
+            Err(ProxyError::Worker(WorkerError::DriverDisconnected(_))) => (),
+            Err(err) => panic!("{err}"),
+        }
+    }
+}
+
+fn driver_config_is_reported_once_and_can_be_disabled_do(
+    proxy_uris: [String; 3],
+    proxy: RunningProxy,
+    mut startup_rx: mpsc::UnboundedReceiver<(RequestFrame, Option<u16>)>,
+    reporting_enabled: bool,
+) -> RunningProxy {
+    unsafe {
+        let mut cluster_raw = cass_cluster_new();
+        let contact_point = proxy_uris[0].split_once(':').unwrap().0;
+        let contact_point = std::ffi::CString::new(contact_point).unwrap();
+        assert_cass_error_eq(
+            cass_cluster_set_contact_points(
+                cluster_raw.borrow_mut(),
+                CassStrNulTerminated::from_raw(contact_point.as_ptr()),
+            ),
+            CassError::CASS_OK,
+        );
+        cass_cluster_set_driver_config_reporting(
+            cluster_raw.borrow_mut(),
+            reporting_enabled as cass_bool_t,
+        );
+
+        let session_raw = cass_session_new();
+        cass_future_wait_check_and_free(cass_session_connect(
+            session_raw.borrow(),
+            cluster_raw.borrow().into_c_const(),
+        ));
+
+        // One control connection and one pool connection to the only contact point.
+        let startup_options = (0..2)
+            .map(|_| {
+                let (frame, _shard) = startup_rx
+                    .blocking_recv()
+                    .expect("STARTUP feedback channel closed");
+                types::read_string_map(&mut &*frame.body).unwrap()
+            })
+            .collect::<Vec<_>>();
+
+        let session_ids = startup_options
+            .iter()
+            .map(|startup| {
+                startup
+                    .get(options::SESSION_ID)
+                    .expect("STARTUP frame omitted SESSION_ID")
+            })
+            .collect::<Vec<_>>();
+        assert!(!session_ids[0].is_empty());
+        assert!(session_ids.iter().all(|id| *id == session_ids[0]));
+
+        let reports = startup_options
+            .iter()
+            .filter_map(|startup| startup.get(options::DRIVER_CONFIG))
+            .collect::<Vec<_>>();
+        if reporting_enabled {
+            assert_eq!(reports.len(), 1, "DRIVER_CONFIG must appear exactly once");
+            assert!(reports[0].len() <= 32 * 1024);
+
+            let report: serde_json::Value = serde_json::from_str(reports[0]).unwrap();
+            assert_eq!(report["version"], 1);
+            assert!(report["connection"].is_object());
+            assert!(report["control-plane"].is_object());
+            assert!(report["query"].is_object());
+        } else {
+            assert!(reports.is_empty(), "disabled DRIVER_CONFIG was reported");
+        }
+
+        cass_session_free(session_raw);
+        cass_cluster_free(cluster_raw);
+    }
+
+    proxy
+}
 
 #[tokio::test]
 #[ntest::timeout(30000)]

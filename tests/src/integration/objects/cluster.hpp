@@ -197,6 +197,17 @@ public:
   }
 
   /**
+   * Enable/Disable reporting the effective driver configuration in STARTUP
+   *
+   * @param enable True to report the configuration; false otherwise (default: true)
+   * @return Cluster object
+   */
+  Cluster& with_driver_config_reporting(bool enable = true) {
+    cass_cluster_set_driver_config_reporting(get(), enable ? cass_true : cass_false);
+    return *this;
+  }
+
+  /**
    * Set/Add a execution profile
    *
    * @param name Name for the execution profile
