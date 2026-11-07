@@ -67,7 +67,7 @@ debug = 2
 strip = "none"
 
 [lints.rust]
-unsafe-op-in-unsafe-fn = "warn"
+unsafe_op_in_unsafe_fn = "warn"
 unnameable_types = "warn"
 unreachable_pub = "warn"
 unexpected_cfgs = { level = "warn", check-cfg = [
