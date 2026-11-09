@@ -5,7 +5,7 @@ use std::{
 
 use rusty_fork::rusty_fork_test;
 use scylla::errors::DbError;
-use scylla_cql::Consistency;
+use scylla::statement::Consistency;
 use scylla_proxy::{
     Condition, ProxyError, RequestOpcode, RequestReaction, RequestRule, RunningProxy, WorkerError,
 };
