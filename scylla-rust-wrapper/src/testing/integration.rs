@@ -302,8 +302,15 @@ fn test_future_get_attempted_hosts() {
     let runtime = runtime_for_test();
 
     let listener = Arc::new(RecordingHistoryListener::new());
-    let future =
-        CassFuture::new_from_future(runtime, std::future::pending(), Some(listener.clone()));
+    // The future's task holds an `Arc` to the `CassFuture`. The `CassFuture` holds
+    // the runtime, and the runtime owns the task. This cycle breaks only when the
+    // task completes. So the future must complete before the test ends.
+    // See the wait at the end of the test.
+    let future = CassFuture::new_from_future(
+        runtime,
+        std::future::ready(Ok(CassResultValue::Empty)),
+        Some(listener.clone()),
+    );
 
     fn assert_attempted_hosts_eq(future: &Arc<CassFuture>, hosts: &[String]) {
         let hosts_str = unsafe { testing_future_get_attempted_hosts(ArcFFI::as_ptr(future)) };
@@ -342,6 +349,11 @@ fn test_future_get_attempted_hosts() {
             &[addr1, addr2, addr3].map(|addr| addr.ip().to_string()),
         )
     }
+
+    // The runtime is current-thread, so the task runs only while a thread waits.
+    // Wait until the task completes. This breaks the cycle, so dropping `future`
+    // also frees the runtime.
+    assert!(future.waited_result().is_ok());
 }
 
 /// A retry policy that always ignores all errors.
