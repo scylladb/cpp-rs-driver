@@ -33,6 +33,8 @@ CASSANDRA_INTEGRATION_TEST_F(TracingTests, Simple) {
 
   { // Validate tracing ID by attempting to get the associated tracing data.
     Statement statement("SELECT * FROM system_traces.sessions WHERE session_id = ?", 1);
+    // system_traces can have RF > 1 even in this single-node fixture.
+    statement.set_consistency(CASS_CONSISTENCY_LOCAL_ONE);
     statement.bind(0, tracing_id);
     Result result = session_.execute(statement);
     int retries = 0;
