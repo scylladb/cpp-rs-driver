@@ -49,8 +49,11 @@ cass_execution_profile_free(exec_profile);
 ```
 
 The cluster configuration options will be used in place of any unassigned
-options after a connection is established. Once the execution profile is added
-to a cluster configuration it is immutable and any changes made will require
+options after a connection is established, except regular consistency. An unset
+regular consistency uses `CASS_CONSISTENCY_LOCAL_QUORUM`, even when the cluster
+default was overridden. Unset serial consistency inherits the cluster setting,
+which defaults to `CASS_CONSISTENCY_LOCAL_SERIAL`. Once the execution profile is
+added to a cluster configuration it is immutable and any changes made will require
 the execution profile to be re-added before a session is connected in order for
 those settings to be available during query execution.
 

@@ -46,8 +46,8 @@ use std::time::Duration;
 use crate::cass_compression_types::CassCompressionType;
 
 // According to `cassandra.h` the defaults for
-// - consistency for statements is LOCAL_ONE,
-pub(crate) const DEFAULT_CONSISTENCY: Consistency = Consistency::LocalOne;
+// - consistency for statements is LOCAL_QUORUM,
+pub(crate) const DEFAULT_CONSISTENCY: Consistency = Consistency::LocalQuorum;
 // - serial consistency for statements is LOCAL_SERIAL. This is different from CPP Driver's ANY - see
 //   https://github.com/scylladb/cpp-rs-driver/issues/335 for context.
 const DEFAULT_SERIAL_CONSISTENCY: Option<SerialConsistency> = Some(SerialConsistency::LocalSerial);
@@ -276,9 +276,9 @@ pub unsafe extern "C" fn cass_cluster_new() -> CassOwnedExclusivePtr<CassCluster
      * #define CASS_DEFAULT_HISTOGRAM_REFRESH_INTERVAL_NO_REFRESH 0
      *
      * // Request-level defaults
-     * #define CASS_DEFAULT_CONSISTENCY CASS_CONSISTENCY_LOCAL_ONE
+     * #define CASS_DEFAULT_CONSISTENCY CASS_CONSISTENCY_LOCAL_QUORUM
      * #define CASS_DEFAULT_REQUEST_TIMEOUT_MS 12000u
-     * #define CASS_DEFAULT_SERIAL_CONSISTENCY CASS_CONSISTENCY_ANY
+     * #define CASS_DEFAULT_SERIAL_CONSISTENCY CASS_CONSISTENCY_LOCAL_SERIAL
      *
      *  Config()
      *    : port_(CASS_DEFAULT_PORT)
@@ -1824,6 +1824,67 @@ mod tests {
         convert::{TryFrom, TryInto},
         os::raw::c_char,
     };
+
+    #[tokio::test]
+    async fn test_default_and_overridden_consistency() {
+        unsafe {
+            let mut cluster_raw = cass_cluster_new();
+            let profile = BoxFFI::from_ptr(cass_execution_profile_new()).unwrap();
+
+            let cluster = BoxFFI::as_ref(cluster_raw.borrow()).unwrap();
+            let session_builder = cluster.build_session_builder().await;
+            let default_profile = session_builder
+                .config
+                .default_execution_profile_handle
+                .to_profile();
+            let named_profile = profile.clone().build(&default_profile).await;
+
+            // Explicit settings must survive building the session's default profile.
+            let set_consistency_result = cass_cluster_set_consistency(
+                cluster_raw.borrow_mut(),
+                CassConsistency::CASS_CONSISTENCY_LOCAL_ONE,
+            );
+            let set_serial_consistency_result = cass_cluster_set_serial_consistency(
+                cluster_raw.borrow_mut(),
+                CassConsistency::CASS_CONSISTENCY_SERIAL,
+            );
+            let cluster = BoxFFI::from_ptr(cluster_raw).unwrap();
+            let session_builder = cluster.build_session_builder().await;
+            let overridden_profile = session_builder
+                .config
+                .default_execution_profile_handle
+                .to_profile();
+            let inherited_profile = profile.clone().build(&overridden_profile).await;
+
+            assert_eq!(default_profile.get_consistency(), Consistency::LocalQuorum);
+            assert_eq!(
+                default_profile.get_serial_consistency(),
+                Some(SerialConsistency::LocalSerial)
+            );
+            assert_eq!(named_profile.get_consistency(), Consistency::LocalQuorum);
+            assert_eq!(
+                named_profile.get_serial_consistency(),
+                Some(SerialConsistency::LocalSerial)
+            );
+            assert_cass_error_eq!(set_consistency_result, CassError::CASS_OK);
+            assert_cass_error_eq!(set_serial_consistency_result, CassError::CASS_OK);
+            assert_eq!(overridden_profile.get_consistency(), Consistency::LocalOne);
+            assert_eq!(
+                overridden_profile.get_serial_consistency(),
+                Some(SerialConsistency::Serial)
+            );
+
+            // Named profiles retain their regular default and inherit serial consistency.
+            assert_eq!(
+                inherited_profile.get_consistency(),
+                Consistency::LocalQuorum
+            );
+            assert_eq!(
+                inherited_profile.get_serial_consistency(),
+                Some(SerialConsistency::Serial)
+            );
+        }
+    }
 
     #[test]
     fn test_local_ip_address() {
