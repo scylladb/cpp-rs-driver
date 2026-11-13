@@ -278,7 +278,7 @@ pub unsafe extern "C" fn cass_cluster_new() -> CassOwnedExclusivePtr<CassCluster
      * // Request-level defaults
      * #define CASS_DEFAULT_CONSISTENCY CASS_CONSISTENCY_LOCAL_ONE
      * #define CASS_DEFAULT_REQUEST_TIMEOUT_MS 12000u
-     * #define CASS_DEFAULT_SERIAL_CONSISTENCY CASS_CONSISTENCY_ANY
+     * #define CASS_DEFAULT_SERIAL_CONSISTENCY CASS_CONSISTENCY_LOCAL_SERIAL
      *
      *  Config()
      *    : port_(CASS_DEFAULT_PORT)

@@ -4911,7 +4911,8 @@ cass_statement_set_consistency(CassStatement* statement,
 /**
  * Sets the statement's serial consistency level.
  *
- * <b>Default:</b> Not set
+ * <b>Default:</b> Inherits the execution profile (CASS_CONSISTENCY_LOCAL_SERIAL
+ * unless overridden).
  *
  * @public @memberof CassStatement
  *
@@ -6367,8 +6368,8 @@ cass_batch_set_consistency(CassBatch* batch,
 /**
  * Sets the batch's serial consistency level.
  *
- *
- * <b>Default:</b> Not set
+ * <b>Default:</b> Inherits the execution profile (CASS_CONSISTENCY_LOCAL_SERIAL
+ * unless overridden).
  *
  * @public @memberof CassBatch
  *
