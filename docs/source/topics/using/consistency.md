@@ -11,6 +11,12 @@ The default consistency is `CASS_CONSISTENCY_LOCAL_ONE`.
 The default serial consistency for Lightweight Transactions (LWTs) is
 `CASS_CONSISTENCY_LOCAL_SERIAL`.
 
+These defaults apply to simple statements, bound prepared statements, and batches.
+Explicit cluster, execution profile, statement, or batch settings take precedence
+at their respective scopes. An execution profile whose regular consistency is
+unset uses `CASS_CONSISTENCY_LOCAL_ONE`, even when the cluster default has been
+overridden. Its unset serial consistency inherits the cluster setting.
+
 ## Consistency Levels
 
 ### Read and Write Consistency Levels

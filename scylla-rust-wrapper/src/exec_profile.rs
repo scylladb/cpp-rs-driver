@@ -371,7 +371,7 @@ pub unsafe extern "C" fn cass_execution_profile_set_consistency(
 
     match maybe_set_consistency {
         MaybeUnsetConfig::Unset(_) => {
-            // This will make the profile inherit the consistency from the cluster's default profile.
+            // This will make the profile use the hardcoded default consistency.
             // This works around the problem that the Rust Driver's API does not allow
             // unsetting the consistency in the execution profile.
             profile_builder.overrides.consistency = false;
