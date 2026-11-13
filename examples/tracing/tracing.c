@@ -41,6 +41,8 @@ const CassResult* run_tracing_query(CassSession* session, const char* query, Cas
   const CassResult* result = NULL;
   CassStatement* statement = cass_statement_new(query, 1);
 
+  /* Read trace metadata even when a single-node cluster has a higher trace replication factor. */
+  cass_statement_set_consistency(statement, CASS_CONSISTENCY_LOCAL_ONE);
   cass_statement_bind_uuid(statement, 0, tracing_id);
 
   future = cass_session_execute(session, statement);
