@@ -223,6 +223,15 @@ fn check_for_all_consistencies_and_setting_options(
         let exec_profile_name = c"test_profile".as_ptr();
         let exec_profile_name_w = CassStrNulTerminated::from_raw(exec_profile_name);
 
+        assert_cass_error_eq(
+            cass_cluster_set_execution_profile(
+                cass_cluster.borrow_mut(),
+                exec_profile_name_w.clone(),
+                cass_exec_profile.borrow_mut(),
+            ),
+            CassError::CASS_OK,
+        );
+
         {
             // Connect the session to the cluster. Use default consistency and serial consistency.
             let connect_fut =
@@ -276,18 +285,30 @@ fn check_for_all_consistencies_and_setting_options(
             cass_batch
         };
 
-        {
-            // Verify that the consistencies are set to default values.
+        // Verify defaults without a profile, with an unset named profile, and after clearing it.
+        for profile_name in [std::ptr::null(), exec_profile_name, std::ptr::null()] {
+            for statement in [
+                cass_statement_unprepared.borrow_mut(),
+                cass_statement_prepared.borrow_mut(),
+                cass_statement_prepared_from_existing.borrow_mut(),
+            ] {
+                assert_cass_error_eq(
+                    cass_statement_set_execution_profile(
+                        statement,
+                        CassStrNulTerminated::from_raw(profile_name),
+                    ),
+                    CassError::CASS_OK,
+                );
+            }
+            assert_cass_error_eq(
+                cass_batch_set_execution_profile(
+                    cass_batch.borrow_mut(),
+                    CassStrNulTerminated::from_raw(profile_name),
+                ),
+                CassError::CASS_OK,
+            );
 
-            // As per CPP Driver code:
-            // ```c++
-            // #define CASS_DEFAULT_CONSISTENCY CASS_CONSISTENCY_LOCAL_ONE
-            // #define CASS_DEFAULT_REQUEST_TIMEOUT_MS 12000u
-            // #define CASS_DEFAULT_SERIAL_CONSISTENCY CASS_CONSISTENCY_ANY
-            // ```
-            const DEFAULT_CONSISTENCY: Consistency = Consistency::LocalOne;
-            // CPP Driver's default is ANY, but Rust Driver's default (LocalSerial) is arguably more reasonable.
-            // See https://github.com/scylladb/cpp-rs-driver/issues/335 for discussion.
+            const DEFAULT_CONSISTENCY: Consistency = Consistency::LocalQuorum;
             const DEFAULT_SERIAL_CONSISTENCY: Option<SerialConsistency> =
                 Some(SerialConsistency::LocalSerial);
 
