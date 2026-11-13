@@ -6,16 +6,20 @@ respectively.
 
 ## Default consistency
 
-The default consistency is `CASS_CONSISTENCY_LOCAL_ONE`.
-
+The default read and write consistency is `CASS_CONSISTENCY_LOCAL_QUORUM`.
 The default serial consistency for Lightweight Transactions (LWTs) is
 `CASS_CONSISTENCY_LOCAL_SERIAL`.
 
 These defaults apply to simple statements, bound prepared statements, and batches.
 Explicit cluster, execution profile, statement, or batch settings take precedence
 at their respective scopes. An execution profile whose regular consistency is
-unset uses `CASS_CONSISTENCY_LOCAL_ONE`, even when the cluster default has been
+unset uses `CASS_CONSISTENCY_LOCAL_QUORUM`, even when the cluster default has been
 overridden. Its unset serial consistency inherits the cluster setting.
+
+Applications that need the previous read and write default can set
+`CASS_CONSISTENCY_LOCAL_ONE` explicitly. A local quorum requires responses from a
+majority of replicas in the local datacenter, which can affect latency and
+availability compared with `CASS_CONSISTENCY_LOCAL_ONE`.
 
 ## Consistency Levels
 

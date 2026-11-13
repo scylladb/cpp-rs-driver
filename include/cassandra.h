@@ -1873,7 +1873,7 @@ cass_cluster_set_use_beta_protocol_version(CassCluster* cluster,
 /**
  * Sets default consistency level of statement.
  *
- * <b>Default:</b> CASS_CONSISTENCY_LOCAL_ONE
+ * <b>Default:</b> CASS_CONSISTENCY_LOCAL_QUORUM
  *
  * @public @memberof CassCluster
  *
@@ -4896,7 +4896,7 @@ cass_statement_set_keyspace_n(CassStatement* statement,
 /**
  * Sets the statement's consistency level.
  *
- * <b>Default:</b> CASS_CONSISTENCY_LOCAL_ONE
+ * <b>Default:</b> CASS_CONSISTENCY_LOCAL_QUORUM
  *
  * @public @memberof CassStatement
  *
