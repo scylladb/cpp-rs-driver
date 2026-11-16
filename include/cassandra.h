@@ -1873,7 +1873,7 @@ cass_cluster_set_use_beta_protocol_version(CassCluster* cluster,
 /**
  * Sets default consistency level of statement.
  *
- * <b>Default:</b> CASS_CONSISTENCY_LOCAL_ONE
+ * <b>Default:</b> CASS_CONSISTENCY_LOCAL_QUORUM
  *
  * @public @memberof CassCluster
  *
@@ -4896,7 +4896,7 @@ cass_statement_set_keyspace_n(CassStatement* statement,
 /**
  * Sets the statement's consistency level.
  *
- * <b>Default:</b> CASS_CONSISTENCY_LOCAL_ONE
+ * <b>Default:</b> CASS_CONSISTENCY_LOCAL_QUORUM
  *
  * @public @memberof CassStatement
  *
@@ -4911,7 +4911,8 @@ cass_statement_set_consistency(CassStatement* statement,
 /**
  * Sets the statement's serial consistency level.
  *
- * <b>Default:</b> Not set
+ * <b>Default:</b> Inherits the execution profile (CASS_CONSISTENCY_LOCAL_SERIAL
+ * unless overridden).
  *
  * @public @memberof CassStatement
  *
@@ -6367,8 +6368,8 @@ cass_batch_set_consistency(CassBatch* batch,
 /**
  * Sets the batch's serial consistency level.
  *
- *
- * <b>Default:</b> Not set
+ * <b>Default:</b> Inherits the execution profile (CASS_CONSISTENCY_LOCAL_SERIAL
+ * unless overridden).
  *
  * @public @memberof CassBatch
  *

@@ -371,7 +371,7 @@ pub unsafe extern "C" fn cass_execution_profile_set_consistency(
 
     match maybe_set_consistency {
         MaybeUnsetConfig::Unset(_) => {
-            // This will make the profile inherit the consistency from the cluster's default profile.
+            // This will make the profile use the hardcoded default consistency.
             // This works around the problem that the Rust Driver's API does not allow
             // unsetting the consistency in the execution profile.
             profile_builder.overrides.consistency = false;
@@ -1348,10 +1348,7 @@ mod tests {
                 // `use_cluster_defaults_for_unset_settings`).
                 // In short, if the consistency is not set in the execution profile,
                 // the hardcoded default consistency is used instead of the default profile's consistency.
-                assert_eq!(
-                    built_profile.get_consistency(),
-                    crate::cluster::DEFAULT_CONSISTENCY
-                );
+                assert_eq!(built_profile.get_consistency(), Consistency::LocalQuorum);
 
                 assert_eq!(
                     built_profile.get_serial_consistency(),
@@ -1502,10 +1499,7 @@ mod tests {
                 // `use_cluster_defaults_for_unset_settings`).
                 // In short, if the consistency is not set in the execution profile,
                 // the hardcoded default consistency is used instead of the default profile's consistency.
-                assert_eq!(
-                    built_profile.get_consistency(),
-                    crate::cluster::DEFAULT_CONSISTENCY
-                );
+                assert_eq!(built_profile.get_consistency(), Consistency::LocalQuorum);
 
                 assert_eq!(
                     built_profile.get_serial_consistency(),
