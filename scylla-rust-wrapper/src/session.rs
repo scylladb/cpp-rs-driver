@@ -15,8 +15,7 @@ use crate::statements::batch::CassBatch;
 use crate::statements::prepared::CassPrepared;
 use crate::statements::statement::{BoundStatement, CassStatement, SimpleQueryRowSerializer};
 use scylla::client::execution_profile::ExecutionProfileHandle;
-use scylla::client::session::Session;
-use scylla::client::session_builder::SessionBuilder;
+use scylla::client::session::{Session, SessionConfig};
 use scylla::cluster::metadata::ColumnType;
 use scylla::observability::metrics::MetricsError;
 use scylla::policies::host_filter::HostFilter;
@@ -73,7 +72,7 @@ impl CassConnectedSession {
         cluster: &CassCluster,
         keyspace: Option<String>,
     ) -> CassOwnedSharedPtr<CassFuture, CMut> {
-        let session_builder = cluster.build_session_builder();
+        let session_config = cluster.build_session_config();
         let exec_profile_map = cluster.execution_profile_map().clone();
         let host_filter = cluster.build_host_filter();
         let cluster_client_id = cluster.get_client_id();
@@ -83,7 +82,7 @@ impl CassConnectedSession {
         let fut = Self::connect_fut(
             Arc::clone(&runtime),
             session,
-            session_builder,
+            session_config,
             cluster_client_id,
             exec_profile_map,
             host_filter,
@@ -101,7 +100,7 @@ impl CassConnectedSession {
     async fn connect_fut(
         runtime: Arc<Runtime>,
         session: Arc<CassSession>,
-        session_builder_fut: impl Future<Output = SessionBuilder>,
+        session_config_fut: impl Future<Output = SessionConfig>,
         cluster_client_id: Option<uuid::Uuid>,
         exec_profile_builder_map: HashMap<ExecProfileName, CassExecProfile>,
         host_filter: Arc<dyn HostFilter>,
@@ -123,11 +122,8 @@ impl CassConnectedSession {
             session_guard.client_id = cluster_client_id;
         }
 
-        let mut session_builder = session_builder_fut.await;
-        let default_profile = session_builder
-            .config
-            .default_execution_profile_handle
-            .to_profile();
+        let mut session_config = session_config_fut.await;
+        let default_profile = session_config.default_execution_profile_handle.to_profile();
 
         let mut exec_profile_map = HashMap::with_capacity(exec_profile_builder_map.len());
         for (name, builder) in exec_profile_builder_map {
@@ -148,12 +144,12 @@ impl CassConnectedSession {
                     (maybe_quoted_keyspace, false)
                 };
 
-            session_builder = session_builder.use_keyspace(unquoted_keyspace, case_sensitive);
+            session_config.used_keyspace = Some(unquoted_keyspace);
+            session_config.keyspace_case_sensitive = case_sensitive;
         }
 
-        let session = session_builder
-            .host_filter(host_filter)
-            .build()
+        session_config.host_filter = Some(host_filter);
+        let session = Session::connect(session_config)
             .await
             .map_err(|err| (err.to_cass_error(), err.msg()))?;
 
