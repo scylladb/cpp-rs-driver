@@ -6,6 +6,7 @@ The following sections describe various configuration options and performance ti
 * [Retries](retry-policies.md) - Handling transient errors and ensuring query reliability.
 * [Speculative Execution](speculative-execution.md) - Executing requests speculatively to improve performance and reduce latency.
 * [Execution Profiles](execution-profiles.md) - Grouping most common configuration settings for different execution scenarios.
+* [Client Routes Configuration](client-routes.md) - Configuring per-node proxy routes for private endpoint connections.
 * [Performance Tips](performance-tips.md) - Best practices for efficiency and how to tune the driver for optimal performance.
 * [Client Identity](client-identity.md) - Configuring the client identity visible for the server.
 
@@ -19,6 +20,7 @@ The following sections describe various configuration options and performance ti
   speculative-execution
   connection
   execution-profiles
+  client-routes
   performance-tips
   client-identity
 ```

@@ -18,6 +18,7 @@ Although optimized for ScyllaDB, the driver is also compatible with [Apache Cass
 * [Building](topics/building.md) - How to build the driver from source.
 * [Testing](topics/testing.md) - Integration testing architecture of the driver.
 * [Using The Driver](topics/using/index.md) - How to use the driver in your application.
+* [Cluster Connectivity](topics/connectivity/index.md) - Choosing how the driver reaches cluster nodes.
 * [Configuration](topics/configuration/index.md) - Various configuration options and performance tips for the driver.
 * [Security](topics/security/index.md) - Security features, such as authentication and encryption.
 * [Observability](topics/observability/index.md) - Ways to observe driver's activities and performance.
