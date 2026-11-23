@@ -265,6 +265,9 @@ pub mod index_meta {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
     #[expect(unused_imports)]
+    // Since Rust 1.100, an empty `pub use` is `unreachable_pub`. Older Rust
+    // does not report it, so `expect` would fail there.
+    #[allow(unreachable_pub)]
     pub use crate::metadata::{
         // CassIndexMeta,
         // cass_index_meta_field_by_name, UNIMPLEMENTED
@@ -280,6 +283,9 @@ pub mod function_meta {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
     #[expect(unused_imports)]
+    // Since Rust 1.100, an empty `pub use` is `unreachable_pub`. Older Rust
+    // does not report it, so `expect` would fail there.
+    #[allow(unreachable_pub)]
     pub use crate::metadata::{
         // CassFunctionMeta,
         // cass_function_meta_argument_count, UNIMPLEMENTED
@@ -301,6 +307,9 @@ pub mod aggregate_meta {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
     #[expect(unused_imports)]
+    // Since Rust 1.100, an empty `pub use` is `unreachable_pub`. Older Rust
+    // does not report it, so `expect` would fail there.
+    #[allow(unreachable_pub)]
     pub use crate::metadata::{
         // CassAggregateMeta,
         // cass_aggregate_meta_argument, UNIMPLEMENTED
@@ -340,6 +349,9 @@ pub mod authenticator {
     // Disabling rustfmt to have one item per line for better readability.
     #[rustfmt::skip]
     #[expect(unused_imports)]
+    // Since Rust 1.100, an empty `pub use` is `unreachable_pub`. Older Rust
+    // does not report it, so `expect` would fail there.
+    #[allow(unreachable_pub)]
     pub use crate::{
         // CassAuthenticator,
         // cass_authenticator_address, UNIMPLEMENTED
