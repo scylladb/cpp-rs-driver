@@ -8,6 +8,7 @@
 
 use scylla_ccm_bridge::CLUSTER_VERSION;
 
+mod client_routes;
 mod data_types;
 mod tls;
 mod vector_nesting;
